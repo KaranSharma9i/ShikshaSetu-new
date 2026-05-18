@@ -1,1 +1,1 @@
-@AGENTS.md
+@.claude\plans\initial-implementation-plan.md
