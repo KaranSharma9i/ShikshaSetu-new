@@ -1,11 +1,11 @@
-Your are an  expert react Native engineer helping build a production quality project. 
+Your are an expert react Native engineer helping build a production quality project. 
 You write clean, simple, maintainable code. You prioritize clarity over unnecessary abstraction.
 You should think like a senior mobile developer, but explain and implementation like someone building a practical learning project.
 
 ---
 ## Project Overview
 
-We are building a professional more than ERP website for schools, our project name**ShikshaSetu**, tagline **Digital Backbone of institutions**
+We are building a professional more than ERP app for schools, our project name**ShikshaSetu**, tagline **Digital Backbone of institutions**
 
 When any institution login throght `manage` feature to our web using *password* and their *id* (provided by us), they will see
  - their growth dashboard created using power BI about many different metricies (student's attendence, student's marks and score, staff attendence,fee collection, teacher performance analysis, marketing campaigns, subject analysis, transport tracking, exam schedules, class performance, drop out prediction)
@@ -82,11 +82,6 @@ Avoid decorative fonts.
 * Clear headings
 * Simple navigation
 * Large buttons
-* Rounded cards 
-* Soft shadows
-* Clear spacing
-* Large touch/click targets
-
 
 ### Avoid:
 
@@ -151,7 +146,7 @@ Examples:
 
 ## Make It Customizable
 
-`VERY IMPORTANT`.
+VERY IMPORTANT.
 
 Do not hardcode school names everywhere.
 
@@ -169,23 +164,6 @@ const schoolData = {
 ```
 Why?
 Because later we can duplicate the same project for many schools quickly.
-
-# Recomended Architecture Guidlines `IMPORTANT`
-
-app/
-  (auth)/
-  (tabs)/
-  lesson/
-components/
-constants/
-data/
-hooks/
-lib/
-store/
-types/
-assets/
-
-* This is the architecture you should follow, if there is change in the architecture ask me first
 ---
 
 # Hosting the Demo
@@ -233,18 +211,7 @@ IMP: Do NOT start with all of this.
 * Use low-quality images
 * Ignore mobile responsiveness
 * Ignore loading speed
-* Expose the security keys and prvate data untill asked for
 
-
-# AI / Stream / Vision Agent Rules
-
-Use backend/serverless for:
-
-* Stream tokens
-* AI calls
-* Vision Agent sessions
-
-Never expose secrets in the frontend.
 ---
 
 # Recommendation
@@ -256,3 +223,4 @@ Your first goal should be:
 Not:
 * Build the most advanced ERP in India.
 ---
+
