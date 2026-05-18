@@ -1,1 +1,0 @@
-@.claude\plans\initial-implementation-plan.md
