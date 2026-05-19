@@ -1,0 +1,31 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+  ],
+  presets: [require("nativewind/preset")],
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "shiksha-orange": "#F97316",
+        "shiksha-navy": "#1E3A8A",
+        "neutral-cream": "#FFF7ED",
+        "neutral-white": "#FFFFFF",
+        "neutral-charcoal": "#1F2937",
+        "neutral-steel": "#6B7280",
+        "shiksha-yellow": "#FACC15",
+        "gurukul-navy": "#1E40AF",
+      },
+      fontFamily: {
+        poppins: ["Poppins-Regular"],
+        "poppins-bold": ["Poppins-Bold"],
+        inter: ["Inter-Regular"],
+        "inter-medium": ["Inter-Medium"],
+        opensans: ["OpenSans-Regular"],
+      },
+    },
+  },
+  plugins: [],
+};
