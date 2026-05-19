@@ -9,13 +9,13 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        "shiksha-orange": "#F97316",
-        "shiksha-navy": "#1E3A8A",
+        "margam-orange": "#F97316",
+        "margam-navy": "#1E3A8A",
         "neutral-cream": "#FFF7ED",
         "neutral-white": "#FFFFFF",
         "neutral-charcoal": "#1F2937",
         "neutral-steel": "#6B7280",
-        "shiksha-yellow": "#FACC15",
+        "margam-yellow": "#FACC15",
         "gurukul-navy": "#1E40AF",
       },
       fontFamily: {

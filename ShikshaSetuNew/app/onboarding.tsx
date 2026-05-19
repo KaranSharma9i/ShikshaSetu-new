@@ -1,17 +1,11 @@
-import { useState } from "react";
-import { View, Text, Image, TouchableOpacity, SafeAreaView, ScrollView, Pressable } from "react-native";
+import { View, Text, Image, TouchableOpacity, SafeAreaView, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-
-type Role = 'Student' | 'Teacher' | 'School' | null;
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [selectedRole, setSelectedRole] = useState<Role>(null);
 
   const handleGetStarted = () => {
-    if (selectedRole) {
-      router.push(`/auth/signup?role=${selectedRole}`);
-    }
+    router.push('/auth/signup' as any);
   };
 
   return (
@@ -21,22 +15,24 @@ export default function OnboardingScreen() {
         {/* Top bar */}
         <View className="flex-row justify-between items-center p-6">
           <View className="flex-1" />
-          <TouchableOpacity onPress={() => router.push('/')}>
+          <TouchableOpacity onPress={() => router.push('/' as any)}>
             <Text className="text-neutral-steel font-inter font-medium text-base">Skip</Text>
           </TouchableOpacity>
         </View>
 
         {/* Logo and Name */}
-        <View className="items-center justify-center mt-4 mb-2">
-          <Image 
-            source={require('../assets/icon.png')}
-            style={{ width: 80, height: 80 }}
-            resizeMode="contain"
-          />
-          <Text className="text-4xl font-poppins-bold text-[#E54D2E] mt-1">
-            Shiksha<Text className="text-[#FF8300]">Setu</Text>
+        <View className="items-center justify-center mt-6 mb-2">
+          <View className="w-36 h-36 bg-white rounded-[32px] items-center justify-center shadow-md border border-orange-100/50 mb-3">
+            <Image 
+              source={require('../assets/icon.png')}
+              style={{ width: 110, height: 110 }}
+              resizeMode="contain"
+            />
+          </View>
+          <Text className="text-4xl font-poppins-bold text-margam-orange mt-1">
+            Mar<Text className="text-margam-yellow">gam</Text>
           </Text>
-          <Text className="text-[10px] font-poppins-bold tracking-widest text-[#FF8300] uppercase mt-1">
+          <Text className="text-[10px] font-poppins-bold tracking-widest text-margam-orange uppercase mt-1">
             Learn • Connect • Grow
           </Text>
         </View>
@@ -44,7 +40,7 @@ export default function OnboardingScreen() {
         {/* Welcome Text */}
         <View className="items-center px-6 mt-4">
           <Text className="text-3xl font-poppins-bold text-neutral-charcoal text-center mb-3">
-            Welcome to <Text className="text-[#FF8300]">ShikshaSetu</Text>
+            Welcome to <Text className="text-margam-orange">Margam</Text>
           </Text>
           <Text className="text-base font-inter text-neutral-steel text-center">
             Your bridge to knowledge, skills{'\n'}and a brighter future.
@@ -55,55 +51,23 @@ export default function OnboardingScreen() {
         <View className="flex-1 justify-center items-center my-4">
            <Image 
               source={require('../assets/mascot.png')}
-              style={{ width: 280, height: 280 }}
+              style={{ width: 260, height: 260, maxWidth: '90%' }}
               resizeMode="contain"
            />
         </View>
 
         {/* Bottom Card */}
-        <View className="bg-white rounded-3xl mx-4 mb-8 p-5 shadow-sm border border-gray-100">
-          <Text className="text-center font-inter text-neutral-steel text-sm mb-4">Select your role to continue</Text>
-          <View className="flex-row justify-between items-center mb-6 space-x-2">
-            
-            {/* Student Role */}
-            <Pressable 
-              onPress={() => setSelectedRole('Student')}
-              className={`flex-1 items-center justify-center p-3 rounded-2xl border transform ${selectedRole === 'Student' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100 shadow-none scale-100'}`}
-            >
-              <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'Student' ? 'bg-white/20' : 'bg-white'}`}>
-                <Text className="text-xl">🎓</Text>
-              </View>
-              <Text className={`font-poppins-bold text-[12px] leading-tight ${selectedRole === 'Student' ? 'text-white' : 'text-neutral-charcoal'}`}>Student</Text>
-            </Pressable>
-            
-            {/* Teacher Role */}
-            <Pressable 
-              onPress={() => setSelectedRole('Teacher')}
-              className={`flex-1 items-center justify-center p-3 rounded-2xl border transform ${selectedRole === 'Teacher' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100 shadow-none scale-100'}`}
-            >
-              <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'Teacher' ? 'bg-white/20' : 'bg-white'}`}>
-                <Text className="text-xl">👩‍🏫</Text>
-              </View>
-              <Text className={`font-poppins-bold text-[12px] leading-tight ${selectedRole === 'Teacher' ? 'text-white' : 'text-neutral-charcoal'}`}>Teacher</Text>
-            </Pressable>
-
-            {/* School Role */}
-            <Pressable 
-              onPress={() => setSelectedRole('School')}
-              className={`flex-1 items-center justify-center p-3 rounded-2xl border transform ${selectedRole === 'School' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100 shadow-none scale-100'}`}
-            >
-              <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'School' ? 'bg-white/20' : 'bg-white'}`}>
-                <Text className="text-xl">🏫</Text>
-              </View>
-              <Text className={`font-poppins-bold text-[12px] leading-tight ${selectedRole === 'School' ? 'text-white' : 'text-neutral-charcoal'}`}>School</Text>
-            </Pressable>
-
-          </View>
+        <View className="bg-white rounded-3xl mx-4 mb-8 p-6 shadow-sm border border-gray-100/50">
+          <Text className="text-center font-poppins-medium text-neutral-charcoal text-base mb-2">
+            Empowering institutions, teachers & students
+          </Text>
+          <Text className="text-center font-inter text-neutral-steel text-xs mb-6">
+            Join the digital learning ecosystem with ease.
+          </Text>
 
           <TouchableOpacity 
-            className={`py-4 rounded-2xl items-center flex-row justify-center ${selectedRole ? 'bg-[#FF4500]' : 'bg-gray-300'}`}
+            className="py-4 rounded-2xl items-center flex-row justify-center bg-margam-orange shadow-md active:bg-margam-orange/90"
             onPress={handleGetStarted}
-            disabled={!selectedRole}
           >
             <Text className="text-white font-poppins-bold text-lg mr-2">Get Started</Text>
             <Text className="text-white text-lg">→</Text>

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ShikshaSetuNew",
-    "slug": "ShikshaSetuNew",
+    "name": "Margam",
+    "slug": "Margam",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "shikshasetunew",
+    "scheme": "margam",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

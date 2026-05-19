@@ -187,17 +187,19 @@ export default function SigninScreen() {
           </View>
 
           {/* Logo & App Branding */}
-          <View className="items-center justify-center flex-row mt-2 mb-1">
-            <Image
-              source={require("../../assets/icon.png")}
-              style={{ width: 48, height: 48, marginRight: 8 }}
-              resizeMode="contain"
-            />
-            <Text className="text-3xl font-poppins-bold text-[#E54D2E]">
-              Shiksha<Text className="text-[#FF8300]">Setu</Text>
+          <View className="items-center justify-center mt-2 mb-2">
+            <View className="w-24 h-24 bg-white rounded-2xl items-center justify-center shadow-sm border border-orange-100/30 mb-2">
+              <Image
+                source={require("../../assets/icon.png")}
+                style={{ width: 72, height: 72 }}
+                resizeMode="contain"
+              />
+            </View>
+            <Text className="text-3xl font-poppins-bold text-margam-orange">
+              Mar<Text className="text-margam-yellow">gam</Text>
             </Text>
           </View>
-          <Text className="text-center font-poppins text-[10px] uppercase tracking-widest text-[#FF8300] font-bold mb-4">
+          <Text className="text-center font-poppins text-[10px] uppercase tracking-widest text-margam-orange font-bold mb-4">
             Learn • Connect • Grow
           </Text>
 
@@ -213,10 +215,10 @@ export default function SigninScreen() {
 
           {/* Mascot Section */}
           <View className="items-center justify-center mt-2 relative">
-            <View style={{ width: 192, height: 192, borderRadius: 96, backgroundColor: '#FFF4E5', position: 'absolute', opacity: 0.7 }} />
+            <View style={{ width: 180, height: 180, borderRadius: 90, backgroundColor: '#FFF4E5', position: 'absolute', opacity: 0.7 }} />
             <Image
               source={require("../../assets/mascot.png")}
-              style={{ width: 208, height: 208 }}
+              style={{ width: 190, height: 190, maxWidth: '80%' }}
               resizeMode="contain"
             />
           </View>
@@ -344,7 +346,7 @@ export default function SigninScreen() {
             <Text className="font-inter text-neutral-steel text-sm">
               Don't have an account?{" "}
             </Text>
-            <TouchableOpacity onPress={() => router.push(`/auth/signup?role=${role || ""}`)}>
+            <TouchableOpacity onPress={() => router.push(`/auth/signup?role=${role || ""}` as any)}>
               <Text className="font-poppins-bold text-[#FF5E00] text-sm">
                 Sign Up
               </Text>
