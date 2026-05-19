@@ -68,7 +68,7 @@ export default function OnboardingScreen() {
             {/* Student Role */}
             <Pressable 
               onPress={() => setSelectedRole('Student')}
-              className={`flex-1 items-center justify-center p-3 rounded-2xl border ${selectedRole === 'Student' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100'}`}
+              className={`flex-1 items-center justify-center p-3 rounded-2xl border transform ${selectedRole === 'Student' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100 shadow-none scale-100'}`}
             >
               <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'Student' ? 'bg-white/20' : 'bg-white'}`}>
                 <Text className="text-xl">🎓</Text>
@@ -79,7 +79,7 @@ export default function OnboardingScreen() {
             {/* Teacher Role */}
             <Pressable 
               onPress={() => setSelectedRole('Teacher')}
-              className={`flex-1 items-center justify-center p-3 rounded-2xl border ${selectedRole === 'Teacher' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100'}`}
+              className={`flex-1 items-center justify-center p-3 rounded-2xl border transform ${selectedRole === 'Teacher' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100 shadow-none scale-100'}`}
             >
               <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'Teacher' ? 'bg-white/20' : 'bg-white'}`}>
                 <Text className="text-xl">👩‍🏫</Text>
@@ -90,7 +90,7 @@ export default function OnboardingScreen() {
             {/* School Role */}
             <Pressable 
               onPress={() => setSelectedRole('School')}
-              className={`flex-1 items-center justify-center p-3 rounded-2xl border ${selectedRole === 'School' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100'}`}
+              className={`flex-1 items-center justify-center p-3 rounded-2xl border transform ${selectedRole === 'School' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100 shadow-none scale-100'}`}
             >
               <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'School' ? 'bg-white/20' : 'bg-white'}`}>
                 <Text className="text-xl">🏫</Text>
