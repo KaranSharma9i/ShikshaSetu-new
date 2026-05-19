@@ -9,12 +9,8 @@ export default function OnboardingScreen() {
   const [selectedRole, setSelectedRole] = useState<Role>(null);
 
   const handleGetStarted = () => {
-    if (selectedRole === 'Student') {
-      router.push("/auth/student");
-    } else if (selectedRole === 'Teacher') {
-      router.push("/auth/teacher");
-    } else if (selectedRole === 'School') {
-      router.push("/auth/school");
+    if (selectedRole) {
+      router.push(`/auth/signup?role=${selectedRole}`);
     }
   };
 
@@ -31,17 +27,18 @@ export default function OnboardingScreen() {
         </View>
 
         {/* Logo and Name */}
-        <View className="items-center justify-center flex-row mb-6 mt-4">
+        <View className="items-center justify-center mt-4 mb-2">
           <Image 
             source={require('../assets/icon.png')}
-            className="w-16 h-16 mr-3"
+            style={{ width: 80, height: 80 }}
             resizeMode="contain"
           />
-          <View>
-            <Text className="text-4xl font-poppins-bold text-[#E54D2E]">
-              Shiksha<Text className="text-[#FF8300]">Setu</Text>
-            </Text>
-          </View>
+          <Text className="text-4xl font-poppins-bold text-[#E54D2E] mt-1">
+            Shiksha<Text className="text-[#FF8300]">Setu</Text>
+          </Text>
+          <Text className="text-[10px] font-poppins-bold tracking-widest text-[#FF8300] uppercase mt-1">
+            Learn • Connect • Grow
+          </Text>
         </View>
 
         {/* Welcome Text */}
@@ -58,7 +55,7 @@ export default function OnboardingScreen() {
         <View className="flex-1 justify-center items-center my-4">
            <Image 
               source={require('../assets/mascot.png')}
-              className="w-72 h-72"
+              style={{ width: 280, height: 280 }}
               resizeMode="contain"
            />
         </View>
