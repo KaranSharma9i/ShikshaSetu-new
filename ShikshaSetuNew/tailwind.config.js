@@ -20,6 +20,8 @@ module.exports = {
       },
       fontFamily: {
         poppins: ["Poppins-Regular"],
+        "poppins-medium": ["Poppins-Medium"],
+        "poppins-semibold": ["Poppins-SemiBold"],
         "poppins-bold": ["Poppins-Bold"],
         inter: ["Inter-Regular"],
         "inter-medium": ["Inter-Medium"],

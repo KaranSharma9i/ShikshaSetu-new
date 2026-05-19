@@ -1,8 +1,18 @@
-import { View, Text, Image, TouchableOpacity, SafeAreaView, ScrollView } from "react-native";
+import { useState } from "react";
+import { View, Text, Image, TouchableOpacity, SafeAreaView, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+
+type Role = 'Student' | 'Teacher' | 'School' | null;
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const [selectedRole, setSelectedRole] = useState<Role>(null);
+
+  const handleGetStarted = () => {
+    if (selectedRole) {
+      router.push(`/auth/signup?role=${selectedRole}`);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDF9F1]">
@@ -17,17 +27,18 @@ export default function OnboardingScreen() {
         </View>
 
         {/* Logo and Name */}
-        <View className="items-center justify-center flex-row mb-6 mt-4">
+        <View className="items-center justify-center mt-4 mb-2">
           <Image 
             source={require('../assets/icon.png')}
-            className="w-16 h-16 mr-3"
+            style={{ width: 80, height: 80 }}
             resizeMode="contain"
           />
-          <View>
-            <Text className="text-4xl font-poppins-bold text-[#E54D2E]">
-              Shiksha<Text className="text-[#FF8300]">Setu</Text>
-            </Text>
-          </View>
+          <Text className="text-4xl font-poppins-bold text-[#E54D2E] mt-1">
+            Shiksha<Text className="text-[#FF8300]">Setu</Text>
+          </Text>
+          <Text className="text-[10px] font-poppins-bold tracking-widest text-[#FF8300] uppercase mt-1">
+            Learn • Connect • Grow
+          </Text>
         </View>
 
         {/* Welcome Text */}
@@ -44,48 +55,55 @@ export default function OnboardingScreen() {
         <View className="flex-1 justify-center items-center my-4">
            <Image 
               source={require('../assets/mascot.png')}
-              className="w-72 h-72"
+              style={{ width: 280, height: 280 }}
               resizeMode="contain"
            />
         </View>
 
         {/* Bottom Card */}
         <View className="bg-white rounded-3xl mx-4 mb-8 p-5 shadow-sm border border-gray-100">
-          <View className="flex-row justify-between items-center mb-6">
-            <View className="flex-1 items-center flex-row justify-center border-r border-gray-100 pr-1">
-              <View className="bg-orange-50 w-8 h-8 rounded-full items-center justify-center mr-1">
-                <Text className="text-orange-500 text-sm">📖</Text>
-              </View>
-              <View className="flex-shrink">
-                <Text className="font-poppins-bold text-[11px] text-neutral-charcoal leading-tight" numberOfLines={1}>Learn</Text>
-                <Text className="font-inter text-[9px] text-neutral-steel leading-tight" numberOfLines={1}>New Skills</Text>
-              </View>
-            </View>
+          <Text className="text-center font-inter text-neutral-steel text-sm mb-4">Select your role to continue</Text>
+          <View className="flex-row justify-between items-center mb-6 space-x-2">
             
-            <View className="flex-1 items-center flex-row justify-center border-r border-gray-100 px-1">
-              <View className="bg-orange-50 w-8 h-8 rounded-full items-center justify-center mr-1">
-                <Text className="text-orange-500 text-sm">👥</Text>
+            {/* Student Role */}
+            <Pressable 
+              onPress={() => setSelectedRole('Student')}
+              className={`flex-1 items-center justify-center p-3 rounded-2xl border ${selectedRole === 'Student' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100'}`}
+            >
+              <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'Student' ? 'bg-white/20' : 'bg-white'}`}>
+                <Text className="text-xl">🎓</Text>
               </View>
-              <View className="flex-shrink">
-                <Text className="font-poppins-bold text-[11px] text-neutral-charcoal leading-tight" numberOfLines={1}>Connect</Text>
-                <Text className="font-inter text-[9px] text-neutral-steel leading-tight" numberOfLines={1}>Community</Text>
+              <Text className={`font-poppins-bold text-[12px] leading-tight ${selectedRole === 'Student' ? 'text-white' : 'text-neutral-charcoal'}`}>Student</Text>
+            </Pressable>
+            
+            {/* Teacher Role */}
+            <Pressable 
+              onPress={() => setSelectedRole('Teacher')}
+              className={`flex-1 items-center justify-center p-3 rounded-2xl border ${selectedRole === 'Teacher' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100'}`}
+            >
+              <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'Teacher' ? 'bg-white/20' : 'bg-white'}`}>
+                <Text className="text-xl">👩‍🏫</Text>
               </View>
-            </View>
+              <Text className={`font-poppins-bold text-[12px] leading-tight ${selectedRole === 'Teacher' ? 'text-white' : 'text-neutral-charcoal'}`}>Teacher</Text>
+            </Pressable>
 
-            <View className="flex-1 items-center flex-row justify-center pl-1">
-              <View className="bg-orange-50 w-8 h-8 rounded-full items-center justify-center mr-1">
-                <Text className="text-orange-500 text-sm">📈</Text>
+            {/* School Role */}
+            <Pressable 
+              onPress={() => setSelectedRole('School')}
+              className={`flex-1 items-center justify-center p-3 rounded-2xl border ${selectedRole === 'School' ? 'bg-[#FF4500] border-[#FF4500] shadow-md scale-105' : 'bg-[#FDF9F1] border-gray-100'}`}
+            >
+              <View className={`w-10 h-10 rounded-full items-center justify-center mb-2 ${selectedRole === 'School' ? 'bg-white/20' : 'bg-white'}`}>
+                <Text className="text-xl">🏫</Text>
               </View>
-              <View className="flex-shrink">
-                <Text className="font-poppins-bold text-[11px] text-neutral-charcoal leading-tight" numberOfLines={1}>Grow</Text>
-                <Text className="font-inter text-[9px] text-neutral-steel leading-tight" numberOfLines={1}>Your Future</Text>
-              </View>
-            </View>
+              <Text className={`font-poppins-bold text-[12px] leading-tight ${selectedRole === 'School' ? 'text-white' : 'text-neutral-charcoal'}`}>School</Text>
+            </Pressable>
+
           </View>
 
           <TouchableOpacity 
-            className="bg-[#FF4500] py-4 rounded-2xl items-center flex-row justify-center"
-            onPress={() => router.push('/')}
+            className={`py-4 rounded-2xl items-center flex-row justify-center ${selectedRole ? 'bg-[#FF4500]' : 'bg-gray-300'}`}
+            onPress={handleGetStarted}
+            disabled={!selectedRole}
           >
             <Text className="text-white font-poppins-bold text-lg mr-2">Get Started</Text>
             <Text className="text-white text-lg">→</Text>
