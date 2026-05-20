@@ -8,36 +8,42 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
+import { useSignUp, useAuth } from "@clerk/expo";
 
 export default function SignupScreen() {
   const router = useRouter();
   const { role } = useLocalSearchParams<{ role?: string }>();
+  const { signUp } = useSignUp();
+  const { isLoaded } = useAuth();
 
   // Form State
-  const [activeTab, setActiveTab] = useState<"email" | "phone">("email");
-  const [inputValue, setInputValue] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // OTP Modal State
   const [isOtpVisible, setIsOtpVisible] = useState(false);
-  const [otpCode, setOtpCode] = useState(["", "", "", ""]);
+  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  // References for OTP inputs to manage focus
+  // References for 6-Digit OTP inputs to manage focus
   const o1 = useRef<TextInput>(null);
   const o2 = useRef<TextInput>(null);
   const o3 = useRef<TextInput>(null);
   const o4 = useRef<TextInput>(null);
-  const refs = [o1, o2, o3, o4];
+  const o5 = useRef<TextInput>(null);
+  const o6 = useRef<TextInput>(null);
+  const refs = [o1, o2, o3, o4, o5, o6];
 
   // Countdown timer effect for OTP resend
   useEffect(() => {
@@ -50,45 +56,72 @@ export default function SignupScreen() {
     return () => clearInterval(interval);
   }, [isOtpVisible, timer]);
 
-  const handleTabChange = (tab: "email" | "phone") => {
-    setActiveTab(tab);
-    setInputValue("");
-    setError("");
-  };
+  if (!isLoaded) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#FDF9F1] justify-center items-center">
+        <ActivityIndicator size="large" color="#FF5E00" />
+      </SafeAreaView>
+    );
+  }
 
   const validateInput = () => {
-    if (!inputValue.trim()) {
-      setError(
-        activeTab === "email"
-          ? "Please enter your email address"
-          : "Please enter your mobile number"
-      );
+    if (!emailAddress.trim()) {
+      setError("Please enter your email address");
       return false;
     }
-
-    if (activeTab === "email") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(inputValue.trim())) {
-        setError("Please enter a valid email address");
-        return false;
-      }
-    } else {
-      const phoneRegex = /^[0-9]{10}$/;
-      if (!phoneRegex.test(inputValue.replace(/\D/g, ""))) {
-        setError("Please enter a valid 10-digit mobile number");
-        return false;
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailAddress.trim())) {
+      setError("Please enter a valid email address");
+      return false;
     }
-
+    if (!password) {
+      setError("Please enter your password");
+      return false;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return false;
+    }
     setError("");
     return true;
   };
 
-  const handleGetOtp = () => {
-    if (validateInput()) {
+  const handleSignUpSubmit = async () => {
+    if (!validateInput()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      // Create user
+      const { error: signUpError } = await signUp.password({
+        emailAddress,
+        password,
+      });
+
+      if (signUpError) {
+        setError(signUpError.message || "Something went wrong during sign up.");
+        return;
+      }
+
+      // Send email verification code
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        setError(sendError.message || "Failed to send verification email.");
+        return;
+      }
+
       setTimer(45);
-      setOtpCode(["", "", "", ""]);
+      setOtpCode(["", "", "", "", "", ""]);
+      setModalError("");
       setIsOtpVisible(true);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Something went wrong during sign up.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,7 +132,7 @@ export default function SignupScreen() {
     setOtpCode(newOtp);
 
     // Auto-focus next input
-    if (cleanedText && index < 3) {
+    if (cleanedText && index < 5) {
       refs[index + 1].current?.focus();
     }
   };
@@ -113,34 +146,65 @@ export default function SignupScreen() {
     }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     const code = otpCode.join("");
-    if (code.length < 4) {
+    if (code.length < 6) {
       return;
     }
 
     setIsVerifying(true);
+    setModalError("");
 
-    // Simulate OTP verification API call
-    setTimeout(() => {
+    try {
+      const { error: verifyError } = await signUp.verifications.verifyEmailCode({
+        code,
+      });
+
+      if (verifyError) {
+        setModalError(verifyError.message || "Invalid verification code.");
+        return;
+      }
+
+      if (signUp.status === "complete") {
+        setVerificationSuccess(true);
+
+        setTimeout(async () => {
+          await signUp.finalize({
+            navigate: ({ decorateUrl }) => {
+              const url = decorateUrl("/");
+              setIsOtpVisible(false);
+              setVerificationSuccess(false);
+              router.replace(url as any);
+            },
+          });
+        }, 1500);
+      } else {
+        console.error("Sign-up attempt not complete:", signUp);
+        setModalError("Verification was not complete. Please try again.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setModalError(err?.message || "Invalid verification code.");
+    } finally {
       setIsVerifying(false);
-      setVerificationSuccess(true);
-
-      // Simulate registration complete and redirect
-      setTimeout(() => {
-        setIsOtpVisible(false);
-        setVerificationSuccess(false);
-        // Direct to Homepage index or onboarding selection
-        router.replace("/");
-      }, 1500);
-    }, 1500);
+    }
   };
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     if (timer === 0) {
-      setTimer(45);
-      setOtpCode(["", "", "", ""]);
-      o1.current?.focus();
+      try {
+        const { error: sendError } = await signUp.verifications.sendEmailCode();
+        if (sendError) {
+          setModalError(sendError.message || "Error resending code.");
+          return;
+        }
+        setTimer(45);
+        setOtpCode(["", "", "", "", "", ""]);
+        setModalError("");
+        o1.current?.focus();
+      } catch (err: any) {
+        setModalError(err?.message || "Error resending code.");
+      }
     }
   };
 
@@ -214,7 +278,7 @@ export default function SignupScreen() {
             </Text>
           </View>
 
-          {/* Mascot Section with circle background and overlapping card */}
+          {/* Mascot Section */}
           <View className="items-center justify-center mt-2 relative">
             <View style={{ width: 180, height: 180, borderRadius: 90, backgroundColor: '#FFF4E5', position: 'absolute', opacity: 0.7 }} />
             <Image
@@ -226,93 +290,62 @@ export default function SignupScreen() {
 
           {/* Main Card */}
           <View className="bg-white rounded-3xl mx-4 my-4 p-6 shadow-md border border-orange-100/50">
-            {/* Tab Switched */}
-            <Text className="font-inter-medium text-neutral-steel text-sm mb-3">
-              Sign up with
-            </Text>
-            
-            <View className="flex-row space-x-3 mb-5">
-              <TouchableOpacity
-                onPress={() => handleTabChange("email")}
-                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border ${
-                  activeTab === "email"
-                    ? "bg-[#FFF4E5] border-[#FF8300]"
-                    : "bg-[#FDF9F1] border-gray-100"
-                }`}
-              >
-                <Feather
-                  name="mail"
-                  size={16}
-                  color={activeTab === "email" ? "#FF8300" : "#6B7280"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  className={`font-poppins-bold text-sm ${
-                    activeTab === "email" ? "text-[#FF8300]" : "text-[#6B7280]"
-                  }`}
-                >
-                  Email
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleTabChange("phone")}
-                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border ${
-                  activeTab === "phone"
-                    ? "bg-[#FFF4E5] border-[#FF8300]"
-                    : "bg-[#FDF9F1] border-gray-100"
-                }`}
-              >
-                <Feather
-                  name="phone"
-                  size={16}
-                  color={activeTab === "phone" ? "#FF8300" : "#6B7280"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  className={`font-poppins-bold text-sm ${
-                    activeTab === "phone" ? "text-[#FF8300]" : "text-[#6B7280]"
-                  }`}
-                >
-                  Phone
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Input Label & Field */}
+            {/* Input Label & Field - Email */}
             <Text className="font-poppins-bold text-neutral-charcoal text-sm mb-2">
-              {activeTab === "email" ? "Email Address" : "Mobile Number"}
+              Email Address
             </Text>
 
             <View
-              className={`flex-row items-center bg-[#FCFAFA] border px-4 py-3.5 rounded-2xl mb-1 ${
-                error ? "border-red-500" : "border-gray-200/80"
+              className={`flex-row items-center bg-[#FCFAFA] border px-4 py-3.5 rounded-2xl mb-4 ${
+                error && !emailAddress.trim() ? "border-red-500" : "border-gray-200/80"
               }`}
             >
               <Feather
-                name={activeTab === "email" ? "mail" : "phone"}
+                name="mail"
                 size={18}
                 color="#9CA3AF"
                 style={{ marginRight: 10 }}
               />
-              {activeTab === "phone" && (
-                <Text className="font-poppins-bold text-neutral-charcoal mr-2 border-r border-gray-300 pr-2">
-                  +91
-                </Text>
-              )}
               <TextInput
-                value={inputValue}
+                value={emailAddress}
                 onChangeText={(text) => {
-                  setInputValue(text);
+                  setEmailAddress(text);
                   setError("");
                 }}
-                placeholder={
-                  activeTab === "email"
-                    ? "Enter your email address"
-                    : "Enter your 10-digit mobile number"
-                }
+                placeholder="Enter your email address"
                 placeholderTextColor="#9CA3AF"
-                keyboardType={activeTab === "email" ? "email-address" : "phone-pad"}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="flex-1 font-inter text-neutral-charcoal text-[15px]"
+              />
+            </View>
+
+            {/* Input Label & Field - Password */}
+            <Text className="font-poppins-bold text-neutral-charcoal text-sm mb-2">
+              Password
+            </Text>
+
+            <View
+              className={`flex-row items-center bg-[#FCFAFA] border px-4 py-3.5 rounded-2xl mb-1 ${
+                error && !password ? "border-red-500" : "border-gray-200/80"
+              }`}
+            >
+              <Feather
+                name="lock"
+                size={18}
+                color="#9CA3AF"
+                style={{ marginRight: 10 }}
+              />
+              <TextInput
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setError("");
+                }}
+                placeholder="Enter your password (min 6 chars)"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry={true}
                 autoCapitalize="none"
                 autoCorrect={false}
                 className="flex-1 font-inter text-neutral-charcoal text-[15px]"
@@ -320,7 +353,7 @@ export default function SignupScreen() {
             </View>
 
             {error ? (
-              <Text className="text-red-500 font-inter text-xs mb-4 ml-1">
+              <Text className="text-red-500 font-inter text-xs mt-2 mb-2 ml-1">
                 {error}
               </Text>
             ) : (
@@ -329,15 +362,22 @@ export default function SignupScreen() {
 
             {/* Action CTA Button */}
             <TouchableOpacity
-              onPress={handleGetOtp}
+              onPress={handleSignUpSubmit}
+              disabled={isSubmitting}
               activeOpacity={0.9}
               className="overflow-hidden rounded-2xl shadow-md mt-2"
             >
-              <View className="bg-gradient-to-r bg-[#FF5E00] py-4 items-center flex-row justify-center">
-                <Text className="text-white font-poppins-bold text-base mr-2">
-                  Sign Up
-                </Text>
-                <Feather name="arrow-right" size={16} color="white" />
+              <View className="bg-[#FF5E00] py-4 items-center flex-row justify-center">
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Text className="text-white font-poppins-bold text-base mr-2">
+                      Sign Up
+                    </Text>
+                    <Feather name="arrow-right" size={16} color="white" />
+                  </>
+                )}
               </View>
             </TouchableOpacity>
           </View>
@@ -382,7 +422,7 @@ export default function SignupScreen() {
                   <Ionicons name="close" size={18} color="#4B5563" />
                 </TouchableOpacity>
                 <Text className="font-poppins-bold text-lg text-neutral-charcoal">
-                  Verify OTP
+                  Verify Email
                 </Text>
                 <View className="w-8" />
               </View>
@@ -396,15 +436,15 @@ export default function SignupScreen() {
                   Enter Verification Code
                 </Text>
                 <Text className="font-inter text-neutral-steel text-sm text-center px-4">
-                  We've sent a 4-digit code to{" "}
+                  We've sent a 6-digit verification code to{" "}
                   <Text className="font-inter-medium text-neutral-charcoal">
-                    {activeTab === "phone" ? `+91 ${inputValue}` : inputValue}
+                    {emailAddress}
                   </Text>
                 </Text>
               </View>
 
-              {/* Custom 4-Digit OTP Boxes */}
-              <View className="flex-row justify-center space-x-4 mb-6">
+              {/* Custom 6-Digit OTP Boxes */}
+              <View className="flex-row justify-center space-x-2 mb-4">
                 {otpCode.map((digit, idx) => (
                   <TextInput
                     key={idx}
@@ -415,13 +455,19 @@ export default function SignupScreen() {
                     keyboardType="number-pad"
                     maxLength={1}
                     selectTextOnFocus
-                    className="w-14 h-14 bg-[#FDF9F1] border-2 border-gray-200 focus:border-[#FF8300] rounded-xl text-center font-poppins-bold text-xl text-neutral-charcoal shadow-sm"
+                    className="w-11 h-12 bg-[#FDF9F1] border-2 border-gray-200 focus:border-[#FF8300] rounded-xl text-center font-poppins-bold text-lg text-neutral-charcoal shadow-sm"
                   />
                 ))}
               </View>
 
+              {modalError ? (
+                <Text className="text-red-500 font-inter text-xs text-center mb-4">
+                  {modalError}
+                </Text>
+              ) : null}
+
               {/* Resend & Timer */}
-              <View className="items-center mb-8">
+              <View className="items-center mb-6">
                 {timer > 0 ? (
                   <Text className="font-inter text-neutral-steel text-sm">
                     Resend code in{" "}
@@ -454,9 +500,9 @@ export default function SignupScreen() {
               ) : (
                 <TouchableOpacity
                   onPress={handleVerifyOtp}
-                  disabled={isVerifying || otpCode.join("").length < 4}
+                  disabled={isVerifying || otpCode.join("").length < 6}
                   className={`py-4 rounded-2xl items-center flex-row justify-center shadow-md ${
-                    otpCode.join("").length < 4 || isVerifying
+                    otpCode.join("").length < 6 || isVerifying
                       ? "bg-gray-300"
                       : "bg-[#FF5E00]"
                   }`}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,139 +7,86 @@ import {
   SafeAreaView,
   ScrollView,
   TextInput,
-  Modal,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
+import { useSignIn, useAuth } from "@clerk/expo";
 
 export default function SigninScreen() {
   const router = useRouter();
   const { role } = useLocalSearchParams<{ role?: string }>();
+  const { signIn } = useSignIn();
+  const { isLoaded } = useAuth();
 
   // Form State
-  const [activeTab, setActiveTab] = useState<"email" | "phone">("email");
-  const [inputValue, setInputValue] = useState("");
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // OTP Modal State
-  const [isOtpVisible, setIsOtpVisible] = useState(false);
-  const [otpCode, setOtpCode] = useState(["", "", "", ""]);
-  const [timer, setTimer] = useState(45);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-
-  // References for OTP inputs to manage focus
-  const o1 = useRef<TextInput>(null);
-  const o2 = useRef<TextInput>(null);
-  const o3 = useRef<TextInput>(null);
-  const o4 = useRef<TextInput>(null);
-  const refs = [o1, o2, o3, o4];
-
-  // Countdown timer effect for OTP resend
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isOtpVisible && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isOtpVisible, timer]);
-
-  const handleTabChange = (tab: "email" | "phone") => {
-    setActiveTab(tab);
-    setInputValue("");
-    setError("");
-  };
+  if (!isLoaded) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#FDF9F1] justify-center items-center">
+        <ActivityIndicator size="large" color="#FF5E00" />
+      </SafeAreaView>
+    );
+  }
 
   const validateInput = () => {
-    if (!inputValue.trim()) {
-      setError(
-        activeTab === "email"
-          ? "Please enter your email address"
-          : "Please enter your mobile number"
-      );
+    if (!emailAddress.trim()) {
+      setError("Please enter your email address");
       return false;
     }
-
-    if (activeTab === "email") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(inputValue.trim())) {
-        setError("Please enter a valid email address");
-        return false;
-      }
-    } else {
-      const phoneRegex = /^[0-9]{10}$/;
-      if (!phoneRegex.test(inputValue.replace(/\D/g, ""))) {
-        setError("Please enter a valid 10-digit mobile number");
-        return false;
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailAddress.trim())) {
+      setError("Please enter a valid email address");
+      return false;
     }
-
+    if (!password) {
+      setError("Please enter your password");
+      return false;
+    }
     setError("");
     return true;
   };
 
-  const handleGetOtp = () => {
-    if (validateInput()) {
-      setTimer(45);
-      setOtpCode(["", "", "", ""]);
-      setIsOtpVisible(true);
-    }
-  };
-
-  const handleOtpChange = (text: string, index: number) => {
-    const cleanedText = text.replace(/[^0-9]/g, "");
-    const newOtp = [...otpCode];
-    newOtp[index] = cleanedText;
-    setOtpCode(newOtp);
-
-    // Auto-focus next input
-    if (cleanedText && index < 3) {
-      refs[index + 1].current?.focus();
-    }
-  };
-
-  const handleOtpKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === "Backspace" && !otpCode[index] && index > 0) {
-      const newOtp = [...otpCode];
-      newOtp[index - 1] = "";
-      setOtpCode(newOtp);
-      refs[index - 1].current?.focus();
-    }
-  };
-
-  const handleVerifyOtp = () => {
-    const code = otpCode.join("");
-    if (code.length < 4) {
+  const handleSignInSubmit = async () => {
+    if (!validateInput()) {
       return;
     }
 
-    setIsVerifying(true);
+    setIsSubmitting(true);
+    setError("");
 
-    // Simulate OTP verification API call
-    setTimeout(() => {
-      setIsVerifying(false);
-      setVerificationSuccess(true);
+    try {
+      const { error: signInError } = await signIn.password({
+        emailAddress,
+        password,
+      });
 
-      // Simulate sign in complete and redirect
-      setTimeout(() => {
-        setIsOtpVisible(false);
-        setVerificationSuccess(false);
-        // Direct to Homepage index or role dashboard
-        router.replace("/");
-      }, 1500);
-    }, 1500);
-  };
+      if (signInError) {
+        setError(signInError.message || "Invalid email or password.");
+        return;
+      }
 
-  const handleResendCode = () => {
-    if (timer === 0) {
-      setTimer(45);
-      setOtpCode(["", "", "", ""]);
-      o1.current?.focus();
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: ({ decorateUrl }) => {
+            const url = decorateUrl("/");
+            router.replace(url as any);
+          },
+        });
+      } else {
+        setError("Sign-in is not complete. Status: " + signIn.status);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -225,93 +172,62 @@ export default function SigninScreen() {
 
           {/* Main Card */}
           <View className="bg-white rounded-3xl mx-4 my-4 p-6 shadow-md border border-orange-100/50">
-            {/* Tab Switched */}
-            <Text className="font-inter-medium text-neutral-steel text-sm mb-3">
-              Sign in with
-            </Text>
-            
-            <View className="flex-row space-x-3 mb-5">
-              <TouchableOpacity
-                onPress={() => handleTabChange("email")}
-                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border ${
-                  activeTab === "email"
-                    ? "bg-[#FFF4E5] border-[#FF8300]"
-                    : "bg-[#FDF9F1] border-gray-100"
-                }`}
-              >
-                <Feather
-                  name="mail"
-                  size={16}
-                  color={activeTab === "email" ? "#FF8300" : "#6B7280"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  className={`font-poppins-bold text-sm ${
-                    activeTab === "email" ? "text-[#FF8300]" : "text-[#6B7280]"
-                  }`}
-                >
-                  Email
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleTabChange("phone")}
-                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border ${
-                  activeTab === "phone"
-                    ? "bg-[#FFF4E5] border-[#FF8300]"
-                    : "bg-[#FDF9F1] border-gray-100"
-                }`}
-              >
-                <Feather
-                  name="phone"
-                  size={16}
-                  color={activeTab === "phone" ? "#FF8300" : "#6B7280"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  className={`font-poppins-bold text-sm ${
-                    activeTab === "phone" ? "text-[#FF8300]" : "text-[#6B7280]"
-                  }`}
-                >
-                  Phone
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Input Label & Field */}
+            {/* Input Label & Field - Email */}
             <Text className="font-poppins-bold text-neutral-charcoal text-sm mb-2">
-              {activeTab === "email" ? "Email Address" : "Mobile Number"}
+              Email Address
             </Text>
 
             <View
-              className={`flex-row items-center bg-[#FCFAFA] border px-4 py-3.5 rounded-2xl mb-1 ${
-                error ? "border-red-500" : "border-gray-200/80"
+              className={`flex-row items-center bg-[#FCFAFA] border px-4 py-3.5 rounded-2xl mb-4 ${
+                error && !emailAddress.trim() ? "border-red-500" : "border-gray-200/80"
               }`}
             >
               <Feather
-                name={activeTab === "email" ? "mail" : "phone"}
+                name="mail"
                 size={18}
                 color="#9CA3AF"
                 style={{ marginRight: 10 }}
               />
-              {activeTab === "phone" && (
-                <Text className="font-poppins-bold text-neutral-charcoal mr-2 border-r border-gray-300 pr-2">
-                  +91
-                </Text>
-              )}
               <TextInput
-                value={inputValue}
+                value={emailAddress}
                 onChangeText={(text) => {
-                  setInputValue(text);
+                  setEmailAddress(text);
                   setError("");
                 }}
-                placeholder={
-                  activeTab === "email"
-                    ? "Enter your email address"
-                    : "Enter your 10-digit mobile number"
-                }
+                placeholder="Enter your email address"
                 placeholderTextColor="#9CA3AF"
-                keyboardType={activeTab === "email" ? "email-address" : "phone-pad"}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="flex-1 font-inter text-neutral-charcoal text-[15px]"
+              />
+            </View>
+
+            {/* Input Label & Field - Password */}
+            <Text className="font-poppins-bold text-neutral-charcoal text-sm mb-2">
+              Password
+            </Text>
+
+            <View
+              className={`flex-row items-center bg-[#FCFAFA] border px-4 py-3.5 rounded-2xl mb-1 ${
+                error && !password ? "border-red-500" : "border-gray-200/80"
+              }`}
+            >
+              <Feather
+                name="lock"
+                size={18}
+                color="#9CA3AF"
+                style={{ marginRight: 10 }}
+              />
+              <TextInput
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setError("");
+                }}
+                placeholder="Enter your password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry={true}
                 autoCapitalize="none"
                 autoCorrect={false}
                 className="flex-1 font-inter text-neutral-charcoal text-[15px]"
@@ -319,7 +235,7 @@ export default function SigninScreen() {
             </View>
 
             {error ? (
-              <Text className="text-red-500 font-inter text-xs mb-4 ml-1">
+              <Text className="text-red-500 font-inter text-xs mt-2 mb-2 ml-1">
                 {error}
               </Text>
             ) : (
@@ -328,15 +244,22 @@ export default function SigninScreen() {
 
             {/* Action CTA Button */}
             <TouchableOpacity
-              onPress={handleGetOtp}
+              onPress={handleSignInSubmit}
+              disabled={isSubmitting}
               activeOpacity={0.9}
               className="overflow-hidden rounded-2xl shadow-md mt-2"
             >
-              <View className="bg-gradient-to-r bg-[#FF5E00] py-4 items-center flex-row justify-center">
-                <Text className="text-white font-poppins-bold text-base mr-2">
-                  Sign In
-                </Text>
-                <Feather name="arrow-right" size={16} color="white" />
+              <View className="bg-[#FF5E00] py-4 items-center flex-row justify-center">
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Text className="text-white font-poppins-bold text-base mr-2">
+                      Sign In
+                    </Text>
+                    <Feather name="arrow-right" size={16} color="white" />
+                  </>
+                )}
               </View>
             </TouchableOpacity>
           </View>
@@ -354,128 +277,6 @@ export default function SigninScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* OTP Verification Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isOtpVisible}
-        onRequestClose={() => setIsOtpVisible(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-end">
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-          >
-            <View className="bg-white rounded-t-[36px] p-6 shadow-2xl border-t border-gray-100">
-              {/* Top Drag indicator / close bar */}
-              <View className="align-center items-center mb-6">
-                <View className="w-12 h-1.5 bg-gray-200 rounded-full" />
-              </View>
-
-              {/* Modal Back / Header */}
-              <View className="flex-row justify-between items-center mb-4">
-                <TouchableOpacity
-                  onPress={() => setIsOtpVisible(false)}
-                  className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
-                >
-                  <Ionicons name="close" size={18} color="#4B5563" />
-                </TouchableOpacity>
-                <Text className="font-poppins-bold text-lg text-neutral-charcoal">
-                  Verify OTP
-                </Text>
-                <View className="w-8" />
-              </View>
-
-              {/* Status Graphic */}
-              <View className="items-center mb-5 mt-2">
-                <View className="w-16 h-16 bg-[#FFF4E5] rounded-full items-center justify-center mb-3">
-                  <Feather name="shield" size={28} color="#FF8300" />
-                </View>
-                <Text className="font-poppins-bold text-lg text-neutral-charcoal text-center mb-1">
-                  Enter Verification Code
-                </Text>
-                <Text className="font-inter text-neutral-steel text-sm text-center px-4">
-                  We've sent a 4-digit code to{" "}
-                  <Text className="font-inter-medium text-neutral-charcoal">
-                    {activeTab === "phone" ? `+91 ${inputValue}` : inputValue}
-                  </Text>
-                </Text>
-              </View>
-
-              {/* Custom 4-Digit OTP Boxes */}
-              <View className="flex-row justify-center space-x-4 mb-6">
-                {otpCode.map((digit, idx) => (
-                  <TextInput
-                    key={idx}
-                    ref={refs[idx]}
-                    value={digit}
-                    onChangeText={(text) => handleOtpChange(text, idx)}
-                    onKeyPress={(e) => handleOtpKeyPress(e, idx)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    selectTextOnFocus
-                    className="w-14 h-14 bg-[#FDF9F1] border-2 border-gray-200 focus:border-[#FF8300] rounded-xl text-center font-poppins-bold text-xl text-neutral-charcoal shadow-sm"
-                  />
-                ))}
-              </View>
-
-              {/* Resend & Timer */}
-              <View className="items-center mb-8">
-                {timer > 0 ? (
-                  <Text className="font-inter text-neutral-steel text-sm">
-                    Resend code in{" "}
-                    <Text className="font-poppins-bold text-[#FF8300]">
-                      00:{timer < 10 ? `0${timer}` : timer}
-                    </Text>
-                  </Text>
-                ) : (
-                  <TouchableOpacity onPress={handleResendCode}>
-                    <Text className="font-poppins-bold text-[#FF8300] text-sm underline">
-                      Resend Verification Code
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Verify Button */}
-              {verificationSuccess ? (
-                <View className="bg-emerald-500 py-4 rounded-2xl items-center flex-row justify-center shadow-lg">
-                  <Feather
-                    name="check-circle"
-                    size={20}
-                    color="white"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text className="text-white font-poppins-bold text-base">
-                    Verification Successful!
-                  </Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={handleVerifyOtp}
-                  disabled={isVerifying || otpCode.join("").length < 4}
-                  className={`py-4 rounded-2xl items-center flex-row justify-center shadow-md ${
-                    otpCode.join("").length < 4 || isVerifying
-                      ? "bg-gray-300"
-                      : "bg-[#FF5E00]"
-                  }`}
-                >
-                  {isVerifying ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <>
-                      <Text className="text-white font-poppins-bold text-base mr-2">
-                        Verify & Continue
-                      </Text>
-                      <Feather name="check" size={16} color="white" />
-                    </>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

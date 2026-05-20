@@ -5,7 +5,7 @@ You should think like a senior mobile developer, but explain and implementation 
 ---
 ## Project Overview
 
-We are building a professional more than ERP app for schools, our project name**ShikshaSetu**, tagline **Digital Backbone of institutions**
+We are building a professional more than ERP app for schools, our project name**Margam**, tagline **Digital Backbone of institutions**
 
 When any institution login throght `manage` feature to our web using *password* and their *id* (provided by us), they will see
  - their growth dashboard created using power BI about many different metricies (student's attendence, student's marks and score, staff attendence,fee collection, teacher performance analysis, marketing campaigns, subject analysis, transport tracking, exam schedules, class performance, drop out prediction)
@@ -38,7 +38,7 @@ When any teacher login through `teacher` feature to our web using *their id* and
 -0 Use modular design
 ---
 
-## Main Homepage of **ShikshaSetu**:
+## Main Homepage of **Margam**:
 - Key feature: `student login`, `contact us` , `manage`, `teacher`, `Our expertises`
 - UI:  
   - design with appropriate shades of `orange`, `yellow` and `Red`.
@@ -57,7 +57,7 @@ The website should look:
 
 ## What this first demo website should include
 1. A dummy seed database for all the categories which will be needed. 
-2. Home pages for **ShikshaSetu**, **School/`Manage`**,**Teacher**,**Student** with clickable buttons and active login feature.
+2. Home pages for **Margam**, **School/`Manage`**,**Teacher**,**Student** with clickable buttons and active login feature.
 
 ## UI:
 `School\manage`: Navy Blue colour and its shade with golden accent, grey/white background
