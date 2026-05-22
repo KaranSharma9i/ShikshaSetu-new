@@ -8,7 +8,7 @@ You should think like a senior mobile developer, but explain and implementation 
 We are building a professional more than ERP app for schools, our project name**Margam**, tagline **Digital Backbone of institutions**
 
 When any institution login throght `manage` feature to our web using *password* and their *id* (provided by us), they will see
- - their growth dashboard created using power BI about many different metricies (student's attendence, student's marks and score, staff attendence,fee collection, teacher performance analysis, marketing campaigns, subject analysis, transport tracking, exam schedules, class performance, drop out prediction)
+ - their growth dashboard created using user-facing web app about many different metricies (student's attendence, student's marks and score, staff attendence,fee collection, teacher performance analysis, marketing campaigns, subject analysis, transport tracking, exam schedules, class performance, drop out prediction)
  - Circular genrator
  - Institution can extend the time limit for students
  - Add new student feature

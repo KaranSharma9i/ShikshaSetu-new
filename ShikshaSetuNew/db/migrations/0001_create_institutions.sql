@@ -1,5 +1,5 @@
 -- Create custom ENUM types
-CREATE TYPE user_role AS ENUM ('institution_admin', 'teacher', 'student');
+CREATE TYPE user_role AS ENUM ('institution_admin', 'teacher', 'student', 'driver');
 CREATE TYPE account_status AS ENUM ('active', 'inactive', 'suspended');
 
 -- Create institutions table
