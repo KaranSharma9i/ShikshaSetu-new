@@ -17,17 +17,15 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { ClerkProvider } from "@clerk/expo";
-import { tokenCache } from "../utils/tokenCache";
-
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
-
-if (!publishableKey) {
-  throw new Error("Add your Clerk Publishable Key to the .env file");
-}
+import { View, Text } from "react-native";
+import { MockAuthProvider } from "../utils/mockAuth";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+try {
+  SplashScreen.preventAutoHideAsync();
+} catch (e) {
+  console.warn("SplashScreen.preventAutoHideAsync() failed:", e);
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -42,7 +40,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded || error) {
-      SplashScreen.hideAsync();
+      try {
+        SplashScreen.hideAsync();
+      } catch (e) {
+        console.warn("SplashScreen.hideAsync() failed:", e);
+      }
     }
   }, [loaded, error]);
 
@@ -51,8 +53,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <MockAuthProvider>
       <Stack screenOptions={{ headerShown: false }} />
-    </ClerkProvider>
+    </MockAuthProvider>
   );
 }

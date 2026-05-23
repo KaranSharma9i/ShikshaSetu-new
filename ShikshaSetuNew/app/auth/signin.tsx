@@ -13,13 +13,12 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useSignIn, useAuth } from "@clerk/expo";
+import { useSignIn } from "@/utils/mockAuth";
 
 export default function SigninScreen() {
   const router = useRouter();
   const { role } = useLocalSearchParams<{ role?: string }>();
-  const { signIn } = useSignIn();
-  const { isLoaded } = useAuth();
+  const { signIn, setActive, isLoaded } = useSignIn();
 
   // Form State
   const [emailAddress, setEmailAddress] = useState("");
@@ -62,29 +61,25 @@ export default function SigninScreen() {
     setError("");
 
     try {
-      const { error: signInError } = await signIn.password({
-        emailAddress,
+      const result = await signIn.create({
+        identifier: emailAddress,
         password,
       });
 
-      if (signInError) {
-        setError(signInError.message || "Invalid email or password.");
-        return;
-      }
-
-      if (signIn.status === "complete") {
-        await signIn.finalize({
-          navigate: ({ decorateUrl }) => {
-            const url = decorateUrl("/");
-            router.replace(url as any);
-          },
-        });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.replace("/");
       } else {
-        setError("Sign-in is not complete. Status: " + signIn.status);
+        setError("Sign-in is not complete. Status: " + result.status);
       }
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Invalid email or password.");
+      const errMsg =
+        err?.errors?.[0]?.longMessage ||
+        err?.errors?.[0]?.message ||
+        err?.message ||
+        "Invalid email or password.";
+      setError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
