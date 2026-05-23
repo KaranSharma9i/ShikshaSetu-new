@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useAuth, useUser, useClerk } from "@clerk/expo";
+import { useAuth, useUser, useClerk } from "@/utils/mockAuth";
 
 // Dummy Seed Database
 const dummySeedData = {
@@ -243,13 +243,29 @@ export default function Index() {
               {/* Clickable Feature Actions */}
               <Text className="text-white font-poppins-bold text-sm mt-6 mb-3">Quick Controls</Text>
               <View className="flex-row space-x-2">
-                <TouchableOpacity className="flex-1 bg-[#D4AF37] py-3 rounded-xl items-center">
+                <TouchableOpacity
+                  onPress={() => router.push("/institution/register?type=student" as any)}
+                  className="flex-1 bg-[#D4AF37] py-3 rounded-xl items-center"
+                >
                   <Text className="text-[#0B1E36] font-poppins-bold text-xs">Add New Student</Text>
                 </TouchableOpacity>
-                <TouchableOpacity className="flex-1 bg-[#D4AF37] py-3 rounded-xl items-center">
+                <TouchableOpacity
+                  onPress={() => router.push("/institution/register?type=teacher" as any)}
+                  className="flex-1 bg-[#D4AF37] py-3 rounded-xl items-center"
+                >
                   <Text className="text-[#0B1E36] font-poppins-bold text-xs">Add New Teacher</Text>
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                onPress={() => router.push("/institution" as any)}
+                className="w-full bg-[#D4AF37] py-3.5 rounded-xl items-center mt-4 flex-row justify-center space-x-2"
+              >
+                <Ionicons name="arrow-forward-circle" size={18} color="#0B1E36" />
+                <Text className="text-[#0B1E36] font-poppins-bold text-xs">
+                  Enter Interactive Gurukul Dashboard
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}

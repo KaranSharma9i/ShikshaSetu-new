@@ -14,13 +14,12 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useSignUp, useAuth } from "@clerk/expo";
+import { useSignUp } from "@/utils/mockAuth";
 
 export default function SignupScreen() {
   const router = useRouter();
   const { role } = useLocalSearchParams<{ role?: string }>();
-  const { signUp } = useSignUp();
-  const { isLoaded } = useAuth();
+  const { signUp, setActive, isLoaded } = useSignUp();
 
   // Form State
   const [emailAddress, setEmailAddress] = useState("");
@@ -95,23 +94,15 @@ export default function SignupScreen() {
     setError("");
 
     try {
-      // Create user
-      const { error: signUpError } = await signUp.password({
+      await signUp.create({
         emailAddress,
         password,
       });
 
-      if (signUpError) {
-        setError(signUpError.message || "Something went wrong during sign up.");
-        return;
-      }
-
       // Send email verification code
-      const { error: sendError } = await signUp.verifications.sendEmailCode();
-      if (sendError) {
-        setError(sendError.message || "Failed to send verification email.");
-        return;
-      }
+      await signUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      });
 
       setTimer(45);
       setOtpCode(["", "", "", "", "", ""]);
@@ -119,7 +110,12 @@ export default function SignupScreen() {
       setIsOtpVisible(true);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Something went wrong during sign up.");
+      const errMsg =
+        err?.errors?.[0]?.longMessage ||
+        err?.errors?.[0]?.message ||
+        err?.message ||
+        "Something went wrong during sign up.";
+      setError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,35 +152,31 @@ export default function SignupScreen() {
     setModalError("");
 
     try {
-      const { error: verifyError } = await signUp.verifications.verifyEmailCode({
+      const result = await signUp.attemptEmailAddressVerification({
         code,
       });
 
-      if (verifyError) {
-        setModalError(verifyError.message || "Invalid verification code.");
-        return;
-      }
-
-      if (signUp.status === "complete") {
+      if (result.status === "complete") {
         setVerificationSuccess(true);
 
         setTimeout(async () => {
-          await signUp.finalize({
-            navigate: ({ decorateUrl }) => {
-              const url = decorateUrl("/");
-              setIsOtpVisible(false);
-              setVerificationSuccess(false);
-              router.replace(url as any);
-            },
-          });
+          await setActive({ session: result.createdSessionId });
+          setIsOtpVisible(false);
+          setVerificationSuccess(false);
+          router.replace("/");
         }, 1500);
       } else {
-        console.error("Sign-up attempt not complete:", signUp);
+        console.error("Sign-up attempt not complete:", result);
         setModalError("Verification was not complete. Please try again.");
       }
     } catch (err: any) {
       console.error(err);
-      setModalError(err?.message || "Invalid verification code.");
+      const errMsg =
+        err?.errors?.[0]?.longMessage ||
+        err?.errors?.[0]?.message ||
+        err?.message ||
+        "Invalid verification code.";
+      setModalError(errMsg);
     } finally {
       setIsVerifying(false);
     }
@@ -193,17 +185,19 @@ export default function SignupScreen() {
   const handleResendCode = async () => {
     if (timer === 0) {
       try {
-        const { error: sendError } = await signUp.verifications.sendEmailCode();
-        if (sendError) {
-          setModalError(sendError.message || "Error resending code.");
-          return;
-        }
+        await signUp.prepareEmailAddressVerification({
+          strategy: "email_code",
+        });
         setTimer(45);
         setOtpCode(["", "", "", "", "", ""]);
         setModalError("");
         o1.current?.focus();
       } catch (err: any) {
-        setModalError(err?.message || "Error resending code.");
+        const errMsg =
+          err?.errors?.[0]?.message ||
+          err?.message ||
+          "Error resending code.";
+        setModalError(errMsg);
       }
     }
   };

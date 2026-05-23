@@ -57,10 +57,10 @@ The website should look:
 
 ## What this first demo website should include
 1. A dummy seed database for all the categories which will be needed. 
-2. Home pages for **Margam**, **School/`Manage`**,**Teacher**,**Student** with clickable buttons and active login feature.
+2. Home pages for **Margam**, **School/`Manage`** (implemented under modular routes `app/institution/...` containing dashboard, academics, fees, circulars, registration, and events screens), **Teacher**, and **Student** with clickable buttons and active login feature.
 
 ## UI:
-`School\manage`: Navy Blue colour and its shade with golden accent, grey/white background
+`School\manage`: Navy Blue colour and its shade with golden accent, grey/white background (located in `app/institution/`)
 `Student`: Light Navy Blue colour and its shade with golden accent, grey/white background with school logo in the background
 `Teacher`: Light Navy Blue colour and its shade with golden accent, grey/white background with school logo in the background
 
