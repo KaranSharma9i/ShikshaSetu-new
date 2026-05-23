@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;family=Open+Sans:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#f6f3f2",
+                        "surface": "#fbf9f8",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#f3f0f0",
+                        "secondary": "#735c00",
+                        "primary-container": "#0f1c2c",
+                        "on-primary-container": "#778598",
+                        "error": "#ba1a1a",
+                        "primary": "#000000",
+                        "on-secondary-fixed-variant": "#574500",
+                        "outline": "#74777d",
+                        "on-secondary-container": "#745c00",
+                        "outline-variant": "#c4c6cc",
+                        "primary-fixed-dim": "#bac8dc",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#bac8dc",
+                        "secondary-container": "#fed65b",
+                        "tertiary-fixed-dim": "#b3c5fb",
+                        "secondary-fixed": "#ffe088",
+                        "surface-variant": "#e4e2e1",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-high": "#eae8e7",
+                        "surface-container-highest": "#e4e2e1",
+                        "surface-tint": "#525f71",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#334573",
+                        "surface-dim": "#dcd9d9",
+                        "on-primary-fixed-variant": "#3a4859",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-background": "#1b1c1c",
+                        "surface-bright": "#fbf9f8",
+                        "on-tertiary-fixed": "#021945",
+                        "on-primary-fixed": "#0f1c2c",
+                        "on-surface-variant": "#44474c",
+                        "tertiary-fixed": "#dae2ff",
+                        "tertiary": "#000000",
+                        "on-tertiary-container": "#7183b4",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed": "#d6e4f9",
+                        "on-surface": "#1b1c1c",
+                        "surface-container": "#f0eded",
+                        "on-secondary-fixed": "#241a00",
+                        "tertiary-container": "#021945",
+                        "secondary-fixed-dim": "#e9c349",
+                        "inverse-surface": "#303030",
+                        "background": "#fbf9f8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack-sm": "0.5rem",
+                        "stack-lg": "1.5rem",
+                        "stack-md": "1rem",
+                        "section-padding": "2rem",
+                        "margin-mobile": "1rem",
+                        "gutter": "1rem"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Poppins"],
+                        "headline-xl": ["Poppins"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg-mobile": ["Poppins"],
+                        "label-sm": ["Open Sans"],
+                        "headline-lg": ["Poppins"],
+                        "caption": ["Open Sans"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-xl": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["22px", {"lineHeight": "30px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "caption": ["11px", {"lineHeight": "14px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fbf9f8; /* Base Cream Background */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface">
+<!-- Top App Bar (Shared Component Logic) -->
+<header class="bg-primary-container fixed top-0 w-full h-16 flex justify-between items-center px-margin-mobile md:px-section-padding z-50 shadow-sm">
+<div class="flex items-center gap-4">
+<button class="text-secondary-fixed cursor-pointer active:scale-95 duration-200">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-secondary-fixed">Academic Portal</h1>
+</div>
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-primary-container font-bold">
+<span class="material-symbols-outlined">school</span>
+</div>
+</header>
+<main class="pt-20 pb-24 px-margin-mobile max-w-2xl mx-auto">
+<!-- Progress Indicator -->
+<div class="mb-stack-lg flex items-center justify-between">
+<div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary-container">Review &amp; Submit</h2>
+<p class="font-body-md text-on-surface-variant">Step 2 of 2: Final Verification</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-2 rounded-full bg-secondary-container"></div>
+<div class="w-8 h-2 rounded-full bg-secondary-container"></div>
+</div>
+</div>
+<div class="space-y-stack-md">
+<!-- Profile Summary Section -->
+<section class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant relative overflow-hidden">
+<div class="absolute top-0 right-0 p-stack-sm">
+<button class="w-10 h-10 flex items-center justify-center text-secondary hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+<div class="flex items-center gap-stack-lg">
+<div class="relative">
+<img alt="Student portrait" class="w-24 h-24 rounded-xl object-cover border-2 border-secondary-fixed" data-alt="A professional studio portrait of a young student dressed in a neat, traditional school uniform. The lighting is soft and academic, set against a warm cream-colored background that matches the prestige of an elite institution. The student has a determined yet friendly expression, symbolizing academic excellence and personal growth. The image is crisp, high-resolution, and perfectly centered." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQulw150jWtA89QSm0DGrTpTEZ2oC5yuCwMMV5Te3RhgknHWdy9xSP6F8YZKplggNDWiTxH43jdXAHiub6Y6HvXjp7kagH8m5BS8RhjNvHUTYo5jwS-wfsfzwDDTbu8TtDALjOdVjK3hJPfnfZ4NKqZtL_8XStxsIsQ1gKyD9UJr7u7z-olIznn1dZjdkau1OfyHK4WMTunJgD3pmc9pTStMnPWeK-vJzbQYElfcsx3yFYco_xOJqv6oGgIwOtjCZdG2PU2hDtGV31"/>
+<div class="absolute -bottom-2 -right-2 bg-secondary text-on-secondary px-2 py-1 rounded-lg font-label-sm text-label-sm">
+                            Grade 10
+                        </div>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Candidate Name</p>
+<h3 class="font-headline-md text-headline-md text-primary-container">Alexander J. Sterling</h3>
+<p class="font-body-md text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+                            Academic Excellence Track
+                        </p>
+</div>
+</div>
+</section>
+<!-- Personal Details Section -->
+<section class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant">
+<div class="flex justify-between items-center mb-stack-sm border-b border-surface-variant pb-stack-sm">
+<h4 class="font-label-sm text-label-sm text-secondary uppercase font-bold tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">person</span> Personal Details
+                    </h4>
+<button class="text-secondary hover:underline flex items-center gap-1 font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">edit</span> Edit
+                    </button>
+</div>
+<div class="grid grid-cols-2 gap-stack-md">
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Date of Birth</label>
+<p class="font-body-md text-primary-container font-semibold">May 14, 2008</p>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Gender</label>
+<p class="font-body-md text-primary-container font-semibold">Male</p>
+</div>
+<div class="col-span-2">
+<label class="font-caption text-caption text-on-surface-variant">Home Address</label>
+<p class="font-body-md text-primary-container font-semibold">42 Heritage Oaks Way, North Campus District, State 4022</p>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Transport</label>
+<p class="font-body-md text-primary-container font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">directions_bus</span> School Shuttle
+                        </p>
+</div>
+</div>
+</section>
+<!-- Academic Background Section -->
+<section class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant">
+<div class="flex justify-between items-center mb-stack-sm border-b border-surface-variant pb-stack-sm">
+<h4 class="font-label-sm text-label-sm text-secondary uppercase font-bold tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">school</span> Academic Background
+                    </h4>
+<button class="text-secondary hover:underline flex items-center gap-1 font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">edit</span> Edit
+                    </button>
+</div>
+<div class="space-y-stack-sm">
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Previous Institution</label>
+<p class="font-body-md text-primary-container font-semibold">Saint Jude's International Preparatory</p>
+</div>
+<div class="flex items-center gap-stack-lg">
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Final GPA/Marks</label>
+<p class="font-body-md text-primary-container font-semibold">3.9 / 4.0 (92%)</p>
+</div>
+<div class="bg-secondary-container/20 px-3 py-1 rounded-full border border-secondary-container">
+<span class="font-label-sm text-label-sm text-secondary font-bold">Top 5% of Class</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Guardian Contact Section -->
+<section class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant">
+<div class="flex justify-between items-center mb-stack-sm border-b border-surface-variant pb-stack-sm">
+<h4 class="font-label-sm text-label-sm text-secondary uppercase font-bold tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">family_restroom</span> Guardian Contact
+                    </h4>
+<button class="text-secondary hover:underline flex items-center gap-1 font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">edit</span> Edit
+                    </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-md">
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Primary Guardian</label>
+<p class="font-body-md text-primary-container font-semibold">Dr. Eleanor Sterling</p>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Relationship</label>
+<p class="font-body-md text-primary-container font-semibold">Mother</p>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Email Address</label>
+<p class="font-body-md text-primary-container font-semibold">e.sterling@university.edu</p>
+</div>
+<div>
+<label class="font-caption text-caption text-on-surface-variant">Mobile Number</label>
+<p class="font-body-md text-primary-container font-semibold">+1 (555) 012-3456</p>
+</div>
+</div>
+</section>
+<!-- Declaration & Policy -->
+<div class="p-stack-sm flex gap-3 items-start">
+<input class="mt-1 rounded border-outline text-secondary focus:ring-secondary" id="declaration" type="checkbox"/>
+<label class="font-caption text-caption text-on-surface-variant leading-relaxed" for="declaration">
+                    I hereby certify that all information provided is accurate to the best of my knowledge and I agree to abide by the <a class="text-secondary font-semibold" href="#">Institutional Code of Conduct</a> and <a class="text-secondary font-semibold" href="#">Privacy Policy</a>.
+                </label>
+</div>
+</div>
+</main>
+<!-- Fixed Bottom Action Area -->
+<footer class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:px-section-padding z-40">
+<div class="max-w-2xl mx-auto flex gap-4">
+<button class="flex-1 py-4 border-2 border-secondary text-secondary rounded-lg font-headline-md text-[16px] hover:bg-secondary/5 transition-colors">
+                Save Draft
+            </button>
+<button class="flex-[2] py-4 bg-primary-container text-on-primary rounded-lg font-headline-md text-[16px] flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all shadow-lg" onclick="handleSubmit()">
+<span>Confirm &amp; Register</span>
+<span class="material-symbols-outlined">assignment_turned_in</span>
+</button>
+</div>
+</footer>
+<script>
+        function handleSubmit() {
+            const checkbox = document.getElementById('declaration');
+            if (!checkbox.checked) {
+                checkbox.parentElement.classList.add('animate-bounce');
+                setTimeout(() => checkbox.parentElement.classList.remove('animate-bounce'), 1000);
+                alert("Please agree to the institutional policies before submitting.");
+                return;
+            }
+            
+            // Interaction feedback
+            const btn = document.querySelector('button[onclick="handleSubmit()"]');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Processing...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                alert("Student Registration Successful! Redirecting to dashboard...");
+                window.location.reload();
+            }, 2000);
+        }
+
+        // Add a subtle ripple effect to section edit buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', function(e) {
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                let ripple = document.createElement('span');
+                ripple.style.position = 'absolute';
+                ripple.style.width = '1px';
+                ripple.style.height = '1px';
+                ripple.style.background = 'rgba(115, 92, 0, 0.1)';
+                ripple.style.borderRadius = '50%';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.style.transform = 'scale(0)';
+                ripple.style.transition = 'transform 0.4s ease-out';
+                
+                this.style.position = 'relative';
+                this.style.overflow = 'hidden';
+                this.appendChild(ripple);
+                
+                requestAnimationFrame(() => {
+                    ripple.style.transform = 'scale(200)';
+                });
+                
+                setTimeout(() => ripple.remove(), 500);
+            });
+        });
+    </script>
+</body></html>
