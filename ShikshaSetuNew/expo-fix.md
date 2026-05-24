@@ -108,6 +108,72 @@ npx expo start --clear
 
 ---
 
+## Bug 3: Metro Resolution Error in `buildSubgraph.js`
+
+### Symptom
+Red error screen on start-up showing:
+```
+\node_modules\metro\src\DeltaBundler\buildSubgraph.js:42:25
+at visit (\node_modules\metro\src\DeltaBundler\buildSubgraph.js:83:30)
+```
+
+### Root Cause
+`unstable_enablePackageExports` was enabled in `metro.config.js`. This option tells Metro to resolve the `"exports"` fields in package JSON files. When using Node-based or web-compatible packages like `@supabase/supabase-js`, Metro tries to resolve dependencies meant for Node.js (e.g. `stream`, `https`, `tls`), which do not exist in React Native, leading to bundler crashes.
+
+### Fix
+Set `unstable_enablePackageExports` to `false` in `metro.config.js`:
+
+```javascript
+config.resolver.unstable_enablePackageExports = false;
+```
+
+Restart Expo with a cleared cache:
+```bash
+npx expo start --clear
+```
+
+---
+
+## Bug 4: Supabase Auth RLS Infinite Recursion (3-minute Hang)
+
+### Symptom
+When a user logged in (particularly as `institution_admin`), the app would hang indefinitely on a loading spinner (taking 3+ minutes) and eventually timeout.
+
+### Root Cause
+The database Row-Level Security (RLS) policies on the `users` table relied on custom SQL helper functions (`is_admin()` and `auth_institution_id()`). Because these functions were created as `SECURITY INVOKER`, they executed under the context of the active user, triggering the same RLS policy checks recursively. This resulted in an infinite recursion loop, exhausting the database connection pool.
+
+### Fix
+Redefined the database functions to run as `SECURITY DEFINER` (which bypasses RLS policies during query execution):
+```sql
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER -- ← Key fix
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'institution_admin'
+  );
+END;
+$$;
+```
+
+---
+
+## Bug 5: Deprecated Tab Layout & Switcher Conflicts
+
+### Symptom
+The root route (`app/index.tsx`) previously rendered a "School / Manage" tab and switcher bar that duplicated the new, fully-featured Gurukul dashboard layout at `/institution`. This caused visual clutter, confusion, and state conflicts for non-admin users.
+
+### Fix
+- Removed the brand portal switcher and all HTML/TS elements representing the old `school` portal.
+- Trimmed unused imports (`FlatList`, `Feather`) and the deprecated `school` seed data block from `app/index.tsx`.
+- Updated `app/auth/signin.tsx` and `app/auth/signup.tsx` to correctly map the `institution_admin` role parameters to the "School Portal" badges.
+
+---
+
 ## Quick Diagnostic Checklist
 
 | Symptom | Likely Cause | Fix |
@@ -116,3 +182,5 @@ npx expo start --clear
 | All styles missing / unstyled UI | `global.css` not imported | Add `import "../global.css"` to `_layout.tsx` |
 | Custom fonts not rendering | Fonts not loaded via `useFonts` | Load fonts in `_layout.tsx` with `expo-font` |
 | Styles partially broken after changes | Stale Metro cache | Restart with `npx expo start --clear` |
+| Metro crash in `buildSubgraph.js` | `unstable_enablePackageExports` enabled | Disable it in `metro.config.js` |
+| Login / Queries hang indefinitely (3+ mins) | RLS Infinite Recursion in helper functions | Redefine database functions as `SECURITY DEFINER` |

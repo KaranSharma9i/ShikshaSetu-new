@@ -72,13 +72,6 @@ export default function OnboardingScreen() {
             <Text className="text-white font-poppins-bold text-lg mr-2">Get Started</Text>
             <Text className="text-white text-lg">→</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            className="py-3.5 rounded-2xl items-center flex-row justify-center border-2 border-[#0F1C2C] mt-3 active:bg-slate-50"
-            onPress={() => router.push('/institution' as any)}
-          >
-            <Text className="text-[#0F1C2C] font-poppins-bold text-sm">Enter Demo Dashboard (Bypass Auth)</Text>
-          </TouchableOpacity>
         </View>
 
       </ScrollView>

@@ -1,5 +1,5 @@
-import { useAuth } from '@/utils/mockAuth';
-import { Redirect, Stack } from 'expo-router';
+import { useAuth } from "@/src/hooks/useAuth";
+import { Redirect, Stack } from "expo-router";
 
 export default function AuthLayout() {
   const { isSignedIn, isLoaded } = useAuth();

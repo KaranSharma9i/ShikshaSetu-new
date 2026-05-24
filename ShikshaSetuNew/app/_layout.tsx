@@ -1,6 +1,6 @@
 import "../global.css";
 import { Stack } from "expo-router";
-import { MockAuthProvider } from "@/utils/mockAuth";
+import { AuthProvider } from "@/src/providers/AuthProvider";
 import {
   useFonts,
   Poppins_400Regular,
@@ -42,8 +42,8 @@ export default function RootLayout() {
   }
 
   return (
-    <MockAuthProvider>
+    <AuthProvider>
       <Stack screenOptions={{ headerShown: false }} />
-    </MockAuthProvider>
+    </AuthProvider>
   );
 }

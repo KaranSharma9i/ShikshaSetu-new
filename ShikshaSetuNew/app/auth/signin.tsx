@@ -13,12 +13,12 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useSignIn } from "@/utils/mockAuth";
+import { useAuth } from "@/src/hooks/useAuth";
 
 export default function SigninScreen() {
   const router = useRouter();
   const { role } = useLocalSearchParams<{ role?: string }>();
-  const { signIn, setActive, isLoaded } = useSignIn();
+  const { signIn, isLoaded } = useAuth();
 
   // Form State
   const [emailAddress, setEmailAddress] = useState("");
@@ -61,22 +61,11 @@ export default function SigninScreen() {
     setError("");
 
     try {
-      const result = await signIn.create({
-        identifier: emailAddress,
-        password,
-      });
-
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.replace("/");
-      } else {
-        setError("Sign-in is not complete. Status: " + result.status);
-      }
+      await signIn(emailAddress, password);
+      router.replace("/");
     } catch (err: any) {
       console.error(err);
       const errMsg =
-        err?.errors?.[0]?.longMessage ||
-        err?.errors?.[0]?.message ||
         err?.message ||
         "Invalid email or password.";
       setError(errMsg);
@@ -93,6 +82,7 @@ export default function SigninScreen() {
       case "teacher":
         return { label: "Teacher Account 👩‍🏫", color: "bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]" };
       case "school":
+      case "institution_admin":
         return { label: "School Portal 🏫", color: "bg-[#E8F0FE] text-[#1A73E8] border-[#D2E3FC]" };
       default:
         return { label: "Personal Account ✨", color: "bg-[#FFF4E5] text-[#FF8300] border-[#FFE0CC]" };

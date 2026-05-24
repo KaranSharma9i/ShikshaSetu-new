@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,25 +8,33 @@ import {
   TextInput,
   Modal,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
-import { schoolData, CalendarEvent } from "../../constants/schoolData";
+import { CalendarEvent } from "../../constants/schoolData";
+import { useAuth } from "../../src/hooks/useAuth";
+import { useQuery } from "../../src/hooks/useQuery";
+import { getEvents, createEvent } from "../../src/repositories/eventRepository";
+import { handleError } from "../../src/utils/error";
 
 interface CustomEvent extends CalendarEvent {
   status: "Upcoming" | "Draft" | "Published";
 }
 
 export default function EventsHub() {
-  const initialEvents: CustomEvent[] = schoolData.events.map((ev, idx) => ({
-    ...ev,
-    status: idx === 1 ? "Published" : "Upcoming", // Mock some initial statuses
-  }));
+  const { institutionId } = useAuth();
+  
+  const { data: dbEvents, isLoading, refetch } = useQuery(
+    () => getEvents(institutionId || ""),
+    [institutionId]
+  );
 
-  const [events, setEvents] = useState<CustomEvent[]>(initialEvents);
+  const [events, setEvents] = useState<CustomEvent[]>([]);
   const [activeFilter, setActiveFilter] = useState<"Upcoming" | "Draft" | "Published">("Upcoming");
   const [modalVisible, setModalVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -34,6 +42,25 @@ export default function EventsHub() {
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState<"Achievement" | "Leadership" | "Excellence" | "Social">("Achievement");
+
+  useEffect(() => {
+    if (dbEvents) {
+      const now = new Date();
+      setEvents(
+        dbEvents.map((ev) => {
+          const evDate = new Date(ev.date);
+          let status: "Upcoming" | "Draft" | "Published" = "Upcoming";
+          if (!isNaN(evDate.getTime())) {
+            status = evDate < now ? "Published" : "Upcoming";
+          }
+          return {
+            ...ev,
+            status,
+          };
+        })
+      );
+    }
+  }, [dbEvents]);
 
   const filteredEvents = events.filter((ev) => ev.status === activeFilter);
 
@@ -52,34 +79,45 @@ export default function EventsHub() {
     );
   };
 
-  const handleAddEventSubmit = () => {
+  const handleAddEventSubmit = async () => {
     if (!title.trim() || !date.trim() || !location.trim()) {
       Alert.alert("Input Required", "Please enter Event Title, Date, and Location.");
       return;
     }
 
-    const newEvent: CustomEvent = {
-      id: String(events.length + 1),
-      title: title.trim(),
-      date: date.trim(),
-      time: time.trim() || "09:00 AM",
-      location: location.trim(),
-      category,
-      status: "Upcoming", // Newly scheduled events default to Upcoming
-    };
+    setIsSubmitting(true);
+    try {
+      const newEv = await createEvent(
+        institutionId || "",
+        title.trim(),
+        date.trim(),
+        time.trim() || "09:00 AM",
+        location.trim(),
+        category
+      );
 
-    setEvents([newEvent, ...events]);
-    setTitle("");
-    setDate("");
-    setTime("");
-    setLocation("");
-    setCategory("Achievement");
-    setModalVisible(false);
+      const customNewEv: CustomEvent = {
+        ...newEv,
+        status: "Upcoming"
+      };
 
-    Alert.alert(
-      "Event Scheduled",
-      `The event "${newEvent.title}" has been successfully scheduled and added to Upcoming.`
-    );
+      setEvents([customNewEv, ...events]);
+      setTitle("");
+      setDate("");
+      setTime("");
+      setLocation("");
+      setCategory("Achievement");
+      setModalVisible(false);
+
+      Alert.alert(
+        "Event Scheduled",
+        `The event "${newEv.title}" has been successfully scheduled and added to Upcoming.`
+      );
+    } catch (err: any) {
+      handleError(err, "Event Scheduling Failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -126,7 +164,9 @@ export default function EventsHub() {
 
         {/* Events Stack */}
         <View className="px-5">
-          {filteredEvents.length === 0 ? (
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+          ) : filteredEvents.length === 0 ? (
             <View className="bg-white border border-gray-200/60 p-8 rounded-2xl items-center justify-center">
               <Ionicons name="calendar-outline" size={32} color="#778598" />
               <Text className="text-neutral-steel font-poppins-medium text-xs mt-3">
@@ -328,12 +368,19 @@ export default function EventsHub() {
             {/* Submit */}
             <TouchableOpacity
               onPress={handleAddEventSubmit}
-              className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2"
+              disabled={isSubmitting}
+              className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2 active:opacity-90"
             >
-              <Ionicons name="calendar-outline" size={16} color="#ffe088" />
-              <Text className="text-[#ffe088] font-poppins-bold text-xs">
-                Schedule Event
-              </Text>
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#ffe088" />
+              ) : (
+                <>
+                  <Ionicons name="calendar-outline" size={16} color="#ffe088" />
+                  <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                    Schedule Event
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>

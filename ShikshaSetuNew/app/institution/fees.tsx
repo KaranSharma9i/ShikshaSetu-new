@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,37 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
-import { schoolData, FeeDefaulter } from "../../constants/schoolData";
+import { FeeDefaulter } from "../../constants/schoolData";
+import { useAuth } from "../../src/hooks/useAuth";
+import { useQuery } from "../../src/hooks/useQuery";
+import { getFeeCollectionStats, getOutstandingDefaulters } from "../../src/repositories/feeRepository";
 
 export default function FeesDashboard() {
-  const [defaulters, setDefaulters] = useState<FeeDefaulter[]>(schoolData.defaulters);
+  const { institutionId } = useAuth();
+
+  const { data: stats, isLoading: loadingStats } = useQuery(
+    () => getFeeCollectionStats(institutionId || ""),
+    [institutionId]
+  );
+
+  const { data: dbDefaulters, isLoading: loadingDefaulters } = useQuery(
+    () => getOutstandingDefaulters(institutionId || ""),
+    [institutionId]
+  );
+
+  const [defaulters, setDefaulters] = useState<FeeDefaulter[]>([]);
   const [broadcasting, setBroadcasting] = useState(false);
+
+  useEffect(() => {
+    if (dbDefaulters) {
+      setDefaulters(dbDefaulters);
+    }
+  }, [dbDefaulters]);
 
   const handleSendReminder = (student: FeeDefaulter) => {
     Alert.alert(
@@ -30,10 +52,17 @@ export default function FeesDashboard() {
       setBroadcasting(false);
       Alert.alert(
         "Broadcast Success",
-        "Fee reminders successfully broadcasted to all outstanding defaulters (3 guardians notified).",
+        `Fee reminders successfully broadcasted to all outstanding defaulters (${defaulters.length} guardians notified).`,
         [{ text: "Great" }]
       );
     }, 1500);
+  };
+
+  const formatRupees = (num: number) => {
+    if (num >= 100000) {
+      return `₹${(num / 100000).toFixed(1)} Lakhs`;
+    }
+    return `₹${num.toLocaleString("en-IN")}`;
   };
 
   return (
@@ -61,20 +90,26 @@ export default function FeesDashboard() {
             <Text className="text-slate-400 font-inter text-[10px] uppercase tracking-wider">
               Total Term Collection (Term 1)
             </Text>
-            <Text className="text-white font-poppins-bold text-3xl mt-1">
-              ₹14.8 Lakhs
-            </Text>
-            <View className="w-full bg-slate-800 h-2.5 rounded-full mt-4 overflow-hidden">
-              <View className="bg-[#ffe088] h-full rounded-full" style={{ width: "85.2%" }} />
-            </View>
-            <View className="flex-row justify-between items-center mt-3">
-              <Text className="text-slate-300 font-inter text-[11px]">
-                Target: ₹17.5 Lakhs
-              </Text>
-              <Text className="text-[#ffe088] font-poppins-bold text-[11px]">
-                85.2% Completed
-              </Text>
-            </View>
+            {loadingStats ? (
+              <ActivityIndicator size="small" color="#ffe088" className="my-6" />
+            ) : (
+              <>
+                <Text className="text-white font-poppins-bold text-3xl mt-1">
+                  {formatRupees(stats?.totalCollected ?? 1480000)}
+                </Text>
+                <View className="w-full bg-slate-800 h-2.5 rounded-full mt-4 overflow-hidden">
+                  <View className="bg-[#ffe088] h-full rounded-full" style={{ width: (stats?.completionRate ?? "85.2%") as any }} />
+                </View>
+                <View className="flex-row justify-between items-center mt-3">
+                  <Text className="text-slate-300 font-inter text-[11px]">
+                    Target: {formatRupees(stats?.totalExpected ?? 1750000)}
+                  </Text>
+                  <Text className="text-[#ffe088] font-poppins-bold text-[11px]">
+                    {stats?.completionRate ?? "85.2%"} Completed
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -98,63 +133,71 @@ export default function FeesDashboard() {
             Outstanding Defaulters List
           </Text>
 
-          {defaulters.map((student) => (
-            <View
-              key={student.id}
-              className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
-            >
-              <View className="flex-row justify-between items-start mb-3">
-                <View>
-                  <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
-                    {student.name}
-                  </Text>
-                  <Text className="text-[10px] text-neutral-steel">
-                    {student.className}
-                  </Text>
-                </View>
+          {loadingDefaulters ? (
+            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+          ) : defaulters.length === 0 ? (
+            <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">
+              No outstanding defaulters.
+            </Text>
+          ) : (
+            defaulters.map((student) => (
+              <View
+                key={student.id}
+                className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
+              >
+                <View className="flex-row justify-between items-start mb-3">
+                  <View>
+                    <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
+                      {student.name}
+                    </Text>
+                    <Text className="text-[10px] text-neutral-steel">
+                      {student.className}
+                    </Text>
+                  </View>
 
-                <View
-                  className={`px-2 py-0.5 rounded-full ${
-                    student.status === "Overdue"
-                      ? "bg-rose-50 border border-rose-100"
-                      : "bg-amber-50 border border-amber-100"
-                  }`}
-                >
-                  <Text
-                    className={`font-poppins-semibold text-[8px] uppercase tracking-wide ${
-                      student.status === "Overdue" ? "text-rose-600" : "text-amber-600"
+                  <View
+                    className={`px-2 py-0.5 rounded-full ${
+                      student.status === "Overdue"
+                        ? "bg-rose-50 border border-rose-100"
+                        : "bg-amber-50 border border-amber-100"
                     }`}
                   >
-                    {student.status}
-                  </Text>
+                    <Text
+                      className={`font-poppins-semibold text-[8px] uppercase tracking-wide ${
+                        student.status === "Overdue" ? "text-rose-600" : "text-amber-600"
+                      }`}
+                    >
+                      {student.status}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* Fee info row */}
-              <View className="flex-row justify-between items-center border-t border-gray-50 pt-3">
-                <View>
-                  <Text className="text-[9px] text-[#778598] font-inter">Pending Amount</Text>
-                  <Text className="text-rose-600 font-poppins-bold text-sm">
-                    {student.pendingAmount}
-                  </Text>
+                {/* Fee info row */}
+                <View className="flex-row justify-between items-center border-t border-gray-50 pt-3">
+                  <View>
+                    <Text className="text-[9px] text-[#778598] font-inter">Pending Amount</Text>
+                    <Text className="text-rose-600 font-poppins-bold text-sm">
+                      {student.pendingAmount}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="text-[9px] text-[#778598] font-inter">Deadline Date</Text>
+                    <Text className="text-[#0f1c2c] font-poppins-semibold text-xs">
+                      {student.dueDate}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handleSendReminder(student)}
+                    className="bg-[#0F1C2C] px-3.5 py-2 rounded-xl"
+                  >
+                    <Text className="text-[#ffe088] font-poppins-semibold text-[10px]">
+                      Remind
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <View>
-                  <Text className="text-[9px] text-[#778598] font-inter">Deadline Date</Text>
-                  <Text className="text-[#0f1c2c] font-poppins-semibold text-xs">
-                    {student.dueDate}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleSendReminder(student)}
-                  className="bg-[#0F1C2C] px-3.5 py-2 rounded-xl"
-                >
-                  <Text className="text-[#ffe088] font-poppins-semibold text-[10px]">
-                    Remind
-                  </Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </ScrollView>
 

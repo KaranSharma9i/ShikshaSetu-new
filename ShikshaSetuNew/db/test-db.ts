@@ -1,8 +1,12 @@
-import { pool } from "./index";
+import { supabase } from "./index";
 
 async function test() {
-  const result = await pool.query("SELECT NOW()");
-  console.log(result.rows);
+  const { data, error } = await supabase.from("institutions").select("*").limit(1);
+  if (error) {
+    console.error("Connection failed:", error.message);
+  } else {
+    console.log("Supabase connected. Data:", data);
+  }
 }
 
 test();

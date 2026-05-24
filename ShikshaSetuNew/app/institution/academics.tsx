@@ -6,11 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { schoolData } from "../../constants/schoolData";
+import { useAuth } from "../../src/hooks/useAuth";
+import { useQuery } from "../../src/hooks/useQuery";
+import { getClassesPerformance, getSubjectAnalytics } from "../../src/repositories/academicRepository";
 
 export default function AcademicsPortal() {
   const [selectedGrade, setSelectedGrade] = useState<string>("Grade 10-B");
@@ -18,24 +22,40 @@ export default function AcademicsPortal() {
   const [activeMetricTab, setActiveMetricTab] = useState<"marks" | "score">("marks");
   const [tooltipSubject, setTooltipSubject] = useState<string | null>(null);
 
+  const { institutionId } = useAuth();
+
+  const { data: classesPerformance, isLoading: loadingClasses } = useQuery(
+    () => getClassesPerformance(institutionId || ""),
+    [institutionId]
+  );
+
+  const { data: subjectAnalytics, isLoading: loadingAnalytics } = useQuery(
+    () => getSubjectAnalytics(institutionId || "", selectedGrade),
+    [institutionId, selectedGrade]
+  );
+
+  const gradeNames = classesPerformance?.map(c => c.name) || ["Grade 9-A", "Grade 10-B", "Grade 11-A", "Grade 12-A"];
+
   // Filter subjects mock data based on active tab
   const getChartData = () => {
-    if (activeMetricTab === "marks") {
+    if (!subjectAnalytics || subjectAnalytics.length === 0) {
       return [
         { label: "MATH", value: 84, labelFull: "Mathematics" },
         { label: "PHYS", value: 76, labelFull: "Physics" },
         { label: "ENGL", value: 92, labelFull: "English" },
         { label: "CHEM", value: 68, labelFull: "Chemistry" },
       ];
-    } else {
-      return [
-        { label: "MATH", value: 76, labelFull: "Mathematics" }, // 3.8 out of 5.0 -> 76%
-        { label: "PHYS", value: 70, labelFull: "Physics" }, // 3.5 out of 5.0 -> 70%
-        { label: "ENGL", value: 84, labelFull: "English" }, // 4.2 out of 5.0 -> 84%
-        { label: "CHEM", value: 58, labelFull: "Chemistry" }, // 2.9 out of 5.0 -> 58%
-      ];
     }
+    return subjectAnalytics.map((sub) => {
+      const label = sub.subject.slice(0, 4).toUpperCase();
+      return {
+        label,
+        value: activeMetricTab === "marks" ? sub.avgMarks : Math.round(sub.avgScore * 20),
+        labelFull: sub.subject
+      };
+    });
   };
+
 
   const chartData = getChartData();
 
@@ -75,8 +95,8 @@ export default function AcademicsPortal() {
             </TouchableOpacity>
 
             {isDropdownOpen && (
-              <View className="absolute right-0 top-[42px] bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[140px] z-50">
-                {["Grade 9-A", "Grade 10-B", "Grade 11-A", "Grade 12-A"].map((grade) => (
+              <View className="absolute right-0 top-11 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-50 min-w-[140px]">
+                {gradeNames.map((grade) => (
                   <TouchableOpacity
                     key={grade}
                     onPress={() => {
@@ -130,30 +150,33 @@ export default function AcademicsPortal() {
               </Text>
             </View>
 
-            {/* Table Body */}
-            {schoolData.classes.map((cls) => (
-              <View
-                key={cls.id}
-                className="flex-row items-center py-3 border-b border-gray-50 last:border-0"
-              >
-                <Text className="flex-[2] font-poppins-semibold text-xs text-[#0F1C2C]">
-                  {cls.name}
-                </Text>
-                <Text className="flex-1 text-right font-inter text-xs text-neutral-steel font-medium">
-                  {cls.avgMarks}
-                </Text>
-                <Text className="flex-1.5 text-right font-inter text-xs text-neutral-steel font-medium">
-                  {cls.avgAiScore}
-                </Text>
-                <Text
-                  className={`flex-1 text-right font-poppins-bold text-xs ${
-                    cls.isPositive ? "text-emerald-600" : "text-rose-600"
-                  }`}
+            {loadingClasses ? (
+              <ActivityIndicator size="small" color="#FF5E00" className="my-6" />
+            ) : (
+              (classesPerformance || []).map((cls) => (
+                <View
+                  key={cls.id}
+                  className="flex-row items-center py-3 border-b border-gray-50 last:border-0"
                 >
-                  {cls.growth}
-                </Text>
-              </View>
-            ))}
+                  <Text className="flex-[2] font-poppins-semibold text-xs text-[#0F1C2C]">
+                    {cls.name}
+                  </Text>
+                  <Text className="flex-1 text-right font-inter text-xs text-neutral-steel font-medium">
+                    {cls.avgMarks}
+                  </Text>
+                  <Text className="flex-1.5 text-right font-inter text-xs text-neutral-steel font-medium">
+                    {cls.avgAiScore}
+                  </Text>
+                  <Text
+                    className={`flex-1 text-right font-poppins-bold text-xs ${
+                      cls.isPositive ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {cls.growth}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -262,79 +285,85 @@ export default function AcademicsPortal() {
             Departmental Breakdown ({selectedGrade})
           </Text>
 
-          {schoolData.subjects.map((sub) => (
-            <View
-              key={sub.id}
-              className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
-            >
-              <View className="flex-row justify-between items-start mb-3">
-                <View className="flex-row items-center space-x-2">
-                  <View className="w-9 h-9 rounded-lg bg-[#0F1C2C]/5 items-center justify-center">
-                    <Ionicons name={sub.icon as any} size={18} color="#0F1C2C" />
+          {loadingAnalytics ? (
+            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+          ) : !subjectAnalytics || subjectAnalytics.length === 0 ? (
+            <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">No subjects found.</Text>
+          ) : (
+            subjectAnalytics.map((sub) => (
+              <View
+                key={sub.id}
+                className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
+              >
+                <View className="flex-row justify-between items-start mb-3">
+                  <View className="flex-row items-center space-x-2">
+                    <View className="w-9 h-9 rounded-lg bg-[#0F1C2C]/5 items-center justify-center">
+                      <Ionicons name={sub.icon as any} size={18} color="#0F1C2C" />
+                    </View>
+                    <View>
+                      <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
+                        {sub.subject}
+                      </Text>
+                      <Text className="text-[10px] text-neutral-steel">
+                        {sub.topic}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
-                      {sub.subject}
-                    </Text>
-                    <Text className="text-[10px] text-neutral-steel">
-                      {sub.topic}
-                    </Text>
-                  </View>
-                </View>
 
-                <View
-                  className={`px-2 py-0.5 rounded-full ${
-                    sub.difficulty === "High"
-                      ? "bg-rose-50 border border-rose-100"
-                      : sub.difficulty === "Medium"
-                      ? "bg-amber-50 border border-amber-100"
-                      : "bg-emerald-50 border border-emerald-100"
-                  }`}
-                >
-                  <Text
-                    className={`font-poppins-semibold text-[8px] uppercase tracking-wide ${
+                  <View
+                    className={`px-2 py-0.5 rounded-full ${
                       sub.difficulty === "High"
-                        ? "text-rose-600"
+                        ? "bg-rose-50 border border-rose-100"
                         : sub.difficulty === "Medium"
-                        ? "text-amber-600"
-                        : "text-emerald-600"
+                        ? "bg-amber-50 border border-amber-100"
+                        : "bg-emerald-50 border border-emerald-100"
                     }`}
                   >
-                    {sub.difficulty} Difficulty
+                    <Text
+                      className={`font-poppins-semibold text-[8px] uppercase tracking-wide ${
+                        sub.difficulty === "High"
+                          ? "text-rose-600"
+                          : sub.difficulty === "Medium"
+                          ? "text-amber-600"
+                          : "text-emerald-600"
+                      }`}
+                    >
+                      {sub.difficulty} Difficulty
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Subject metrics row */}
+                <View className="flex-row justify-between items-center border-t border-gray-100 pt-3">
+                  <View>
+                    <Text className="text-[10px] text-neutral-steel font-inter">Avg Exam Marks</Text>
+                    <Text className="text-[#0f1c2c] font-poppins-bold text-sm">{sub.avgMarks}/100</Text>
+                  </View>
+                  <View>
+                    <Text className="text-[10px] text-neutral-steel font-inter">Avg Homework Score</Text>
+                    <Text className="text-[#735c00] font-poppins-bold text-sm">{sub.avgScore} GPA</Text>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-[9px] text-[#778598] font-inter">Top Student</Text>
+                    <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">{sub.topPerformer}</Text>
+                  </View>
+                </View>
+
+                {/* Status footer inside card */}
+                <View className="bg-[#FDF9F1] rounded-xl p-3 mt-3 flex-row justify-between items-center border border-gray-200/50">
+                  <View className="flex-row items-center space-x-1.5">
+                    <Ionicons name="arrow-up-circle-outline" size={14} color="#059669" />
+                    <Text className="text-emerald-700 font-inter text-[10px] font-semibold">
+                      {sub.improvementPercent}
+                    </Text>
+                  </View>
+                  <Text className="text-rose-600 font-poppins-semibold text-[10px]">
+                    {sub.needsSupportCount} Students need support
                   </Text>
                 </View>
               </View>
-
-              {/* Subject metrics row */}
-              <View className="flex-row justify-between items-center border-t border-gray-100 pt-3">
-                <View>
-                  <Text className="text-[10px] text-neutral-steel font-inter">Avg Exam Marks</Text>
-                  <Text className="text-[#0f1c2c] font-poppins-bold text-sm">{sub.avgMarks}/100</Text>
-                </View>
-                <View>
-                  <Text className="text-[10px] text-neutral-steel font-inter">Avg Homework Score</Text>
-                  <Text className="text-[#735c00] font-poppins-bold text-sm">{sub.avgScore} GPA</Text>
-                </View>
-                <View className="items-end">
-                  <Text className="text-[9px] text-[#778598] font-inter">Top Student</Text>
-                  <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">{sub.topPerformer}</Text>
-                </View>
-              </View>
-
-              {/* Status footer inside card */}
-              <View className="bg-[#FDF9F1] rounded-xl p-3 mt-3 flex-row justify-between items-center border border-gray-200/50">
-                <View className="flex-row items-center space-x-1.5">
-                  <Ionicons name="arrow-up-circle-outline" size={14} color="#059669" />
-                  <Text className="text-emerald-700 font-inter text-[10px] font-semibold">
-                    {sub.improvementPercent}
-                  </Text>
-                </View>
-                <Text className="text-rose-600 font-poppins-semibold text-[10px]">
-                  {sub.needsSupportCount} Students need support
-                </Text>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </ScrollView>
 
