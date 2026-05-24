@@ -73,11 +73,11 @@ export default function InstitutionDashboard() {
           <Text className="text-[#0F1C2C] font-poppins-bold text-base mb-3 px-1">
             Quick Actions
           </Text>
-          <View className="grid grid-cols-2 gap-3 flex-row flex-wrap">
+          <View className="flex-row flex-wrap justify-between">
             {/* Add Student */}
             <TouchableOpacity
               onPress={() => router.push("/institution/register?type=student" as any)}
-              className="w-[48%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3 mr-[4%]"
+              className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
               <Ionicons name="person-add-outline" size={20} color="#735c00" />
               <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
@@ -91,7 +91,7 @@ export default function InstitutionDashboard() {
             {/* Add Teacher */}
             <TouchableOpacity
               onPress={() => router.push("/institution/register?type=teacher" as any)}
-              className="w-[48%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
+              className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
               <Ionicons name="people-outline" size={20} color="#735c00" />
               <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
@@ -105,7 +105,7 @@ export default function InstitutionDashboard() {
             {/* Compose Circular */}
             <TouchableOpacity
               onPress={() => router.push("/institution/circulars" as any)}
-              className="w-[48%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mr-[4%]"
+              className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
               <Ionicons name="megaphone-outline" size={20} color="#735c00" />
               <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
@@ -119,7 +119,7 @@ export default function InstitutionDashboard() {
             {/* Schedule Event */}
             <TouchableOpacity
               onPress={() => router.push("/institution/events" as any)}
-              className="w-[48%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm"
+              className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
               <Ionicons name="calendar-outline" size={20} color="#735c00" />
               <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">

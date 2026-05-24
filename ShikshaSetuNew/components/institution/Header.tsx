@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Image } from "react-native";
+import { View, Text, TouchableOpacity, Image, Platform, StatusBar } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { schoolData } from "../../constants/schoolData";
@@ -11,31 +11,44 @@ interface HeaderProps {
 
 export default function Header({ title, showBackButton = true }: HeaderProps) {
   const router = useRouter();
+  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   return (
-    <View className="bg-[#0F1C2C] border-b border-gray-800 px-5 py-4 flex-row justify-between items-center z-50">
+    <View 
+      className="bg-[#0F1C2C] border-b border-gray-800 px-5 flex-row justify-between items-center z-50"
+      style={{
+        paddingTop: Platform.OS === "android" ? statusBarHeight + 20 : 20,
+        paddingBottom: 20,
+      }}
+    >
       <View className="flex-row items-center space-x-3">
         {showBackButton && (
           <TouchableOpacity
-            onPress={() => router.replace("/")}
-            className="p-1 rounded-full bg-slate-800 mr-2"
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/");
+              }
+            }}
+            className="p-1.5 rounded-full bg-slate-800 mr-2"
           >
-            <Ionicons name="arrow-back-outline" size={20} color="#ffe088" />
+            <Ionicons name="arrow-back-outline" size={22} color="#ffe088" />
           </TouchableOpacity>
         )}
         <View className="flex-row items-center space-x-2">
-          <View className="w-8 h-8 rounded-lg bg-white items-center justify-center overflow-hidden">
+          <View className="w-10 h-10 rounded-lg bg-white items-center justify-center overflow-hidden">
             <Image
               source={schoolData.config.logo}
-              style={{ width: 26, height: 26 }}
+              style={{ width: 30, height: 30 }}
               resizeMode="contain"
             />
           </View>
           <View>
-            <Text className="text-white font-poppins-bold text-sm tracking-wide">
+            <Text className="text-white font-poppins-bold text-base tracking-wide">
               {schoolData.config.name}
             </Text>
-            <Text className="text-[9px] font-poppins-semibold text-[#ffe088] tracking-wider uppercase leading-none mt-0.5">
+            <Text className="text-[10.5px] font-poppins-semibold text-[#ffe088] tracking-wider uppercase leading-none mt-0.5">
               {title}
             </Text>
           </View>
@@ -44,9 +57,9 @@ export default function Header({ title, showBackButton = true }: HeaderProps) {
 
       <TouchableOpacity
         onPress={() => router.push("/institution/utilities" as any)}
-        className="w-9 h-9 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
+        className="w-10 h-10 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
       >
-        <Ionicons name="apps-outline" size={18} color="#ffe088" />
+        <Ionicons name="apps-outline" size={20} color="#ffe088" />
       </TouchableOpacity>
     </View>
   );

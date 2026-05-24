@@ -71,9 +71,7 @@ export default function UtilitiesHub() {
               <Text className="text-neutral-steel font-inter text-xs mt-0.5">
                 {schoolData.config.tagline}
               </Text>
-              <Text className="text-[9px] text-[#735c00] font-poppins-semibold uppercase tracking-wider mt-1.5 leading-none">
-                Principal Seat Authorized
-              </Text>
+
             </View>
           </View>
         </View>

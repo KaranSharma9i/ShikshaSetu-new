@@ -1,5 +1,13 @@
 import "../global.css";
-
+import { Stack } from "expo-router";
+import { MockAuthProvider } from "@/utils/mockAuth";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -7,28 +15,13 @@ import {
 import {
   OpenSans_400Regular,
 } from "@expo-google-fonts/open-sans";
-import {
-  Poppins_400Regular,
-  Poppins_500Medium,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-  useFonts,
-} from "@expo-google-fonts/poppins";
-import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { View, Text } from "react-native";
-import { MockAuthProvider } from "../utils/mockAuth";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-try {
-  SplashScreen.preventAutoHideAsync();
-} catch (e) {
-  console.warn("SplashScreen.preventAutoHideAsync() failed:", e);
-}
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
+  const [fontsLoaded] = useFonts({
     "Poppins-Regular": Poppins_400Regular,
     "Poppins-Medium": Poppins_500Medium,
     "Poppins-SemiBold": Poppins_600SemiBold,
@@ -39,16 +32,12 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (loaded || error) {
-      try {
-        SplashScreen.hideAsync();
-      } catch (e) {
-        console.warn("SplashScreen.hideAsync() failed:", e);
-      }
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
     }
-  }, [loaded, error]);
+  }, [fontsLoaded]);
 
-  if (!loaded && !error) {
+  if (!fontsLoaded) {
     return null;
   }
 

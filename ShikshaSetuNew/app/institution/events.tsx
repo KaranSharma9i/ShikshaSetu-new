@@ -141,8 +141,10 @@ export default function EventsHub() {
               >
                 <View className="p-4">
                   <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-row items-center space-x-2">
-                      <View className="w-1.5 h-6 bg-[#735c00] rounded-full" />
+                    <View className="flex-row items-center">
+                      {ev.status !== "Published" && (
+                        <View className="w-1.5 h-6 bg-[#735c00] rounded-full mr-2" />
+                      )}
                       <View>
                         <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
                           {ev.title}

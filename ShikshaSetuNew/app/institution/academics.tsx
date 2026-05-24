@@ -13,7 +13,8 @@ import BottomNavBar from "../../components/institution/BottomNavBar";
 import { schoolData } from "../../constants/schoolData";
 
 export default function AcademicsPortal() {
-  const [selectedGrade, setSelectedGrade] = useState<string>("Grade 10");
+  const [selectedGrade, setSelectedGrade] = useState<string>("Grade 10-B");
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [activeMetricTab, setActiveMetricTab] = useState<"marks" | "score">("marks");
   const [tooltipSubject, setTooltipSubject] = useState<string | null>(null);
 
@@ -58,31 +59,48 @@ export default function AcademicsPortal() {
         </View>
 
         {/* Grade Selector Dropdown Simulation */}
-        <View className="px-5 mb-5 flex-row justify-between items-center">
+        <View className="px-5 mb-5 flex-row justify-between items-center z-50" style={{ zIndex: 50 }}>
           <Text className="text-xs font-inter text-neutral-steel">
             Viewing records for class:
           </Text>
-          <View className="flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            {["Grade 9", "Grade 10", "Grade 11"].map((grade) => (
-              <TouchableOpacity
-                key={grade}
-                onPress={() => {
-                  setSelectedGrade(grade);
-                  setTooltipSubject(null);
-                }}
-                className={`px-3 py-2 ${
-                  selectedGrade === grade ? "bg-[#0F1C2C]" : "bg-transparent"
-                }`}
-              >
-                <Text
-                  className={`text-xs font-poppins-semibold ${
-                    selectedGrade === grade ? "text-[#ffe088]" : "text-[#0F1C2C]"
-                  }`}
-                >
-                  {grade}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View className="relative">
+            <TouchableOpacity
+              onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex-row items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-sm min-w-[140px]"
+            >
+              <Text className="text-xs font-poppins-semibold text-[#0F1C2C] mr-2">
+                {selectedGrade}
+              </Text>
+              <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#0F1C2C" />
+            </TouchableOpacity>
+
+            {isDropdownOpen && (
+              <View className="absolute right-0 top-[42px] bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[140px] z-50">
+                {["Grade 9-A", "Grade 10-B", "Grade 11-A", "Grade 12-A"].map((grade) => (
+                  <TouchableOpacity
+                    key={grade}
+                    onPress={() => {
+                      setSelectedGrade(grade);
+                      setIsDropdownOpen(false);
+                      setTooltipSubject(null);
+                    }}
+                    className={`px-4 py-2 ${
+                      selectedGrade === grade ? "bg-[#FDF9F1]" : "bg-transparent"
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs ${
+                        selectedGrade === grade
+                          ? "font-poppins-bold text-[#735c00]"
+                          : "font-poppins-medium text-[#0F1C2C]"
+                      }`}
+                    >
+                      {grade}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </View>
 
