@@ -113,10 +113,11 @@ async function seed() {
         const surname = SURNAMES[sr % 20];
         fullName = `${first} ${surname}`;
       }
-      await client.query(`
-        INSERT INTO users (login_id, password_hash, full_name, email, phone, role, status, institution_id)
-        VALUES ($1, $2, $3, $4, $5, 'institution_admin', 'active', $6)
-      `, [`GS-ADM-${String(sr).padStart(3, '0')}`, 'Karan123' /* DEV ONLY */, fullName, `adm${sr}@gurukulsiksha.edu.in`, `+91-98970-${String(sr).padStart(5, '0')}`, institutionId]);
+// NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
+await client.query(`
+  INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
+  VALUES ($1, $2, $3, $4, 'institution_admin', 'active', $5, $6)
+`, [`GS-ADM-${String(sr).padStart(3, '0')}`, fullName, `adm${sr}@gurukulsiksha.edu.in`, `+91-98970-${String(sr).padStart(5, '0')}`, institutionId, '$2b$10$defaultHashedPassword123456789012345678901234']);
     }
     console.log('Non-teaching staff seeded.');
 
@@ -167,11 +168,12 @@ async function seed() {
       baseDate.setMonth(baseDate.getMonth() + (sr - 1) * 4);
       const doj = baseDate.toISOString().slice(0, 10);
 
+      // NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
       const uRes = await client.query(`
-        INSERT INTO users (login_id, password_hash, full_name, email, phone, role, status, institution_id)
-        VALUES ($1, $2, $3, $4, $5, 'teacher', 'active', $6)
-        RETURNING id;
-      `, [loginId, 'Karan123' /* DEV ONLY */, name, `tch${sr}@gurukulsiksha.edu.in`, `+91-94150-${String(sr).padStart(5, '0')}`, institutionId]);
+        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
+VALUES ($1, $2, $3, $4, 'teacher', 'active', $5, $6)
+RETURNING id;
+`, [loginId, name, `tch${sr}@gurukulsiksha.edu.in`, `+91-94150-${String(sr).padStart(5, '0')}`, institutionId, '$2b$10$defaultHashedPassword123456789012345678901234']);
       const userId = uRes.rows[0].id;
 
       await client.query(`
@@ -349,17 +351,18 @@ async function seed() {
           const guardianFirst = GUARDIAN_FIRST[(sr - 1) % 30];
           const village = VILLAGES[(sr - 1) % 8];
 
+          // NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
           const uRes = await client.query(`
-            INSERT INTO users (login_id, password_hash, full_name, email, phone, role, status, institution_id)
-            VALUES ($1, $2, $3, $4, $5, 'student', 'active', $6)
+            INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
+VALUES ($1, $2, $3, $4, 'student', 'active', $5, $6)
             RETURNING id;
           `, [
             `GS-STU-${String(sr).padStart(4, '0')}`,
-            'Karan123', /* DEV ONLY */
             `${first} ${surname}`,
             `stu${sr}@gurukulsiksha.edu.in`,
             `+91-9795${String(sr).padStart(6, '0')}`,
-            institutionId
+            institutionId,
+            '$2b$10$defaultHashedPassword123456789012345678901234'
           ]);
           const userId = uRes.rows[0].id;
 
@@ -422,8 +425,9 @@ async function seed() {
     for (const group of groupFees) {
       for (const className of group.classes) {
         for (const [feeName, amount] of Object.entries(group.fees)) {
+          // FIX: Added ON CONFLICT DO NOTHING — fee_structures has UNIQUE(institution_id, academic_year_id, class_id, fee_name)
           await client.query(
-            `INSERT INTO fee_structures (institution_id, academic_year_id, class_id, fee_name, amount, due_date) VALUES ($1, $2, $3, $4, $5, '2025-04-30');`,
+            `INSERT INTO fee_structures (institution_id, academic_year_id, class_id, fee_name, amount, due_date) VALUES ($1, $2, $3, $4, $5, '2025-04-30') ON CONFLICT DO NOTHING;`,
             [institutionId, academicYearId, classIdMap[className], feeName, amount]
           );
         }
@@ -455,17 +459,18 @@ async function seed() {
     for (let i = 0; i < driversData.length; i++) {
       const [name, phone] = driversData[i];
       const sr = i + 1;
+      // NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
       const uRes = await client.query(`
-        INSERT INTO users (login_id, password_hash, full_name, email, phone, role, status, institution_id)
-        VALUES ($1, $2, $3, $4, $5, 'driver', 'active', $6)
+        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
+VALUES ($1, $2, $3, $4, 'driver', 'active', $5, $6)
         RETURNING id;
       `, [
         `GS-DRV-${String(sr).padStart(3, '0')}`,
-        'Karan123', /* DEV ONLY */
         name,
         `drv${sr}@gurukulsiksha.edu.in`,
         phone,
-        institutionId
+        institutionId,
+        '$2b$10$defaultHashedPassword123456789012345678901234'
       ]);
       driverUserIds.push(uRes.rows[0].id);
     }
@@ -584,9 +589,12 @@ async function seed() {
 
       for (const row of distinctRes.rows) {
         const { class_id, subject_id } = row;
+        // FIX: Added ON CONFLICT DO NOTHING — exams has UNIQUE(institution_id, academic_year_id, class_id, subject_id, exam_name, exam_date)
+        // Also handle re-runs: fetch existing exam id if conflict occurs
         const res = await client.query(`
           INSERT INTO exams (institution_id, academic_year_id, class_id, subject_id, exam_name, exam_type, exam_date, start_time, end_time, total_marks, passing_marks)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (institution_id, academic_year_id, class_id, subject_id, exam_name, exam_date) DO UPDATE SET exam_type = EXCLUDED.exam_type
           RETURNING id;
         `, [institutionId, academicYearId, class_id, subject_id, event.name, event.type, event.date, event.start, event.end, event.max, event.pass]);
 
@@ -631,8 +639,9 @@ async function seed() {
             const isAbsent = (examName === 'Unit Test 1' ? srCount % 20 === 0 : srCount % 25 === 0);
             const marks = isAbsent ? null : (examName === 'Unit Test 1' ? (10 + (srCount % 16)) : (35 + (srCount % 46)));
 
+            // FIX: Added ON CONFLICT DO NOTHING — exam_results has UNIQUE(exam_id, student_id)
             await client.query(
-              `INSERT INTO exam_results (exam_id, student_id, marks_obtained) VALUES ($1, $2, $3);`,
+              `INSERT INTO exam_results (exam_id, student_id, marks_obtained) VALUES ($1, $2, $3) ON CONFLICT (exam_id, student_id) DO NOTHING;`,
               [examId, s.student_id, marks]
             );
           }
@@ -658,8 +667,9 @@ async function seed() {
       ['2026-03-31', 'Year closing day'],
     ];
     for (const [date, name] of holidaysData) {
+      // FIX: Added ON CONFLICT DO NOTHING — holidays has UNIQUE(institution_id, date)
       await client.query(
-        `INSERT INTO holidays (institution_id, academic_year_id, date, name) VALUES ($1, $2, $3, $4);`,
+        `INSERT INTO holidays (institution_id, academic_year_id, date, name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;`,
         [institutionId, academicYearId, date, name]
       );
     }
@@ -674,8 +684,9 @@ async function seed() {
       ['Republic Day Celebration – 26 January 2026', 'Programme at school ground 9:00 AM. Cultural performances by students. All staff to report by 8:00 AM.',  '2026-01-20'],
     ];
     for (const [title, content, date] of circularsData) {
+      // FIX: Added ON CONFLICT DO NOTHING — circulars has UNIQUE(institution_id, title, publish_date)
       await client.query(
-        `INSERT INTO circulars (title, content, publish_date, institution_id) VALUES ($1, $2, $3, $4);`,
+        `INSERT INTO circulars (title, content, publish_date, institution_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;`,
         [title, content, date, institutionId]
       );
     }

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image, Platform, StatusBar } from "react-
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { schoolData } from "../../constants/schoolData";
+import { useAuth } from "@/src/hooks/useAuth";
 
 interface HeaderProps {
   title: string;
@@ -11,7 +12,16 @@ interface HeaderProps {
 
 export default function Header({ title, showBackButton = true }: HeaderProps) {
   const router = useRouter();
+  const { signOut } = useAuth();
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    }
+  };
 
   return (
     <View 
@@ -55,12 +65,20 @@ export default function Header({ title, showBackButton = true }: HeaderProps) {
         </View>
       </View>
 
-      <TouchableOpacity
-        onPress={() => router.push("/institution/utilities" as any)}
-        className="w-10 h-10 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
-      >
-        <Ionicons name="apps-outline" size={20} color="#ffe088" />
-      </TouchableOpacity>
+      <View className="flex-row items-center space-x-2">
+        <TouchableOpacity
+          onPress={() => router.push("/institution/utilities" as any)}
+          className="w-10 h-10 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
+        >
+          <Ionicons name="apps-outline" size={20} color="#ffe088" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleSignOut}
+          className="w-10 h-10 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
+        >
+          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

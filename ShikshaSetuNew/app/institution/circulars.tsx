@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,48 +7,69 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { schoolData, Circular } from "../../constants/schoolData";
+import { useAuth } from "../../src/hooks/useAuth";
+import { useQuery } from "../../src/hooks/useQuery";
+import { getCirculars, createCircular } from "../../src/repositories/circularRepository";
+import { handleError } from "../../src/utils/error";
 
 export default function CircularsHub() {
-  const [circulars, setCirculars] = useState<Circular[]>(schoolData.circulars);
+  const { institutionId, userId } = useAuth();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<"Announcement" | "Urgent" | "Event" | "Holiday">("Announcement");
   const [audience, setAudience] = useState<"All" | "Students" | "Teachers" | "Parents">("All");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleBroadcast = () => {
+  const { data: dbCirculars, isLoading, refetch } = useQuery(
+    () => getCirculars(institutionId || ""),
+    [institutionId]
+  );
+  
+  const [circulars, setCirculars] = useState<Circular[]>([]);
+
+  useEffect(() => {
+    if (dbCirculars) {
+      setCirculars(dbCirculars);
+    }
+  }, [dbCirculars]);
+
+  const handleBroadcast = async () => {
     if (!title.trim() || !body.trim()) {
       Alert.alert("Input Required", "Please enter both a title and details for the notice.");
       return;
     }
 
-    const newCircular: Circular = {
-      id: String(circulars.length + 1),
-      title: title.trim(),
-      date: new Date().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      category,
-      body: body.trim(),
-      audience,
-    };
+    setIsSubmitting(true);
+    try {
+      const newCircular = await createCircular(
+        institutionId || "",
+        title.trim(),
+        body.trim(),
+        userId
+      );
 
-    setCirculars([newCircular, ...circulars]);
-    setTitle("");
-    setBody("");
-    
-    Alert.alert(
-      "Notice Broadcasted",
-      `The notice titled "${newCircular.title}" has been successfully sent to ${newCircular.audience}.`,
-      [{ text: "OK" }]
-    );
+      setCirculars([newCircular, ...circulars]);
+      setTitle("");
+      setBody("");
+      
+      Alert.alert(
+        "Notice Broadcasted",
+        `The notice titled "${newCircular.title}" has been successfully sent to ${newCircular.audience}.`,
+        [{ text: "OK" }]
+      );
+    } catch (err: any) {
+      handleError(err, "Notice Broadcast Failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDF9F1]">
@@ -159,12 +180,19 @@ export default function CircularsHub() {
             {/* Broadcast Button */}
             <TouchableOpacity
               onPress={handleBroadcast}
+              disabled={isSubmitting}
               className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2 shadow-sm active:opacity-90"
             >
-              <Ionicons name="send-outline" size={16} color="#ffe088" />
-              <Text className="text-[#ffe088] font-poppins-bold text-xs">
-                Broadcast Notice
-              </Text>
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#ffe088" />
+              ) : (
+                <>
+                  <Ionicons name="send-outline" size={16} color="#ffe088" />
+                  <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                    Broadcast Notice
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -175,47 +203,53 @@ export default function CircularsHub() {
             Recent Broadcast Feed
           </Text>
 
-          {circulars.map((circ) => (
-            <View
-              key={circ.id}
-              className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
-            >
-              <View className="flex-row justify-between items-start mb-2">
-                <View className="flex-row items-center space-x-2">
-                  <View
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      circ.category === "Urgent"
-                        ? "bg-rose-500"
-                        : circ.category === "Event"
-                        ? "bg-[#735c00]"
-                        : circ.category === "Holiday"
-                        ? "bg-amber-500"
-                        : "bg-blue-500"
-                    }`}
-                  />
-                  <Text className="text-[10px] font-poppins-bold text-neutral-steel uppercase">
-                    {circ.category}
-                  </Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+          ) : circulars.length === 0 ? (
+            <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">No circulars broadcasted yet.</Text>
+          ) : (
+            circulars.map((circ) => (
+              <View
+                key={circ.id}
+                className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
+              >
+                <View className="flex-row justify-between items-start mb-2">
+                  <View className="flex-row items-center space-x-2">
+                    <View
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        circ.category === "Urgent"
+                          ? "bg-rose-500"
+                          : circ.category === "Event"
+                          ? "bg-[#735c00]"
+                          : circ.category === "Holiday"
+                          ? "bg-amber-500"
+                          : "bg-blue-500"
+                      }`}
+                    />
+                    <Text className="text-[10px] font-poppins-bold text-neutral-steel uppercase">
+                      {circ.category}
+                    </Text>
+                  </View>
+
+                  <View className="bg-slate-100 px-2 py-0.5 rounded">
+                    <Text className="text-slate-600 font-inter text-[8px] font-semibold">
+                      FOR: {circ.audience.toUpperCase()}
+                    </Text>
+                  </View>
                 </View>
 
-                <View className="bg-slate-100 px-2 py-0.5 rounded">
-                  <Text className="text-slate-600 font-inter text-[8px] font-semibold">
-                    FOR: {circ.audience.toUpperCase()}
-                  </Text>
-                </View>
+                <Text className="font-poppins-bold text-sm text-[#0F1C2C] mb-1">
+                  {circ.title}
+                </Text>
+                <Text className="text-[11px] text-neutral-steel leading-relaxed font-inter">
+                  {circ.body}
+                </Text>
+                <Text className="text-[8px] text-[#778598] font-inter mt-3 text-right">
+                  Sent: {circ.date}
+                </Text>
               </View>
-
-              <Text className="font-poppins-bold text-sm text-[#0F1C2C] mb-1">
-                {circ.title}
-              </Text>
-              <Text className="text-[11px] text-neutral-steel leading-relaxed font-inter">
-                {circ.body}
-              </Text>
-              <Text className="text-[8px] text-[#778598] font-inter mt-3 text-right">
-                Sent: {circ.date}
-              </Text>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </ScrollView>
 

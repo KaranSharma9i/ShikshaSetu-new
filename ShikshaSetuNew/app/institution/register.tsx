@@ -8,15 +8,20 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
+import { useAuth } from "../../src/hooks/useAuth";
+import { registerStudent, appointTeacher } from "../../src/repositories/registrationRepository";
+import { handleError } from "../../src/utils/error";
 
 export default function RegisterUser() {
   const router = useRouter();
   const { type } = useLocalSearchParams<{ type?: string }>();
+  const { institutionId } = useAuth();
   
   // Registration type state (toggle between student and teacher)
   const [regType, setRegType] = useState<"student" | "teacher">(
@@ -25,6 +30,13 @@ export default function RegisterUser() {
 
   // Steps state
   const [step, setStep] = useState(1); // 1, 2, or 3 (Success)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredUser, setRegisteredUser] = useState<{
+    fullName: string;
+    portalId: string;
+    tempPassword: string;
+    rollNumber?: string;
+  } | null>(null);
   
   // Student Form State
   const [studentName, setStudentName] = useState("");
@@ -67,6 +79,7 @@ export default function RegisterUser() {
     setDoj("");
     setExperience("");
     setQualification("");
+    setRegisteredUser(null);
   };
 
   const handleNextStepStudent = () => {
@@ -85,7 +98,7 @@ export default function RegisterUser() {
     }
   };
 
-  const handleRegisterStudent = () => {
+  const handleRegisterStudent = async () => {
     if (!guardianName.trim() || !guardianEmail.trim() || !guardianPhone.trim()) {
       Alert.alert("Input Required", "Please fill in all Guardian Details.");
       return;
@@ -94,11 +107,40 @@ export default function RegisterUser() {
       Alert.alert("Policy Agreement", "Please agree to the Institutional Code of Conduct & Policies before registering.");
       return;
     }
-    // Advance to Success page
-    setStep(4);
+
+    setIsSubmitting(true);
+    try {
+      const res = await registerStudent(institutionId || "", {
+        name: studentName.trim(),
+        grade: studentGrade,
+        dob: dob.trim(),
+        gender,
+        address: address.trim(),
+        prevInst: prevInst.trim(),
+        gpa: gpa.trim(),
+        guardianName: guardianName.trim(),
+        guardianRel,
+        guardianEmail: guardianEmail.trim(),
+        guardianPhone: guardianPhone.trim(),
+      });
+
+      setRegisteredUser({
+        fullName: res.fullName,
+        portalId: res.portalId,
+        tempPassword: res.tempPassword,
+        rollNumber: res.portalId.includes("GS-STU-") 
+          ? `#${res.portalId.split("GS-STU-")[1]}` 
+          : `#45`,
+      });
+      setStep(4);
+    } catch (err: any) {
+      handleError(err, "Student Registration Failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRegisterTeacher = () => {
+  const handleRegisterTeacher = async () => {
     if (step === 1) {
       if (!teacherName.trim() || !teacherSubject.trim() || !teacherClasses.trim()) {
         Alert.alert("Input Required", "Please enter Faculty Name, Specialization, and Classes.");
@@ -110,8 +152,29 @@ export default function RegisterUser() {
         Alert.alert("Input Required", "Please fill in Date of Joining, Experience, and Qualification.");
         return;
       }
-      // Advance to Success page
-      setStep(4);
+
+      setIsSubmitting(true);
+      try {
+        const res = await appointTeacher(institutionId || "", {
+          name: teacherName.trim(),
+          subject: teacherSubject.trim(),
+          classes: teacherClasses.trim(),
+          doj: doj.trim(),
+          experience: experience.trim(),
+          qualification: qualification.trim(),
+        });
+
+        setRegisteredUser({
+          fullName: res.fullName,
+          portalId: res.portalId,
+          tempPassword: res.tempPassword,
+        });
+        setStep(4);
+      } catch (err: any) {
+        handleError(err, "Teacher Appointment Failed");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -194,8 +257,8 @@ export default function RegisterUser() {
           </Text>
           <Text className="text-xs text-neutral-steel font-inter text-center mt-1 max-w-xs">
             {regType === "student"
-              ? `Alexander J. Sterling has been successfully registered under Grade 10-A. Roll number #45 assigned.`
-              : `Dr. Amit Sharma has been successfully appointed as Faculty Instructor.`}
+              ? `${registeredUser?.fullName || studentName} has been successfully registered under ${studentGrade}-A. Roll number ${registeredUser?.rollNumber || "#45"} assigned.`
+              : `${registeredUser?.fullName || teacherName} has been successfully appointed as Faculty Instructor.`}
           </Text>
 
           {/* Details Confirmation Card */}
@@ -207,12 +270,14 @@ export default function RegisterUser() {
             <View className="flex-row justify-between mb-2">
               <Text className="text-[10px] text-neutral-steel font-inter">Portal ID</Text>
               <Text className="text-[11px] text-[#0f1c2c] font-poppins-semibold">
-                {regType === "student" ? "STU-2026-045" : "TCH-2026-089"}
+                {registeredUser?.portalId || (regType === "student" ? "STU-2026-045" : "TCH-2026-089")}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
               <Text className="text-[10px] text-neutral-steel font-inter">Temp Password</Text>
-              <Text className="text-[11px] text-[#0f1c2c] font-poppins-semibold">GURK2026</Text>
+              <Text className="text-[11px] text-[#0f1c2c] font-poppins-semibold">
+                {registeredUser?.tempPassword || "GURK2026"}
+              </Text>
             </View>
             <View className="flex-row justify-between">
               <Text className="text-[10px] text-neutral-steel font-inter">Account Status</Text>
@@ -514,12 +579,19 @@ export default function RegisterUser() {
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={handleRegisterStudent}
-                        className="flex-[2] bg-[#0f1c2c] py-4 rounded-xl items-center flex-row justify-center space-x-1"
+                        disabled={isSubmitting}
+                        className="flex-[2] bg-[#0f1c2c] py-4 rounded-xl items-center flex-row justify-center space-x-1 active:opacity-90"
                       >
-                        <Text className="text-[#ffe088] font-poppins-bold text-xs">
-                          Confirm & Register
-                        </Text>
-                        <Ionicons name="shield-checkmark-outline" size={16} color="#ffe088" />
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color="#ffe088" />
+                        ) : (
+                          <>
+                            <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                              Confirm & Register
+                            </Text>
+                            <Ionicons name="shield-checkmark-outline" size={16} color="#ffe088" />
+                          </>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -643,12 +715,19 @@ export default function RegisterUser() {
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={handleRegisterTeacher}
-                        className="flex-[2] bg-[#0f1c2c] py-4 rounded-xl items-center flex-row justify-center space-x-1"
+                        disabled={isSubmitting}
+                        className="flex-[2] bg-[#0f1c2c] py-4 rounded-xl items-center flex-row justify-center space-x-1 active:opacity-90"
                       >
-                        <Text className="text-[#ffe088] font-poppins-bold text-xs">
-                          Confirm Appointment
-                        </Text>
-                        <Ionicons name="checkbox-outline" size={16} color="#ffe088" />
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color="#ffe088" />
+                        ) : (
+                          <>
+                            <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                              Confirm Appointment
+                            </Text>
+                            <Ionicons name="checkbox-outline" size={16} color="#ffe088" />
+                          </>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>

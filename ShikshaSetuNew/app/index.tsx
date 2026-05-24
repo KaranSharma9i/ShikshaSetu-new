@@ -7,32 +7,13 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
-  FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons, Feather } from "@expo/vector-icons";
-import { useAuth, useUser, useClerk } from "@/utils/mockAuth";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@/src/hooks/useAuth";
 
 // Dummy Seed Database
 const dummySeedData = {
-  school: {
-    name: "Margam Public School",
-    tagline: "Digital Backbone of Institutions",
-    totalStudents: 1250,
-    totalTeachers: 48,
-    feeCollected: "₹14.8 Lakhs",
-    attendanceRate: "94.2%",
-    alerts: [
-      "Staff attendance checklist generated for today.",
-      "Fee collection notification sent to 42 students.",
-      "Term 1 exam schedules published.",
-    ],
-    recentGrowthMetrics: [
-      { id: "1", title: "Fee Collection", value: "85%", change: "+4% vs last month", icon: "cash-outline" as const },
-      { id: "2", title: "Student Attendance", value: "94.2%", change: "+1.2% vs average", icon: "people-outline" as const },
-      { id: "3", title: "Teacher Performance", value: "96.4%", change: "Excellent rating", icon: "star-outline" as const },
-    ]
-  },
   student: {
     name: "Karan Sharma",
     class: "Grade 10-A",
@@ -68,12 +49,11 @@ const dummySeedData = {
 
 export default function Index() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { isLoaded, isSignedIn, user, signOut } = useAuth();
 
   // Selected Portal tab state
-  const [activePortal, setActivePortal] = useState<"school" | "student" | "teacher">("school");
+  const [activePortalState, setActivePortalState] = useState<"student" | "teacher">("student");
+  const activePortal = activePortalState;
 
   // Redirect to onboarding if signed out
   useEffect(() => {
@@ -82,7 +62,27 @@ export default function Index() {
     }
   }, [isLoaded, isSignedIn]);
 
-  if (!isLoaded || !isSignedIn) {
+  // Sync active portal with user role
+  useEffect(() => {
+    console.log("DEBUG - Auth State:", {
+      isSignedIn,
+      isLoaded,
+      userId: user?.id,
+      email: user?.email,
+      role: user?.role
+    });
+    if (isLoaded && isSignedIn && user?.role) {
+      if (user.role === "institution_admin") {
+        router.replace("/institution");
+      } else if (user.role === "teacher") {
+        setActivePortalState("teacher");
+      } else if (user.role === "student") {
+        setActivePortalState("student");
+      }
+    }
+  }, [isLoaded, isSignedIn, user?.role]);
+
+  if (!isLoaded || !isSignedIn || user?.role === "institution_admin") {
     return (
       <SafeAreaView className="flex-1 bg-[#FDF9F1] justify-center items-center">
         <ActivityIndicator size="large" color="#FF5E00" />
@@ -137,138 +137,7 @@ export default function Index() {
           <Text className="text-2xl font-poppins-bold text-neutral-charcoal">
             Welcome back, <Text className="text-margam-orange">{user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "User"}</Text> 👋
           </Text>
-          <Text className="text-sm font-inter text-neutral-steel mt-1">
-            Institutional Portal active. Click a section below to switch views.
-          </Text>
         </View>
-
-        {/* Brand Portal Switched */}
-        <View className="px-6 mb-6">
-          <View className="flex-row bg-white p-1 rounded-2xl border border-orange-100/50 shadow-sm space-x-1">
-            <TouchableOpacity
-              onPress={() => setActivePortal("school")}
-              className={`flex-1 py-3 rounded-xl items-center flex-row justify-center space-x-2 ${
-                activePortal === "school" ? "bg-[#0B1E36]" : "bg-transparent"
-              }`}
-            >
-              <Ionicons name="school" size={16} color={activePortal === "school" ? "#D4AF37" : "#6B7280"} />
-              <Text className={`font-poppins-bold text-xs ${activePortal === "school" ? "text-[#D4AF37]" : "text-neutral-steel"}`}>
-                School / Manage
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActivePortal("student")}
-              className={`flex-1 py-3 rounded-xl items-center flex-row justify-center space-x-2 ${
-                activePortal === "student" ? "bg-[#1A365D]" : "bg-transparent"
-              }`}
-            >
-              <Ionicons name="person" size={16} color={activePortal === "student" ? "#E5C158" : "#6B7280"} />
-              <Text className={`font-poppins-bold text-xs ${activePortal === "student" ? "text-[#E5C158]" : "text-neutral-steel"}`}>
-                Student Portal
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActivePortal("teacher")}
-              className={`flex-1 py-3 rounded-xl items-center flex-row justify-center space-x-2 ${
-                activePortal === "teacher" ? "bg-[#1C2C40]" : "bg-transparent"
-              }`}
-            >
-              <Ionicons name="people" size={16} color={activePortal === "teacher" ? "#E5C158" : "#6B7280"} />
-              <Text className={`font-poppins-bold text-xs ${activePortal === "teacher" ? "text-[#E5C158]" : "text-neutral-steel"}`}>
-                Teacher Portal
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* SCHOOL PORTAL SECTION */}
-        {activePortal === "school" && (
-          <View className="px-6 mb-8">
-            <View className="bg-[#0B1E36] rounded-3xl p-6 border-2 border-[#D4AF37]/50 shadow-md">
-              {/* Header Badge */}
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-white font-poppins-bold text-lg">{dummySeedData.school.name}</Text>
-                <View className="bg-[#D4AF37] px-3 py-1 rounded-full">
-                  <Text className="text-[#0B1E36] font-opensans font-bold text-[9px] uppercase tracking-wider">
-                    School Portal 🏫
-                  </Text>
-                </View>
-              </View>
-
-              <Text className="text-[#D4AF37] font-poppins text-xs tracking-wider uppercase mb-5 leading-none">
-                {dummySeedData.school.tagline}
-              </Text>
-
-              {/* Stats Grid */}
-              <View className="flex-row flex-wrap -mx-2 mb-6">
-                <View className="w-1/2 px-2 mb-4">
-                  <View className="bg-[#122b4a] p-4 rounded-2xl border border-white/5">
-                    <Text className="text-gray-400 font-inter text-xs">Total Students</Text>
-                    <Text className="text-white font-poppins-bold text-lg mt-1">{dummySeedData.school.totalStudents}</Text>
-                  </View>
-                </View>
-                <View className="w-1/2 px-2 mb-4">
-                  <View className="bg-[#122b4a] p-4 rounded-2xl border border-white/5">
-                    <Text className="text-gray-400 font-inter text-xs">Total Staff</Text>
-                    <Text className="text-white font-poppins-bold text-lg mt-1">{dummySeedData.school.totalTeachers}</Text>
-                  </View>
-                </View>
-                <View className="w-1/2 px-2">
-                  <View className="bg-[#122b4a] p-4 rounded-2xl border border-white/5">
-                    <Text className="text-gray-400 font-inter text-xs">Fee Collection</Text>
-                    <Text className="text-white font-poppins-bold text-lg mt-1">{dummySeedData.school.feeCollected}</Text>
-                  </View>
-                </View>
-                <View className="w-1/2 px-2">
-                  <View className="bg-[#122b4a] p-4 rounded-2xl border border-white/5">
-                    <Text className="text-gray-400 font-inter text-xs">Attendance Rate</Text>
-                    <Text className="text-white font-poppins-bold text-lg mt-1">{dummySeedData.school.attendanceRate}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Alerts & Tasks Section */}
-              <Text className="text-[#D4AF37] font-poppins-bold text-sm mb-3">Institutional Growth Alerts</Text>
-              <View className="space-y-3 bg-[#122b4a]/50 p-4 rounded-2xl border border-white/5">
-                {dummySeedData.school.alerts.map((alert, index) => (
-                  <View key={index} className="flex-row items-start space-x-2">
-                    <Ionicons name="alert-circle" size={16} color="#D4AF37" style={{ marginTop: 2 }} />
-                    <Text className="text-gray-200 font-inter text-xs flex-1">{alert}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Clickable Feature Actions */}
-              <Text className="text-white font-poppins-bold text-sm mt-6 mb-3">Quick Controls</Text>
-              <View className="flex-row space-x-2">
-                <TouchableOpacity
-                  onPress={() => router.push("/institution/register?type=student" as any)}
-                  className="flex-1 bg-[#D4AF37] py-3 rounded-xl items-center"
-                >
-                  <Text className="text-[#0B1E36] font-poppins-bold text-xs">Add New Student</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => router.push("/institution/register?type=teacher" as any)}
-                  className="flex-1 bg-[#D4AF37] py-3 rounded-xl items-center"
-                >
-                  <Text className="text-[#0B1E36] font-poppins-bold text-xs">Add New Teacher</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => router.push("/institution" as any)}
-                className="w-full bg-[#D4AF37] py-3.5 rounded-xl items-center mt-4 flex-row justify-center space-x-2"
-              >
-                <Ionicons name="arrow-forward-circle" size={18} color="#0B1E36" />
-                <Text className="text-[#0B1E36] font-poppins-bold text-xs">
-                  Enter Interactive Gurukul Dashboard
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* STUDENT PORTAL SECTION */}
         {activePortal === "student" && (

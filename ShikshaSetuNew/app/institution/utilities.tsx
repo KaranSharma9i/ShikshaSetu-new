@@ -14,9 +14,11 @@ import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { schoolData } from "../../constants/schoolData";
+import { useAuth } from "@/src/hooks/useAuth";
 
 export default function UtilitiesHub() {
   const router = useRouter();
+  const { signOut } = useAuth();
 
   // Time Extension states
   const [selectedClass, setSelectedClass] = useState("Grade 10-B");
@@ -128,7 +130,7 @@ export default function UtilitiesHub() {
             {/* Fee management link */}
             <TouchableOpacity
               onPress={() => router.push("/institution/fees" as any)}
-              className="flex-row items-center justify-between p-4"
+              className="flex-row items-center justify-between p-4 border-b border-gray-150"
             >
               <View className="flex-row items-center space-x-3">
                 <Ionicons name="cash-outline" size={18} color="#0F1C2C" />
@@ -137,6 +139,27 @@ export default function UtilitiesHub() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#778598" />
+            </TouchableOpacity>
+
+            {/* Logout */}
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  await signOut();
+                } catch (err) {
+                  console.error("Logout error:", err);
+                  Alert.alert("Logout Failed", "Something went wrong while signing out.");
+                }
+              }}
+              className="flex-row items-center justify-between p-4"
+            >
+              <View className="flex-row items-center space-x-3">
+                <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+                <Text className="text-[#EF4444] font-poppins-semibold text-xs">
+                  Sign Out / Log Out
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#EF4444" />
             </TouchableOpacity>
           </View>
         </View>

@@ -5,21 +5,47 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { schoolData } from "../../constants/schoolData";
+import { useAuth } from "../../src/hooks/useAuth";
+import { useQuery } from "../../src/hooks/useQuery";
+import { getDashboardMetrics } from "../../src/repositories/metricRepository";
+import { getCirculars } from "../../src/repositories/circularRepository";
 
 export default function InstitutionDashboard() {
   const router = useRouter();
+  const { institutionId } = useAuth();
+
+  const { data: metrics, isLoading: loadingMetrics } = useQuery(
+    () => getDashboardMetrics(institutionId || ""),
+    [institutionId]
+  );
+
+  const { data: circulars, isLoading: loadingCirculars } = useQuery(
+    () => getCirculars(institutionId || ""),
+    [institutionId]
+  );
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
+  const displayMetrics = [
+    { id: "1", title: "Total Students", value: metrics?.totalStudents ?? 0, change: "+24 this month", isPositive: true, icon: "people-outline" },
+    { id: "2", title: "Total Teachers", value: metrics?.totalTeachers ?? 0, change: "+2 this term", isPositive: true, icon: "school-outline" },
+    { id: "3", title: "Fee Collection Rate", value: metrics?.feeCollectionRate ?? "85.2%", change: "+4% vs last month", isPositive: true, icon: "cash-outline" },
+    { id: "4", title: "Student Attendance", value: metrics?.attendanceRate ?? "94.2%", change: "+1.2% vs average", isPositive: true, icon: "calendar-outline" },
+  ];
+
+  const recentCirculars = circulars?.slice(0, 3) || [];
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDF9F1]">
@@ -46,26 +72,32 @@ export default function InstitutionDashboard() {
 
         {/* Stats Grid */}
         <View className="px-5 mb-6">
-          <View className="flex-row flex-wrap -mx-2">
-            {schoolData.metrics.map((metric) => (
-              <View key={metric.id} className="w-1/2 px-2 mb-4">
-                <View className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <View className="w-8 h-8 rounded-lg bg-[#0F1C2C]/5 items-center justify-center mb-3">
-                    <Ionicons name={metric.icon as any} size={18} color="#0F1C2C" />
+          {loadingMetrics ? (
+            <View className="py-10 justify-center items-center">
+              <ActivityIndicator size="small" color="#FF5E00" />
+            </View>
+          ) : (
+            <View className="flex-row flex-wrap -mx-2">
+              {displayMetrics.map((metric) => (
+                <View key={metric.id} className="w-1/2 px-2 mb-4">
+                  <View className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <View className="w-8 h-8 rounded-lg bg-[#0F1C2C]/5 items-center justify-center mb-3">
+                      <Ionicons name={metric.icon as any} size={18} color="#0F1C2C" />
+                    </View>
+                    <Text className="text-neutral-steel font-inter text-[11px]">
+                      {metric.title}
+                    </Text>
+                    <Text className="text-[#0F1C2C] font-poppins-bold text-lg mt-1">
+                      {metric.value}
+                    </Text>
+                    <Text className="text-emerald-600 font-inter text-[10px] mt-1 font-semibold">
+                      {metric.change}
+                    </Text>
                   </View>
-                  <Text className="text-neutral-steel font-inter text-[11px]">
-                    {metric.title}
-                  </Text>
-                  <Text className="text-[#0F1C2C] font-poppins-bold text-lg mt-1">
-                    {metric.value}
-                  </Text>
-                  <Text className="text-emerald-600 font-inter text-[10px] mt-1 font-semibold">
-                    {metric.change}
-                  </Text>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Quick Actions (Bento Style) */}
@@ -146,27 +178,33 @@ export default function InstitutionDashboard() {
               </View>
             </View>
 
-            <View className="space-y-3 bg-slate-800/40 p-4 rounded-2xl border border-white/5">
-              {schoolData.circulars.map((circular) => (
-                <View key={circular.id} className="flex-row items-start space-x-3 mb-2">
-                  <View className="mt-0.5">
-                    <Ionicons
-                      name="ellipse"
-                      size={8}
-                      color={circular.category === "Urgent" ? "#EF4444" : "#ffe088"}
-                    />
+            {loadingCirculars ? (
+              <ActivityIndicator size="small" color="#ffe088" className="my-6" />
+            ) : recentCirculars.length === 0 ? (
+              <Text className="text-gray-400 text-xs font-inter italic text-center py-4">No recent notice broadcasts.</Text>
+            ) : (
+              <View className="space-y-3 bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                {recentCirculars.map((circular) => (
+                  <View key={circular.id} className="flex-row items-start space-x-3 mb-2">
+                    <View className="mt-0.5">
+                      <Ionicons
+                        name="ellipse"
+                        size={8}
+                        color={circular.category === "Urgent" ? "#EF4444" : "#ffe088"}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-white font-inter-medium text-xs">
+                        {circular.title}
+                      </Text>
+                      <Text className="text-slate-400 font-inter text-[9px] mt-0.5">
+                        Posted: {circular.date} • For: {circular.audience}
+                      </Text>
+                    </View>
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-white font-inter-medium text-xs">
-                      {circular.title}
-                    </Text>
-                    <Text className="text-slate-400 font-inter text-[9px] mt-0.5">
-                      Posted: {circular.date} • For: {circular.audience}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -176,3 +214,4 @@ export default function InstitutionDashboard() {
     </SafeAreaView>
   );
 }
+
