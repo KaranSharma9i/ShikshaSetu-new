@@ -272,100 +272,103 @@ export default function AttendanceAnalysisScreen() {
     // Find spacers (which weekday does 1st of month fall on)
     // getDay returns 0: Sunday, 1: Monday, ..., 6: Saturday
     // We want 0: Monday, ..., 6: Sunday
-    const firstDayIndex = (new Date(resolvedYear, currentMonth - 1, 1).getDay() + 6) % 7;
+    const dayOfWeek = new Date(resolvedYear, currentMonth - 1, 1).getDay();
+    const firstDayIndex = (dayOfWeek + 6) % 7;
     const spacers = Array(firstDayIndex).fill(null);
     const allCells = [...spacers, ...calendarData];
 
     return (
-      <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
-        <View className="bg-white rounded-3xl p-5 border border-gray-100">
-          {/* Month Heading */}
-          <View className="flex-row justify-between items-center mb-4">
-            <TouchableOpacity onPress={prevMonth} className="p-1">
-              <Ionicons name="chevron-back" size={20} color="#0D1B2A" />
-            </TouchableOpacity>
-            <Text className="font-poppins-bold text-base text-[#0D1B2A]">
-              {getMonthName(currentMonth)} {resolvedYear}
-            </Text>
-            <TouchableOpacity onPress={nextMonth} className="p-1">
-              <Ionicons name="chevron-forward" size={20} color="#0D1B2A" />
-            </TouchableOpacity>
-          </View>
+      <View style={[styles.cardShadow, { borderRadius: 24 }]}>
+        <View style={{ backgroundColor: "white", borderRadius: 24, marginTop: 16 }}>
+          <View className="bg-white rounded-3xl p-5 border border-gray-100">
+            {/* Month Heading */}
+            <View className="flex-row justify-between items-center mb-4">
+              <TouchableOpacity onPress={prevMonth} className="p-1">
+                <Ionicons name="chevron-back" size={20} color="#0D1B2A" />
+              </TouchableOpacity>
+              <Text className="font-poppins-bold text-base text-[#0D1B2A]">
+                {getMonthName(currentMonth)} {resolvedYear}
+              </Text>
+              <TouchableOpacity onPress={nextMonth} className="p-1">
+                <Ionicons name="chevron-forward" size={20} color="#0D1B2A" />
+              </TouchableOpacity>
+            </View>
 
-          {/* Legend */}
-          <View className="flex-row justify-end items-center space-x-4 mb-4">
-            <View className="flex-row items-center space-x-1">
-              <View className="w-2.5 h-2.5 rounded-full bg-[#C9A84C]" />
-              <Text className="text-[10px] font-inter text-[#75777D]">Holiday</Text>
-            </View>
-            <View className="flex-row items-center space-x-1">
-              <View className="w-2.5 h-2.5 rounded-full bg-[#0D1B2A]" />
-              <Text className="text-[10px] font-inter text-[#75777D]">School Day</Text>
-            </View>
-            <View className="flex-row items-center space-x-1">
-              <View className="w-2.5 h-2.5 rounded-full bg-[#F5F0E8] border border-gray-300" />
-              <Text className="text-[10px] font-inter text-[#75777D]">Weekend/Future</Text>
-            </View>
-          </View>
-
-          {/* Weekday Labels */}
-          <View className="flex-row justify-between mb-2">
-            {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((label) => (
-              <View key={label} className="w-[12%] items-center">
-                <Text className="font-poppins-bold text-[9px] text-[#75777D] tracking-wider">{label}</Text>
+            {/* Legend */}
+            <View className="flex-row justify-end items-center space-x-4 mb-4">
+              <View className="flex-row items-center space-x-1">
+                <View className="w-2.5 h-2.5 rounded-full bg-[#C9A84C]" />
+                <Text className="text-[10px] font-inter text-[#75777D]">Holiday</Text>
               </View>
-            ))}
-          </View>
+              <View className="flex-row items-center space-x-1">
+                <View className="w-2.5 h-2.5 rounded-full bg-[#0D1B2A]" />
+                <Text className="text-[10px] font-inter text-[#75777D]">School Day</Text>
+              </View>
+              <View className="flex-row items-center space-x-1">
+                <View className="w-2.5 h-2.5 rounded-full bg-[#F5F0E8] border border-gray-300" />
+                <Text className="text-[10px] font-inter text-[#75777D]">Weekend/Future</Text>
+              </View>
+            </View>
 
-          {/* Grid Cells */}
-          <View className="flex-row flex-wrap justify-start">
-            {allCells.map((cell, idx) => {
-              if (cell === null) {
-                return <View key={`spacer-${idx}`} className="w-[14.28%] aspect-square justify-center items-center" />;
-              }
-
-              const dateObj = new Date(cell.date);
-              const dayNum = dateObj.getDate();
-              const isToday = cell.date === "2026-05-25";
-
-              let cellClass = "w-[14.28%] aspect-square justify-center items-center mb-1 relative";
-              let textClass = "font-inter text-xs text-[#0D1B2A]";
-              let bgCircle = null;
-
-              if (cell.type === "weekend") {
-                textClass = "font-inter text-xs text-[#BCBEC4]";
-              } else if (cell.type === "holiday") {
-                textClass = "font-poppins-bold text-xs text-white";
-                bgCircle = <View className="absolute inset-1 rounded-full bg-[#C9A84C] justify-center items-center z-[-1]" />;
-              } else if (cell.type === "present") {
-                textClass = "font-poppins-bold text-xs text-white";
-                bgCircle = <View className="absolute inset-1 rounded-full bg-[#0D1B2A] justify-center items-center z-[-1]" />;
-              } else if (cell.type === "absent") {
-                // Low class average day highlight (red outline/circle)
-                textClass = "font-poppins-bold text-xs text-red-600";
-                bgCircle = <View className="absolute inset-1 rounded-full border-2 border-red-500 bg-red-50 justify-center items-center z-[-1]" />;
-              }
-
-              if (isToday) {
-                // Highlight today with gold outline
-                bgCircle = <View className="absolute inset-1 rounded-full border-[2.5px] border-[#C9A84C] justify-center items-center z-[-1]" />;
-                textClass = "font-poppins-bold text-xs text-[#0D1B2A]";
-              }
-
-              return (
-                <View key={cell.date} className={cellClass}>
-                  {bgCircle}
-                  <Text className={textClass}>{dayNum}</Text>
+            {/* Weekday Labels */}
+            <View className="flex-row justify-between mb-2">
+              {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((label) => (
+                <View key={label} className="w-[12%] items-center">
+                  <Text className="font-poppins-bold text-[9px] text-[#75777D] tracking-wider">{label}</Text>
                 </View>
-              );
-            })}
-          </View>
+              ))}
+            </View>
 
-          {/* Date Muted Text */}
-          <View className="mt-3 items-center">
-            <Text className="text-[10px] font-inter text-[#75777D] italic">
-              Today is Monday, May 25, 2026
-            </Text>
+            {/* Grid Cells */}
+            <View className="flex-row flex-wrap justify-start">
+              {allCells.map((cell, idx) => {
+                if (cell === null) {
+                  return <View key={`spacer-${idx}`} className="w-[14.28%] aspect-square justify-center items-center" />;
+                }
+
+                const dateObj = new Date(cell.date);
+                const dayNum = dateObj.getDate();
+                const isToday = cell.date === "2026-05-25";
+
+                let cellClass = "w-[14.28%] aspect-square justify-center items-center mb-1 relative";
+                let textClass = "font-inter text-xs text-[#0D1B2A]";
+                let bgCircle = null;
+
+                if (cell.type === "weekend") {
+                  textClass = "font-inter text-xs text-[#BCBEC4]";
+                } else if (cell.type === "holiday") {
+                  textClass = "font-poppins-bold text-xs text-white";
+                  bgCircle = <View className="absolute inset-1 rounded-full bg-[#C9A84C] justify-center items-center z-[-1]" />;
+                } else if (cell.type === "present") {
+                  textClass = "font-poppins-bold text-xs text-white";
+                  bgCircle = <View className="absolute inset-1 rounded-full bg-[#0D1B2A] justify-center items-center z-[-1]" />;
+                } else if (cell.type === "absent") {
+                  // Low class average day highlight (red outline/circle)
+                  textClass = "font-poppins-bold text-xs text-red-600";
+                  bgCircle = <View className="absolute inset-1 rounded-full border-2 border-red-500 bg-red-50 justify-center items-center z-[-1]" />;
+                }
+
+                if (isToday) {
+                  // Highlight today with gold outline
+                  bgCircle = <View className="absolute inset-1 rounded-full border-[2.5px] border-[#C9A84C] justify-center items-center z-[-1]" />;
+                  textClass = "font-poppins-bold text-xs text-[#0D1B2A]";
+                }
+
+                return (
+                  <View key={cell.date} className={cellClass}>
+                    {bgCircle}
+                    <Text className={textClass}>{dayNum}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Date Muted Text */}
+            <View className="mt-3 items-center">
+              <Text className="text-[10px] font-inter text-[#75777D] italic">
+                Today is Monday, May 25, 2026
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -507,8 +510,8 @@ export default function AttendanceAnalysisScreen() {
             </ScrollView>
 
             {/* Search Bar */}
-            <View style={[styles.searchBarShadow, { backgroundColor: "white", borderRadius: 9999, marginBottom: 8 }]}>
-              <View className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
+            <View style={{ backgroundColor: "white", borderRadius: 9999, marginBottom: 8 }}>
+              <View style={styles.searchBarShadow} className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
                 <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
                 <TextInput
                   className="flex-grow font-inter text-xs text-[#0D1B2A] py-0 outline-none"
@@ -548,7 +551,7 @@ export default function AttendanceAnalysisScreen() {
                     {/* Left Card: Monthly Average */}
                     <View style={[styles.cardShadow, { flex: 1, backgroundColor: "#0D1B2A", borderRadius: 24 }]}>
                       <View className="bg-[#0D1B2A] p-4 rounded-3xl border border-slate-800 flex-1">
-                        <Text 
+                        <Text
                           className="font-poppins-bold text-[9px] uppercase tracking-widest"
                           style={{ color: "rgba(255, 255, 255, 0.7)" }}
                         >
@@ -602,11 +605,11 @@ export default function AttendanceAnalysisScreen() {
                       No matching students found.
                     </Text>
                   ) : (
-                    filteredStudents.map((item) => {
+                    filteredStudents.map((item, index) => {
                       const percent = item.attendancePercent;
                       let badgeStyle = {};
                       let badgeTextClass = "";
-                      
+
                       if (item.status === "excellent") {
                         badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
                         badgeTextClass = "text-[#4CAF50]";
@@ -622,8 +625,7 @@ export default function AttendanceAnalysisScreen() {
                       }
 
                       return (
-                        <View key={item.studentId} style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginBottom: 12 }]}>
-                          <View className="bg-white p-4 rounded-3xl border border-gray-100">
+                        <View key={item.id ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Grey Initials Avatar */}
@@ -643,7 +645,7 @@ export default function AttendanceAnalysisScreen() {
                               </View>
 
                               {/* Badge */}
-                              <View 
+                              <View
                                 className="px-2.5 py-1 rounded-lg border"
                                 style={badgeStyle}
                               >
@@ -663,7 +665,7 @@ export default function AttendanceAnalysisScreen() {
                               </Text>
                             </View>
                           </View>
-                        </View>
+                        
                       );
                     })
                   )}
@@ -835,11 +837,11 @@ export default function AttendanceAnalysisScreen() {
                       No matching staff found.
                     </Text>
                   ) : (
-                    filteredStaff.map((item) => {
+                    filteredStaff.map((item, index) => {
                       const percent = item.attendancePercent;
                       let badgeStyle = {};
                       let badgeTextClass = "";
-                      
+
                       if (item.status === "excellent") {
                         badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
                         badgeTextClass = "text-[#4CAF50]";
@@ -855,8 +857,7 @@ export default function AttendanceAnalysisScreen() {
                       }
 
                       return (
-                        <View key={item.teacherId} style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginBottom: 12 }]}>
-                          <View className="bg-white p-4 rounded-3xl border border-gray-100">
+                        <View key={item.id ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Gold Initials Avatar */}
@@ -879,7 +880,7 @@ export default function AttendanceAnalysisScreen() {
                               </View>
 
                               {/* Badge */}
-                              <View 
+                              <View
                                 className="px-2.5 py-1 rounded-lg border"
                                 style={badgeStyle}
                               >
@@ -899,7 +900,6 @@ export default function AttendanceAnalysisScreen() {
                               </Text>
                             </View>
                           </View>
-                        </View>
                       );
                     })
                   )}
