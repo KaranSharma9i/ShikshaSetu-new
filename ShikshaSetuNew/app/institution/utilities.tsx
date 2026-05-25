@@ -22,6 +22,7 @@ export default function UtilitiesHub() {
 
   // Time Extension states
   const [selectedClass, setSelectedClass] = useState("Grade 10-B");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [examName, setExamName] = useState("");
   const [extendHours, setExtendHours] = useState("");
   const [reason, setReason] = useState("");
@@ -179,30 +180,47 @@ export default function UtilitiesHub() {
               <Ionicons name="hourglass-outline" size={20} color="#735c00" />
             </View>
 
-            {/* Class Dropdown simulator */}
+            {/* Class Dropdown selector */}
             <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
               Select Class Section
             </Text>
-            <View className="flex-row gap-2 mb-4">
-              {["Grade 9-A", "Grade 10-B", "Grade 11-A"].map((cls) => (
-                <TouchableOpacity
-                  key={cls}
-                  onPress={() => setSelectedClass(cls)}
-                  className={`flex-1 py-2.5 rounded-lg border items-center ${
-                    selectedClass === cls
-                      ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                      : "bg-[#FCFAFA] border-gray-200"
-                  }`}
-                >
-                  <Text
-                    className={`text-[9px] font-poppins-semibold ${
-                      selectedClass === cls ? "text-[#ffe088]" : "text-neutral-steel"
-                    }`}
-                  >
-                    {cls}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View className="relative z-50 mb-4" style={{ zIndex: 50 }}>
+              <TouchableOpacity
+                onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex-row items-center justify-between bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl"
+              >
+                <Text className="text-xs font-inter text-[#0F1C2C]">
+                  {selectedClass}
+                </Text>
+                <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#0F1C2C" />
+              </TouchableOpacity>
+
+              {isDropdownOpen && (
+                <View className="absolute left-0 right-0 top-[52px] bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-50">
+                  {["Grade 9-A", "Grade 10-B", "Grade 11-A"].map((cls) => (
+                    <TouchableOpacity
+                      key={cls}
+                      onPress={() => {
+                        setSelectedClass(cls);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`px-4 py-2.5 ${
+                        selectedClass === cls ? "bg-[#FDF9F1]" : "bg-transparent"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs ${
+                          selectedClass === cls
+                            ? "font-poppins-bold text-[#735c00]"
+                            : "font-poppins-medium text-[#0F1C2C]"
+                        }`}
+                      >
+                        {cls}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Exam / Homework name input */}

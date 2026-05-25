@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,8 +15,25 @@ import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { useAuth } from "../../src/hooks/useAuth";
-import { registerStudent, appointTeacher } from "../../src/repositories/registrationRepository";
+import { registerStudent, appointTeacher, getNextStudentCode, getSectionsForClass } from "../../src/repositories/registrationRepository";
 import { handleError } from "../../src/utils/error";
+
+const CLASSES = [
+  "LKG",
+  "UKG",
+  "Grade 1",
+  "Grade 2",
+  "Grade 3",
+  "Grade 4",
+  "Grade 5",
+  "Grade 6",
+  "Grade 7",
+  "Grade 8",
+  "Grade 9",
+  "Grade 10",
+  "Grade 11",
+  "Grade 12"
+];
 
 export default function RegisterUser() {
   const router = useRouter();
@@ -39,8 +56,11 @@ export default function RegisterUser() {
   } | null>(null);
   
   // Student Form State
+  const [studentCode, setStudentCode] = useState("GS-STU-0001");
   const [studentName, setStudentName] = useState("");
-  const [studentGrade, setStudentGrade] = useState("Grade 10");
+  const [studentGrade, setStudentGrade] = useState("LKG");
+  const [studentSection, setStudentSection] = useState("A");
+  const [sections, setSections] = useState<string[]>([]);
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("Male");
   const [address, setAddress] = useState("");
@@ -51,6 +71,7 @@ export default function RegisterUser() {
   const [guardianRel, setGuardianRel] = useState("Mother");
   const [guardianEmail, setGuardianEmail] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
   const [declarationAccepted, setDeclarationAccepted] = useState(false);
 
   // Teacher Form State
@@ -60,6 +81,27 @@ export default function RegisterUser() {
   const [doj, setDoj] = useState("");
   const [experience, setExperience] = useState("");
   const [qualification, setQualification] = useState("");
+
+  // Load next student code
+  useEffect(() => {
+    if (institutionId && regType === "student") {
+      getNextStudentCode(institutionId).then((code) => {
+        setStudentCode(code);
+      });
+    }
+  }, [institutionId, regType]);
+
+  // Load sections dynamically when studentGrade changes
+  useEffect(() => {
+    if (institutionId && studentGrade && regType === "student") {
+      getSectionsForClass(institutionId, studentGrade).then((secList) => {
+        setSections(secList);
+        if (secList.length > 0 && !secList.includes(studentSection)) {
+          setStudentSection(secList[0]);
+        }
+      });
+    }
+  }, [institutionId, studentGrade, regType]);
 
   const resetForms = () => {
     setStep(1);
@@ -71,7 +113,10 @@ export default function RegisterUser() {
     setGuardianName("");
     setGuardianEmail("");
     setGuardianPhone("");
+    setStudentEmail("");
     setDeclarationAccepted(false);
+    setStudentSection("A");
+    setSections([]);
     
     setTeacherName("");
     setTeacherSubject("");
@@ -80,6 +125,12 @@ export default function RegisterUser() {
     setExperience("");
     setQualification("");
     setRegisteredUser(null);
+
+    if (institutionId) {
+      getNextStudentCode(institutionId).then((code) => {
+        setStudentCode(code);
+      });
+    }
   };
 
   const handleNextStepStudent = () => {
@@ -90,8 +141,8 @@ export default function RegisterUser() {
       }
       setStep(2);
     } else if (step === 2) {
-      if (!address.trim() || !prevInst.trim() || !gpa.trim()) {
-        Alert.alert("Input Required", "Please enter Address, Previous School, and GPA details.");
+      if (!address.trim() || !prevInst.trim() || !gpa.trim() || !guardianEmail.trim() || !guardianPhone.trim()) {
+        Alert.alert("Input Required", "Please enter Address, Previous School, GPA, and Guardian details.");
         return;
       }
       setStep(3);
@@ -99,8 +150,8 @@ export default function RegisterUser() {
   };
 
   const handleRegisterStudent = async () => {
-    if (!guardianName.trim() || !guardianEmail.trim() || !guardianPhone.trim()) {
-      Alert.alert("Input Required", "Please fill in all Guardian Details.");
+    if (!guardianName.trim() || !guardianRel.trim() || !studentEmail.trim()) {
+      Alert.alert("Input Required", "Please enter Guardian Name, Relationship, and Student Email.");
       return;
     }
     if (!declarationAccepted) {
@@ -122,6 +173,10 @@ export default function RegisterUser() {
         guardianRel,
         guardianEmail: guardianEmail.trim(),
         guardianPhone: guardianPhone.trim(),
+        studentCode,
+        studentEmail: studentEmail.trim(),
+        transport,
+        section: studentSection,
       });
 
       setRegisteredUser({
@@ -247,7 +302,7 @@ export default function RegisterUser() {
 
       {/* SUCCESS OVERLAY PAGE */}
       {step === 4 ? (
-        <ScrollView className="flex-grow px-5 py-8" contentContainerStyle={{ alignItems: "center", justifyContent: "center", flexGrow: 1 }}>
+        <ScrollView key="registration-success-scroll" className="flex-grow px-5 py-8" contentContainerStyle={{ alignItems: "center", justifyContent: "center", flexGrow: 1 }}>
           <View className="w-24 h-24 rounded-full bg-emerald-50 items-center justify-center mb-6 border border-emerald-200 shadow-sm">
             <Ionicons name="checkmark-circle" size={56} color="#059669" />
           </View>
@@ -257,7 +312,7 @@ export default function RegisterUser() {
           </Text>
           <Text className="text-xs text-neutral-steel font-inter text-center mt-1 max-w-xs">
             {regType === "student"
-              ? `${registeredUser?.fullName || studentName} has been successfully registered under ${studentGrade}-A. Roll number ${registeredUser?.rollNumber || "#45"} assigned.`
+              ? `${registeredUser?.fullName || studentName} has been successfully registered under ${studentGrade}-${studentSection}. Roll number ${registeredUser?.rollNumber || "#45"} assigned.`
               : `${registeredUser?.fullName || teacherName} has been successfully appointed as Faculty Instructor.`}
           </Text>
 
@@ -300,6 +355,7 @@ export default function RegisterUser() {
         </ScrollView>
       ) : (
         <ScrollView
+          key="registration-form-scroll"
           className="flex-grow"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
@@ -315,6 +371,16 @@ export default function RegisterUser() {
                     <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
                       Step 1: Candidate Identity
                     </Text>
+
+                    {/* Student Code */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Student Code
+                    </Text>
+                    <TextInput
+                      value={studentCode}
+                      editable={false}
+                      className="bg-gray-100 border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-gray-500"
+                    />
 
                     {/* Candidate Name */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
@@ -340,16 +406,16 @@ export default function RegisterUser() {
                       className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
                     />
 
-                    {/* Grade Selector */}
+                    {/* Class Selector */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
-                      Grade Level
+                      Class
                     </Text>
-                    <View className="flex-row gap-2 mb-4">
-                      {["Grade 9", "Grade 10", "Grade 11"].map((grade) => (
+                    <View className="flex-row flex-wrap justify-between gap-y-2 mb-4">
+                      {CLASSES.map((grade) => (
                         <TouchableOpacity
                           key={grade}
                           onPress={() => setStudentGrade(grade)}
-                          className={`flex-1 py-2.5 rounded-lg border items-center ${
+                          className={`w-[32%] py-2.5 rounded-lg border items-center ${
                             studentGrade === grade
                               ? "bg-[#0F1C2C] border-[#0F1C2C]"
                               : "bg-[#FCFAFA] border-gray-200"
@@ -365,6 +431,36 @@ export default function RegisterUser() {
                         </TouchableOpacity>
                       ))}
                     </View>
+
+                    {/* Section Selector */}
+                    {studentGrade && sections.length > 0 && (
+                      <View className="mb-4">
+                        <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                          Section
+                        </Text>
+                        <View className="flex-row gap-2">
+                          {sections.map((sec) => (
+                            <TouchableOpacity
+                              key={sec}
+                              onPress={() => setStudentSection(sec)}
+                              className={`flex-1 py-2.5 rounded-lg border items-center ${
+                                studentSection === sec
+                                  ? "bg-[#0F1C2C] border-[#0F1C2C]"
+                                  : "bg-[#FCFAFA] border-gray-200"
+                              }`}
+                            >
+                              <Text
+                                className={`text-[10px] font-poppins-semibold ${
+                                  studentSection === sec ? "text-[#ffe088]" : "text-neutral-steel"
+                                }`}
+                              >
+                                {sec}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
 
                     {/* Gender Selector */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
@@ -471,6 +567,32 @@ export default function RegisterUser() {
                       onChangeText={setGpa}
                       placeholder="e.g. 3.9 / 4.0 (92%)"
                       placeholderTextColor="#9CA3AF"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                    />
+
+                    {/* Guardian Email */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Guardian Email
+                    </Text>
+                    <TextInput
+                      value={guardianEmail}
+                      onChangeText={setGuardianEmail}
+                      placeholder="e.g. e.sterling@university.edu"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="email-address"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                    />
+
+                    {/* Guardian Phone */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Guardian Mobile Number
+                    </Text>
+                    <TextInput
+                      value={guardianPhone}
+                      onChangeText={setGuardianPhone}
+                      placeholder="e.g. +1 (555) 012-3456"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
                       className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
                     />
 
@@ -526,29 +648,16 @@ export default function RegisterUser() {
                       className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
                     />
 
-                    {/* Email */}
+                    {/* Student Email */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
-                      Email Address
+                      Student Email Address
                     </Text>
                     <TextInput
-                      value={guardianEmail}
-                      onChangeText={setGuardianEmail}
-                      placeholder="e.g. e.sterling@university.edu"
+                      value={studentEmail}
+                      onChangeText={setStudentEmail}
+                      placeholder="e.g. alex.sterling@gurukulsiksha.edu.in"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="email-address"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
-                    />
-
-                    {/* Mobile Number */}
-                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
-                      Mobile Number
-                    </Text>
-                    <TextInput
-                      value={guardianPhone}
-                      onChangeText={setGuardianPhone}
-                      placeholder="e.g. +1 (555) 012-3456"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="phone-pad"
                       className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
                     />
 
