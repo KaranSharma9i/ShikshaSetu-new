@@ -8,9 +8,10 @@ import { useAuth } from "@/src/hooks/useAuth";
 interface HeaderProps {
   title: string;
   showBackButton?: boolean;
+  onBackPress?: () => void;
 }
 
-export default function Header({ title, showBackButton = true }: HeaderProps) {
+export default function Header({ title, showBackButton = true, onBackPress }: HeaderProps) {
   const router = useRouter();
   const { signOut } = useAuth();
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
@@ -35,7 +36,9 @@ export default function Header({ title, showBackButton = true }: HeaderProps) {
         {showBackButton && (
           <TouchableOpacity
             onPress={() => {
-              if (router.canGoBack()) {
+              if (onBackPress) {
+                onBackPress();
+              } else if (router.canGoBack()) {
                 router.back();
               } else {
                 router.replace("/");
