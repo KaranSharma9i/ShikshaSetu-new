@@ -39,10 +39,10 @@ export default function InstitutionDashboard() {
   });
 
   const displayMetrics = [
-    { id: "1", title: "Total Students", value: metrics?.totalStudents ?? 0, change: "+24 this month", isPositive: true, icon: "people-outline" },
-    { id: "2", title: "Total Teachers", value: metrics?.totalTeachers ?? 0, change: "+2 this term", isPositive: true, icon: "school-outline" },
-    { id: "3", title: "Fee Collection Rate", value: metrics?.feeCollectionRate ?? "85.2%", change: "+4% vs last month", isPositive: true, icon: "cash-outline" },
-    { id: "4", title: "Student Attendance", value: metrics?.attendanceRate ?? "94.2%", change: "+1.2% vs average", isPositive: true, icon: "calendar-outline" },
+    { id: "1", title: "Total Students", value: metrics?.totalStudents ?? 0, change: metrics?.studentsChange ?? "+24 this month", isPositive: true, icon: "people-outline" },
+    { id: "2", title: "Total Teachers", value: metrics?.totalTeachers ?? 0, change: metrics?.teachersChange ?? "+2 this term", isPositive: true, icon: "school-outline" },
+    { id: "3", title: "Fee Collection Rate", value: metrics?.feeCollectionRate ?? "85.2%", change: metrics?.feeChange ?? "+4% vs last month", isPositive: true, icon: "cash-outline" },
+    { id: "4", title: "Student Attendance", value: metrics?.attendanceRate ?? "94.2%", change: metrics?.attendanceChange ?? "+1.2% vs average", isPositive: true, icon: "calendar-outline" },
   ];
 
   const recentCirculars = circulars?.slice(0, 3) || [];
@@ -78,24 +78,32 @@ export default function InstitutionDashboard() {
             </View>
           ) : (
             <View className="flex-row flex-wrap -mx-2">
-              {displayMetrics.map((metric) => (
-                <View key={metric.id} className="w-1/2 px-2 mb-4">
-                  <View className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                    <View className="w-8 h-8 rounded-lg bg-[#0F1C2C]/5 items-center justify-center mb-3">
-                      <Ionicons name={metric.icon as any} size={18} color="#0F1C2C" />
-                    </View>
-                    <Text className="text-neutral-steel font-inter text-[11px]">
-                      {metric.title}
-                    </Text>
-                    <Text className="text-[#0F1C2C] font-poppins-bold text-lg mt-1">
-                      {metric.value}
-                    </Text>
-                    <Text className="text-emerald-600 font-inter text-[10px] mt-1 font-semibold">
-                      {metric.change}
-                    </Text>
+              {displayMetrics.map((metric) => {
+                const isStudents = metric.title === "Total Students";
+                return (
+                  <View key={metric.id} className="w-1/2 px-2 mb-4">
+                    <TouchableOpacity
+                      activeOpacity={isStudents ? 0.7 : 1}
+                      disabled={!isStudents}
+                      onPress={() => isStudents && router.push("/students" as any)}
+                      className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
+                    >
+                      <View className="w-8 h-8 rounded-lg bg-[#0F1C2C]/5 items-center justify-center mb-3">
+                        <Ionicons name={metric.icon as any} size={18} color="#0F1C2C" />
+                      </View>
+                      <Text className="text-neutral-steel font-inter text-[11px]">
+                        {metric.title}
+                      </Text>
+                      <Text className="text-[#0F1C2C] font-poppins-bold text-lg mt-1">
+                        {metric.value}
+                      </Text>
+                      <Text className="text-emerald-600 font-inter text-[10px] mt-1 font-semibold">
+                        {metric.change}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
