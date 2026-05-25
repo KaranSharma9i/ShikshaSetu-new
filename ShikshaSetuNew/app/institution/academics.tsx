@@ -40,15 +40,16 @@ export default function AcademicsPortal() {
   const getChartData = () => {
     if (!subjectAnalytics || subjectAnalytics.length === 0) {
       return [
-        { label: "MATH", value: 84, labelFull: "Mathematics" },
-        { label: "PHYS", value: 76, labelFull: "Physics" },
-        { label: "ENGL", value: 92, labelFull: "English" },
-        { label: "CHEM", value: 68, labelFull: "Chemistry" },
+        { id: "math", label: "MATH", value: 84, labelFull: "Mathematics" },
+        { id: "phys", label: "PHYS", value: 76, labelFull: "Physics" },
+        { id: "engl", label: "ENGL", value: 92, labelFull: "English" },
+        { id: "chem", label: "CHEM", value: 68, labelFull: "Chemistry" },
       ];
     }
     return subjectAnalytics.map((sub) => {
       const label = sub.subject.slice(0, 4).toUpperCase();
       return {
+        id: sub.id,
         label,
         value: activeMetricTab === "marks" ? sub.avgMarks : Math.round(sub.avgScore * 20),
         labelFull: sub.subject
@@ -240,10 +241,10 @@ export default function AcademicsPortal() {
                 <View className="border-t border-[#0F1C2C] w-full" />
               </View>
 
-              {chartData.map((item) => {
-                const isSelected = tooltipSubject === item.label;
+              {chartData.map((item, index) => {
+                const isSelected = tooltipSubject === item.id;
                 return (
-                  <View key={item.label} className="items-center flex-1 mx-2">
+                  <View key={`${item.id}-${item.label}-${index}`} className="items-center flex-1 mx-2">
                     {/* Tooltip Overlay */}
                     {isSelected && (
                       <View className="absolute -top-12 bg-[#0F1C2C] px-2 py-1.5 rounded shadow-md z-40 border border-gray-800">
@@ -255,7 +256,7 @@ export default function AcademicsPortal() {
 
                     <TouchableOpacity
                       activeOpacity={0.8}
-                      onPress={() => setTooltipSubject(isSelected ? null : item.label)}
+                      onPress={() => setTooltipSubject(isSelected ? null : item.id)}
                       className="w-full max-w-[32px] justify-end"
                       style={{ height: 160 }}
                     >
@@ -290,9 +291,9 @@ export default function AcademicsPortal() {
           ) : !subjectAnalytics || subjectAnalytics.length === 0 ? (
             <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">No subjects found.</Text>
           ) : (
-            subjectAnalytics.map((sub) => (
+            subjectAnalytics.map((sub, index) => (
               <View
-                key={sub.id}
+                key={`${sub.id}-${sub.subject}-${index}`}
                 className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
               >
                 <View className="flex-row justify-between items-start mb-3">

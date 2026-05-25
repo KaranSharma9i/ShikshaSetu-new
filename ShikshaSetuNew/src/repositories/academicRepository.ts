@@ -157,13 +157,14 @@ export async function getSubjectAnalytics(
       .from("sections")
       .select(`
         id,
-        class:classes (
+        class:classes!inner (
           id,
           name
         )
       `)
       .eq("name", sectionLetter)
       .eq("class.name", className)
+      .eq("class.institution_id", institutionId)
       .maybeSingle();
 
     if (secErr) throw secErr;
@@ -224,20 +225,34 @@ export async function getSubjectAnalytics(
         const examIds = exams.map(e => e.id);
         const { data: results } = await supabase
           .from("exam_results")
-          .select("marks_obtained, student_id")
+          .select("exam_id, marks_obtained, student_id")
           .in("exam_id", examIds);
 
         if (results && results.length > 0) {
-          const marks = results.map(r => Number(r.marks_obtained)).filter(m => !isNaN(m));
-          if (marks.length > 0) {
-            const sum = marks.reduce((a, b) => a + b, 0);
-            const examObj = exams[0]; // Average relative to first exam total marks
-            const total = Number(examObj.total_marks) || 100;
-            avgMarks = Math.round((sum / (marks.length * total)) * 100);
+          let totalPercentage = 0;
+          let validCount = 0;
+          let supportCount = 0;
 
-            // Compute support count: marks < passing
-            const passing = Number(examObj.passing_marks) || 40;
-            needsSupport = results.filter(r => Number(r.marks_obtained) < passing).length;
+          results.forEach(r => {
+            if (r.marks_obtained !== null && r.marks_obtained !== undefined) {
+              const exam = exams.find(e => e.id === r.exam_id);
+              if (exam) {
+                const total = Number(exam.total_marks) || 100;
+                const percentage = (Number(r.marks_obtained) / total) * 100;
+                totalPercentage += percentage;
+                validCount++;
+
+                const passing = Number(exam.passing_marks) || 40;
+                if (Number(r.marks_obtained) < passing) {
+                  supportCount++;
+                }
+              }
+            }
+          });
+
+          if (validCount > 0) {
+            avgMarks = Math.min(100, Math.round(totalPercentage / validCount));
+            needsSupport = supportCount;
           }
         }
       }
