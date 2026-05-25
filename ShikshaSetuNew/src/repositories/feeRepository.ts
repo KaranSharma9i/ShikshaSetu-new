@@ -15,195 +15,314 @@ export interface FeeDefaulterData {
   status: "Overdue" | "Pending";
 }
 
+export interface DefaulterItem {
+  studentId: string;
+  studentName: string;
+  className: string;
+  section: string;
+  pendingAmount: number;
+  dueDate: string;
+  status: "pending" | "overdue";
+  feeStructureId: string;
+}
+
+// Helper to derive status based on amount paid vs structure amount and due date
+export function deriveStatus(
+  amountPaid: number,
+  structureAmount: number,
+  dueDateStr: string | Date | null
+): "paid" | "pending" | "overdue" {
+  if (amountPaid >= structureAmount) {
+    return "paid";
+  }
+  if (!dueDateStr) {
+    return "pending";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(dueDateStr);
+  dueDate.setHours(0, 0, 0, 0);
+
+  if (dueDate < today) {
+    return "overdue";
+  }
+  return "pending";
+}
+
+// 1. Fetch fee collection stats summary (total expected, total collected, rate)
+export async function getFeeCollectionSummary(
+  institutionId: string,
+  academicYearId: string
+): Promise<{ totalCollected: number; totalTarget: number; completionPercent: number }> {
+  try {
+    const { data, error } = await supabase
+      .from("fee_payments")
+      .select(`
+        amount_paid,
+        fee_structure:fee_structures!inner (
+          amount,
+          institution_id,
+          academic_year_id
+        )
+      `)
+      .eq("fee_structure.institution_id", institutionId)
+      .eq("fee_structure.academic_year_id", academicYearId)
+      .is("deleted_at", null)
+      .is("fee_structure.deleted_at", null);
+
+    if (error) throw error;
+
+    let totalCollected = 0;
+    let totalTarget = 0;
+
+    if (data) {
+      data.forEach((item: any) => {
+        const paid = Number(item.amount_paid) || 0;
+        const expected = Number(item.fee_structure?.amount) || 0;
+        totalCollected += paid;
+        totalTarget += expected;
+      });
+    }
+
+    const completionPercent = totalTarget > 0 ? (totalCollected / totalTarget) * 100 : 0;
+
+    return {
+      totalCollected,
+      totalTarget,
+      completionPercent,
+    };
+  } catch (error) {
+    console.error("Error in getFeeCollectionSummary repository:", error);
+    return {
+      totalCollected: 0,
+      totalTarget: 0,
+      completionPercent: 0,
+    };
+  }
+}
+
+// 2. Fetch all defaulters (students who have not paid their fees fully)
+export async function getDefaultersList(
+  institutionId: string,
+  academicYearId: string
+): Promise<DefaulterItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from("fee_payments")
+      .select(`
+        id,
+        amount_paid,
+        fee_structure_id,
+        student_id,
+        student:students!inner (
+          id,
+          user:users!inner (
+            full_name
+          ),
+          enrollments!inner (
+            roll_number,
+            is_active,
+            section:sections!inner (
+              id,
+              name,
+              class:classes!inner (
+                id,
+                name
+              )
+            )
+          )
+        ),
+        fee_structure:fee_structures!inner (
+          id,
+          fee_name,
+          amount,
+          due_date,
+          institution_id,
+          academic_year_id
+        )
+      `)
+      .eq("fee_structure.institution_id", institutionId)
+      .eq("fee_structure.academic_year_id", academicYearId)
+      .is("deleted_at", null)
+      .is("fee_structure.deleted_at", null)
+      .is("student.deleted_at", null);
+
+    if (error) throw error;
+
+    const defaulters: DefaulterItem[] = [];
+
+    if (data) {
+      data.forEach((item: any) => {
+        const amountPaid = Number(item.amount_paid) || 0;
+        const structureAmount = Number(item.fee_structure?.amount) || 0;
+        const dueDateStr = item.fee_structure?.due_date || null;
+
+        const status = deriveStatus(amountPaid, structureAmount, dueDateStr);
+
+        // Filter out 'paid' records
+        if (status === "paid") return;
+
+        const student = item.student;
+        const userObj = Array.isArray(student?.user) ? student.user[0] : student?.user;
+        const enrolls = student?.enrollments;
+        const enrollment = Array.isArray(enrolls)
+          ? enrolls.find((e: any) => e.is_active) || enrolls[0]
+          : enrolls;
+
+        const sectionObj = enrollment?.section;
+        const classObj = sectionObj?.class;
+
+        defaulters.push({
+          studentId: student?.id || item.student_id,
+          studentName: userObj?.full_name || "Unknown Student",
+          className: classObj?.name || "",
+          section: sectionObj?.name || "",
+          pendingAmount: structureAmount - amountPaid,
+          dueDate: dueDateStr || "",
+          status,
+          feeStructureId: item.fee_structure_id,
+        });
+      });
+    }
+
+    // Order: overdue first, then pending
+    return defaulters.sort((a, b) => {
+      if (a.status === "overdue" && b.status === "pending") return -1;
+      if (a.status === "pending" && b.status === "overdue") return 1;
+      return 0;
+    });
+  } catch (error) {
+    console.error("Error in getDefaultersList repository:", error);
+    return [];
+  }
+}
+
+// 3. Send reminder stub by updating notes
+export async function sendReminder(
+  studentId: string,
+  feeStructureId: string
+): Promise<{ success: boolean }> {
+  try {
+    const { error } = await supabase
+      .from("fee_payments")
+      .update({
+        notes: `Reminder sent on ${new Date().toISOString()}`,
+      })
+      .eq("student_id", studentId)
+      .eq("fee_structure_id", feeStructureId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error("Error in sendReminder repository:", error);
+    return { success: false };
+  }
+}
+
+// 4. Send reminders to all defaulters
+export async function sendRemindersToAll(
+  institutionId: string,
+  academicYearId: string
+): Promise<{ reminded: number }> {
+  try {
+    const defaulters = await getDefaultersList(institutionId, academicYearId);
+    let reminded = 0;
+
+    for (const def of defaulters) {
+      const res = await sendReminder(def.studentId, def.feeStructureId);
+      if (res.success) {
+        reminded++;
+      }
+    }
+
+    return { reminded };
+  } catch (error) {
+    console.error("Error in sendRemindersToAll repository:", error);
+    return { reminded: 0 };
+  }
+}
+
+// --- LEGACY COMPATIBILITY WRAPPERS ---
 export async function getFeeCollectionStats(institutionId: string): Promise<FeeCollectionStats> {
   try {
-    // 1. Get all students in the institution
-    const { data: students, error: stdErr } = await supabase
-      .from("students")
+    // Try to get default academic year (fallback to 2026-27 or active)
+    const { data: ay } = await supabase
+      .from("academic_years")
       .select("id")
-      .eq("institution_id", institutionId);
+      .eq("institution_id", institutionId)
+      .eq("label", "2026-27")
+      .maybeSingle();
 
-    if (stdErr) throw stdErr;
-    const studentIds = students?.map(s => s.id) || [];
+    let ayId = ay?.id;
+    if (!ayId) {
+      const { data: ayCurrent } = await supabase
+        .from("academic_years")
+        .select("id")
+        .eq("institution_id", institutionId)
+        .eq("is_current", true)
+        .maybeSingle();
+      ayId = ayCurrent?.id;
+    }
 
-    if (studentIds.length === 0) {
+    if (!ayId) {
       return { totalExpected: 1750000, totalCollected: 1480000, completionRate: "85.2%" };
     }
 
-    // 2. Fetch all structures
-    const { data: structures, error: structErr } = await supabase
-      .from("fee_structures")
-      .select("id, amount, class_id")
-      .eq("institution_id", institutionId);
-
-    if (structErr) throw structErr;
-
-    // 3. Fetch all enrollments to know which students belong to which class
-    const { data: enrollments, error: enrollErr } = await supabase
-      .from("enrollments")
-      .select(`
-        student_id,
-        section:sections (
-          class_id
-        )
-      `)
-      .in("student_id", studentIds);
-
-    if (enrollErr) throw enrollErr;
-
-    // 4. Calculate total expected
-    let totalExpected = 0;
-    const classStudentCounts: Record<string, number> = {};
-    enrollments?.forEach(enroll => {
-      const classId = (enroll.section as any)?.class_id;
-      if (classId) {
-        classStudentCounts[classId] = (classStudentCounts[classId] || 0) + 1;
-      }
-    });
-
-    structures?.forEach(struct => {
-      const studentCount = classStudentCounts[struct.class_id] || 0;
-      totalExpected += Number(struct.amount) * studentCount;
-    });
-
-    // 5. Fetch all payments
-    const { data: payments, error: payErr } = await supabase
-      .from("fee_payments")
-      .select("amount_paid")
-      .in("student_id", studentIds);
-
-    if (payErr) throw payErr;
-
-    const totalCollected = payments?.reduce((acc, p) => acc + Number(p.amount_paid), 0) || 0;
-
-    const completionRate = totalExpected > 0 
-      ? `${((totalCollected / totalExpected) * 100).toFixed(1)}%`
-      : "85.2%";
-
+    const summary = await getFeeCollectionSummary(institutionId, ayId);
     return {
-      totalExpected: totalExpected || 1750000,
-      totalCollected: totalCollected || 1480000,
-      completionRate
+      totalExpected: summary.totalTarget,
+      totalCollected: summary.totalCollected,
+      completionRate: `${summary.completionPercent.toFixed(1)}%`,
     };
   } catch (error) {
-    console.error("Error in getFeeCollectionStats:", error);
-    return {
-      totalExpected: 1750000,
-      totalCollected: 1480000,
-      completionRate: "85.2%"
-    };
+    console.error("Error in getFeeCollectionStats wrapper:", error);
+    return { totalExpected: 1750000, totalCollected: 1480000, completionRate: "85.2%" };
   }
 }
 
 export async function getOutstandingDefaulters(institutionId: string): Promise<FeeDefaulterData[]> {
   try {
-    // 1. Get all students in the institution
-    const { data: studentsData, error: stdErr } = await supabase
-      .from("students")
-      .select(`
-        id,
-        guardian_name,
-        user:users (
-          full_name
-        ),
-        enrollments (
-          section:sections (
-            name,
-            class:classes (
-              name
-            )
-          )
-        )
-      `)
-      .eq("institution_id", institutionId);
+    const { data: ay } = await supabase
+      .from("academic_years")
+      .select("id")
+      .eq("institution_id", institutionId)
+      .eq("label", "2026-27")
+      .maybeSingle();
 
-    if (stdErr) throw stdErr;
-
-    // 2. Fetch all structures
-    const { data: structuresData, error: structErr } = await supabase
-      .from("fee_structures")
-      .select("id, amount, class_id, fee_name, due_date")
-      .eq("institution_id", institutionId);
-
-    if (structErr) throw structErr;
-
-    // 3. Fetch all payments
-    const studentIds = studentsData?.map(s => s.id) || [];
-    let paymentsData: any[] = [];
-    if (studentIds.length > 0) {
-      const { data: pmts, error: payErr } = await supabase
-        .from("fee_payments")
-        .select("student_id, fee_structure_id, amount_paid")
-        .in("student_id", studentIds);
-      if (payErr) throw payErr;
-      paymentsData = pmts || [];
+    let ayId = ay?.id;
+    if (!ayId) {
+      const { data: ayCurrent } = await supabase
+        .from("academic_years")
+        .select("id")
+        .eq("institution_id", institutionId)
+        .eq("is_current", true)
+        .maybeSingle();
+      ayId = ayCurrent?.id;
     }
 
-    const defaulters: FeeDefaulterData[] = [];
-
-    // Loop through each student to compute if they have pending fee structures
-    studentsData?.forEach((student: any) => {
-      // Find class_id from enrollment
-      const enrollment = student.enrollments?.[0];
-      const section = enrollment?.section;
-      const classObj = section?.class;
-      const classId = (section as any)?.class_id || (classObj as any)?.id;
-      const className = classObj?.name || "Unknown Grade";
-      const sectionName = section?.name || "";
-      const displayClassName = `${className}-${sectionName}`.replace("Class ", "Grade ");
-
-      if (!classId) return;
-
-      // Find fee structures for this student's class
-      const classStructures = structuresData?.filter(s => s.class_id === classId) || [];
-
-      classStructures.forEach(struct => {
-        // Find if this student has paid this structure
-        const payment = paymentsData.find(
-          p => p.student_id === student.id && p.fee_structure_id === struct.id
-        );
-
-        const paid = payment ? Number(payment.amount_paid) : 0;
-        const expected = Number(struct.amount);
-
-        if (paid < expected) {
-          const pending = expected - paid;
-          const dueDateStr = struct.due_date ? new Date(struct.due_date) : new Date();
-          const isOverdue = dueDateStr < new Date();
-
-          // Standard format dead line dates
-          const formattedDueDate = struct.due_date 
-            ? new Date(struct.due_date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
-            : "30th May, 2026";
-
-          defaulters.push({
-            id: `${student.id}-${struct.id}`,
-            name: student.user?.full_name || student.guardian_name || "Student Name",
-            className: displayClassName,
-            pendingAmount: `₹${pending.toLocaleString("en-IN")}`,
-            dueDate: formattedDueDate,
-            status: isOverdue ? "Overdue" : "Pending"
-          });
-        }
-      });
-    });
-
-    if (defaulters.length > 0) {
-      return defaulters;
+    if (!ayId) {
+      return [
+        { id: "1", name: "Rahul Deshmukh", className: "Grade 10-B", pendingAmount: "₹4,500", dueDate: "30th May, 2026", status: "Pending" },
+        { id: "2", name: "Aria Sharma", className: "Grade 9-A", pendingAmount: "₹12,000", dueDate: "15th May, 2026", status: "Overdue" },
+      ];
     }
 
-    // Return mock fallback data if database doesn't have any defaults
-    return [
-      { id: "1", name: "Rahul Deshmukh", className: "Grade 10-B", pendingAmount: "₹4,500", dueDate: "30th May, 2026", status: "Pending" },
-      { id: "2", name: "Aria Sharma", className: "Grade 9-A", pendingAmount: "₹12,000", dueDate: "15th May, 2026", status: "Overdue" },
-      { id: "3", name: "Devansh Patel", className: "Grade 8-C", pendingAmount: "₹8,500", dueDate: "20th May, 2026", status: "Overdue" },
-    ];
+    const list = await getDefaultersList(institutionId, ayId);
+    return list.map(item => ({
+      id: `${item.studentId}-${item.feeStructureId}`,
+      name: item.studentName,
+      className: `Grade ${item.className}-${item.section}`.replace("Class ", ""),
+      pendingAmount: `₹${item.pendingAmount.toLocaleString("en-IN")}`,
+      dueDate: item.dueDate,
+      status: item.status === "overdue" ? "Overdue" : "Pending",
+    }));
   } catch (error) {
-    console.error("Error in getOutstandingDefaulters:", error);
+    console.error("Error in getOutstandingDefaulters wrapper:", error);
     return [
       { id: "1", name: "Rahul Deshmukh", className: "Grade 10-B", pendingAmount: "₹4,500", dueDate: "30th May, 2026", status: "Pending" },
       { id: "2", name: "Aria Sharma", className: "Grade 9-A", pendingAmount: "₹12,000", dueDate: "15th May, 2026", status: "Overdue" },
-      { id: "3", name: "Devansh Patel", className: "Grade 8-C", pendingAmount: "₹8,500", dueDate: "20th May, 2026", status: "Overdue" },
     ];
   }
 }

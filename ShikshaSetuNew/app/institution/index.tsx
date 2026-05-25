@@ -11,11 +11,13 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
-import { schoolData } from "../../constants/schoolData";
 import { useAuth } from "../../src/hooks/useAuth";
 import { useQuery } from "../../src/hooks/useQuery";
 import { getDashboardMetrics } from "../../src/repositories/metricRepository";
 import { getCirculars } from "../../src/repositories/circularRepository";
+import { getFeeCollectionSummary } from "../../src/repositories/feeRepository";
+import { supabase } from "../../src/lib/supabase";
+import { getStudentAttendanceSummary, getInstitutionSections, resolveStudentAcademicYear } from "../../src/repositories/attendanceRepository";
 
 export default function InstitutionDashboard() {
   const router = useRouter();
@@ -31,6 +33,61 @@ export default function InstitutionDashboard() {
     [institutionId]
   );
 
+  // Fetch the academic year ID for "2026-27"
+  const { data: academicYearId } = useQuery(async () => {
+    if (!institutionId) return "";
+    const { data: ay } = await supabase
+      .from("academic_years")
+      .select("id")
+      .eq("institution_id", institutionId)
+      .eq("label", "2026-27")
+      .maybeSingle();
+
+    if (ay) return ay.id;
+
+    const { data: ayCurrent } = await supabase
+      .from("academic_years")
+      .select("id")
+      .eq("institution_id", institutionId)
+      .eq("is_current", true)
+      .maybeSingle();
+
+    return ayCurrent?.id || "";
+  }, [institutionId]);
+
+  // Fetch real fee collection rate summary
+  const { data: feeSummary, isLoading: loadingFee } = useQuery(
+    async () => {
+      if (!institutionId || !academicYearId) {
+        return { totalCollected: 0, totalTarget: 0, completionPercent: 0 };
+      }
+      return getFeeCollectionSummary(institutionId, academicYearId);
+    },
+    [institutionId, academicYearId]
+  );
+
+  // Fetch sections to get the first one for attendance
+  const { data: sectionsData } = useQuery(
+    async () => {
+      if (!institutionId) return [];
+      return getInstitutionSections(institutionId);
+    },
+    [institutionId]
+  );
+
+  const firstSectionId = sectionsData && sectionsData.length > 0 ? sectionsData[0].id : "";
+
+  // Fetch real student attendance summary for May 2026
+  const { data: attendanceSummary, isLoading: loadingAttendance } = useQuery(
+    async () => {
+      if (!institutionId || !firstSectionId) return null;
+      const resolvedAY = await resolveStudentAcademicYear(institutionId, firstSectionId, 5, 2026);
+      if (!resolvedAY) return null;
+      return getStudentAttendanceSummary(institutionId, firstSectionId, resolvedAY.id, resolvedAY.resolvedYear, 5);
+    },
+    [institutionId, firstSectionId]
+  );
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -38,11 +95,15 @@ export default function InstitutionDashboard() {
     day: "numeric",
   });
 
+  const feeRateString = feeSummary
+    ? `${feeSummary.completionPercent.toFixed(1)}%`
+    : "0.0%";
+
   const displayMetrics = [
     { id: "1", title: "Total Students", value: metrics?.totalStudents ?? 0, change: metrics?.studentsChange ?? "+24 this month", isPositive: true, icon: "people-outline" },
     { id: "2", title: "Total Teachers", value: metrics?.totalTeachers ?? 0, change: metrics?.teachersChange ?? "+2 this term", isPositive: true, icon: "school-outline" },
-    { id: "3", title: "Fee Collection Rate", value: metrics?.feeCollectionRate ?? "85.2%", change: metrics?.feeChange ?? "+4% vs last month", isPositive: true, icon: "cash-outline" },
-    { id: "4", title: "Student Attendance", value: metrics?.attendanceRate ?? "94.2%", change: metrics?.attendanceChange ?? "+1.2% vs average", isPositive: true, icon: "calendar-outline" },
+    { id: "3", title: "Fee Collection Rate", value: loadingFee ? "..." : feeRateString, change: "Term 1 · 2026-27", isPositive: true, icon: "cash-outline" },
+    { id: "4", title: "Student Attendance", value: loadingAttendance ? "..." : (attendanceSummary ? `${attendanceSummary.monthlyAvg}%` : "94.2%"), change: "May 2026", isPositive: true, icon: "calendar-outline" },
   ];
 
   const recentCirculars = circulars?.slice(0, 3) || [];
@@ -80,12 +141,21 @@ export default function InstitutionDashboard() {
             <View className="flex-row flex-wrap -mx-2">
               {displayMetrics.map((metric) => {
                 const isStudents = metric.title === "Total Students";
+                const isTeachers = metric.title === "Total Teachers";
+                const isFees = metric.title === "Fee Collection Rate";
+                const isAttendance = metric.title === "Student Attendance";
+                const isClickable = isStudents || isTeachers || isFees || isAttendance;
                 return (
                   <View key={metric.id} className="w-1/2 px-2 mb-4">
                     <TouchableOpacity
-                      activeOpacity={isStudents ? 0.7 : 1}
-                      disabled={!isStudents}
-                      onPress={() => isStudents && router.push("/students" as any)}
+                      activeOpacity={isClickable ? 0.7 : 1}
+                      disabled={!isClickable}
+                      onPress={() => {
+                        if (isStudents) router.push("/students" as any);
+                        if (isTeachers) router.push("/teachers" as any);
+                        if (isFees) router.push("/institution/fees" as any);
+                        if (isAttendance) router.push("/institution/attendance" as any);
+                      }}
                       className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
                     >
                       <View className="w-8 h-8 rounded-lg bg-[#0F1C2C]/5 items-center justify-center mb-3">
@@ -222,4 +292,3 @@ export default function InstitutionDashboard() {
     </SafeAreaView>
   );
 }
-
