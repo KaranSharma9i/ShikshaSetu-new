@@ -487,3 +487,252 @@ export async function getTeacherClassesAndSections(userId: string): Promise<{ cl
     sections: sectionsMap,
   };
 }
+
+// === NEW STUDENT DASHBOARD DATA FETCHING FUNCTIONS ===
+
+export async function getStudentProfileByUserId(userId: string): Promise<StudentProfile | null> {
+  const { data, error } = await supabase
+    .from("students")
+    .select(`
+      id,
+      user_id,
+      student_code,
+      guardian_name,
+      date_of_birth,
+      gender,
+      blood_group,
+      address,
+      admission_date,
+      guardian_phone,
+      institution_id,
+      enrollments!inner (
+        roll_number,
+        is_active,
+        section:sections!inner (
+          id,
+          name,
+          class:classes!inner (
+            id,
+            name
+          )
+        )
+      ),
+      user:users!inner (
+        full_name,
+        profile_photo_url
+      )
+    `)
+    .eq("user_id", userId)
+    .eq("enrollments.is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error in getStudentProfileByUserId repository:", error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  const enrollment = Array.isArray(data.enrollments) ? data.enrollments[0] : data.enrollments;
+  const section = Array.isArray(enrollment?.section) ? enrollment.section[0] : enrollment?.section;
+  const classObj = Array.isArray(section?.class) ? section.class[0] : section?.class;
+  const user = Array.isArray(data.user) ? data.user[0] : data.user;
+
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    student_code: data.student_code,
+    full_name: user?.full_name || "",
+    profile_photo_url: user?.profile_photo_url || null,
+    guardian_name: data.guardian_name,
+    date_of_birth: data.date_of_birth,
+    gender: data.gender,
+    blood_group: data.blood_group,
+    address: data.address,
+    admission_date: data.admission_date,
+    guardian_phone: data.guardian_phone,
+    class_name: classObj?.name || "",
+    section_name: section?.name || "",
+    roll_number: enrollment?.roll_number || null,
+    is_active: enrollment?.is_active ?? false,
+    class_id: classObj?.id || "",
+    section_id: section?.id || "",
+    institution_id: data.institution_id || "",
+  };
+}
+
+export async function getStudentPendingFees(studentId: string, classId: string): Promise<any[]> {
+  try {
+    const { data: structures, error: structErr } = await supabase
+      .from("fee_structures")
+      .select("id, fee_name, amount, due_date")
+      .eq("class_id", classId)
+      .is("deleted_at", null);
+
+    if (structErr) throw structErr;
+    if (!structures || structures.length === 0) return [];
+
+    const { data: payments, error: payErr } = await supabase
+      .from("fee_payments")
+      .select("fee_structure_id, amount_paid")
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    if (payErr) throw payErr;
+
+    const pendingFees = [];
+    for (const struct of structures) {
+      const payment = payments?.find(p => p.fee_structure_id === struct.id);
+      const paid = payment ? Number(payment.amount_paid) : 0;
+      const total = Number(struct.amount);
+      if (paid < total) {
+        pendingFees.push({
+          id: struct.id,
+          fee_name: struct.fee_name,
+          amount: total,
+          amount_paid: paid,
+          pending_amount: total - paid,
+          due_date: struct.due_date,
+        });
+      }
+    }
+    return pendingFees;
+  } catch (error) {
+    console.error("Error in getStudentPendingFees repository:", error);
+    return [];
+  }
+}
+
+export async function getStudentHomeworkStats(studentId: string): Promise<{ avg: number; count: number }> {
+  try {
+    const { data: submissions, error } = await supabase
+      .from("homework_submissions")
+      .select(`
+        marks_obtained,
+        homework:homework!inner (
+          total_marks
+        )
+      `)
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    if (error) throw error;
+    if (!submissions || submissions.length === 0) {
+      return { avg: 0, count: 0 };
+    }
+
+    let totalObtained = 0;
+    let totalMax = 0;
+    let count = 0;
+
+    submissions.forEach((sub: any) => {
+      const homework = Array.isArray(sub.homework) ? sub.homework[0] : sub.homework;
+      if (sub.marks_obtained !== null && homework) {
+        totalObtained += Number(sub.marks_obtained);
+        totalMax += Number(homework.total_marks || 100);
+        count++;
+      }
+    });
+
+    const avg = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
+    return { avg, count };
+  } catch (error) {
+    console.error("Error in getStudentHomeworkStats repository:", error);
+    return { avg: 0, count: 0 };
+  }
+}
+
+export async function getStudentExamStats(studentId: string): Promise<{ avg: number; count: number }> {
+  try {
+    const { data: results, error } = await supabase
+      .from("exam_results")
+      .select(`
+        marks_obtained,
+        exam:exams!inner (
+          total_marks
+        )
+      `)
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    if (error) throw error;
+    if (!results || results.length === 0) {
+      return { avg: 0, count: 0 };
+    }
+
+    let totalObtained = 0;
+    let totalMax = 0;
+    let count = 0;
+
+    results.forEach((r: any) => {
+      const exam = Array.isArray(r.exam) ? r.exam[0] : r.exam;
+      if (r.marks_obtained !== null && exam) {
+        totalObtained += Number(r.marks_obtained);
+        totalMax += Number(exam.total_marks || 100);
+        count++;
+      }
+    });
+
+    const avg = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
+    return { avg, count };
+  } catch (error) {
+    console.error("Error in getStudentExamStats repository:", error);
+    return { avg: 0, count: 0 };
+  }
+}
+
+export async function getStudentUpcomingExam(classId: string): Promise<{ id: string; exam_name: string; exam_date: string; subject_name: string } | null> {
+  try {
+    const todayStr = new Date().toISOString().split("T")[0]; // "2026-05-26"
+    const { data: exams, error } = await supabase
+      .from("exams")
+      .select(`
+        id,
+        exam_name,
+        exam_date,
+        subject:subjects!inner (
+          name
+        )
+      `)
+      .eq("class_id", classId)
+      .is("deleted_at", null)
+      .gt("exam_date", todayStr)
+      .order("exam_date", { ascending: true })
+      .limit(1);
+
+    if (error) throw error;
+    if (!exams || exams.length === 0) return null;
+
+    const exam = exams[0] as any;
+    const subject = Array.isArray(exam.subject) ? exam.subject[0] : exam.subject;
+    
+    return {
+      id: exam.id,
+      exam_name: exam.exam_name,
+      exam_date: exam.exam_date,
+      subject_name: subject?.name || "Unknown Subject",
+    };
+  } catch (error) {
+    console.error("Error in getStudentUpcomingExam repository:", error);
+    return null;
+  }
+}
+
+export async function getLatestCirculars(institutionId: string): Promise<any[]> {
+  try {
+    const { data: circulars, error } = await supabase
+      .from("circulars")
+      .select("id, title, content, publish_date, created_at")
+      .eq("institution_id", institutionId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    if (error) throw error;
+    return circulars || [];
+  } catch (error) {
+    console.error("Error in getLatestCirculars repository:", error);
+    return [];
+  }
+}
+

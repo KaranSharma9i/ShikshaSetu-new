@@ -625,7 +625,7 @@ export default function AttendanceAnalysisScreen() {
                       }
 
                       return (
-                        <View key={item.id ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
+                        <View key={item.studentId ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Grey Initials Avatar */}
@@ -857,7 +857,7 @@ export default function AttendanceAnalysisScreen() {
                       }
 
                       return (
-                        <View key={item.id ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
+                        <View key={item.teacherId ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Gold Initials Avatar */}

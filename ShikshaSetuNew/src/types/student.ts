@@ -40,6 +40,9 @@ export interface StudentProfile {
   section_name: string;
   roll_number: string | null;
   is_active: boolean;
+  class_id?: string;
+  section_id?: string;
+  institution_id?: string;
 }
 
 export interface SubjectMarkItem {
