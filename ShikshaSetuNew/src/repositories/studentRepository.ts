@@ -9,6 +9,7 @@ import {
   AIScoreHistoryPoint,
   StudentAIScoreSummary,
 } from "../types/student";
+import { HomeworkItem, HomeworkSubmission } from "../types/homework";
 
 // 1. Fetch classes for filters
 export async function getClasses(institutionId: string): Promise<ClassItem[]> {
@@ -735,4 +736,136 @@ export async function getLatestCirculars(institutionId: string): Promise<any[]> 
     return [];
   }
 }
+
+// 9. Fetch homeworks for student class with submissions
+export async function getStudentHomeworks(studentId: string, classId: string): Promise<HomeworkItem[]> {
+  try {
+    // Fetch all active homework assignments for this class
+    const { data: homeworks, error: hwError } = await supabase
+      .from("homework")
+      .select(`
+        id,
+        institution_id,
+        academic_year_id,
+        class_id,
+        subject_id,
+        teacher_id,
+        title,
+        description,
+        assign_date,
+        due_date,
+        total_marks,
+        difficulty,
+        file_url,
+        status,
+        subject:subjects (
+          id,
+          name,
+          code
+        ),
+        teacher:teachers (
+          id,
+          user:users (
+            full_name
+          )
+        )
+      `)
+      .eq("class_id", classId)
+      .eq("status", "active")
+      .is("deleted_at", null);
+
+    if (hwError) throw hwError;
+
+    // Fetch submissions by this student
+    const { data: submissions, error: subError } = await supabase
+      .from("homework_submissions")
+      .select("*")
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    if (subError) throw subError;
+
+    // Map and match
+    const mapped: HomeworkItem[] = (homeworks || []).map((hw: any) => {
+      const sub = (submissions || []).find((s: any) => s.homework_id === hw.id);
+      
+      const teacherObj = hw.teacher;
+      const teacherUser = Array.isArray(teacherObj?.user) ? teacherObj.user[0] : teacherObj?.user;
+      const teacherName = teacherUser?.full_name || "Unknown Teacher";
+
+      const subjectObj = hw.subject;
+      const subjectName = subjectObj?.name || "Unknown Subject";
+      const subjectCode = subjectObj?.code || "";
+
+      return {
+        id: hw.id,
+        institution_id: hw.institution_id,
+        academic_year_id: hw.academic_year_id,
+        class_id: hw.class_id,
+        subject_id: hw.subject_id,
+        subject_name: subjectName,
+        subject_code: subjectCode,
+        teacher_id: hw.teacher_id,
+        teacher_name: teacherName,
+        title: hw.title,
+        description: hw.description,
+        assign_date: hw.assign_date,
+        due_date: hw.due_date,
+        total_marks: hw.total_marks ? Number(hw.total_marks) : 100,
+        difficulty: hw.difficulty || "Medium",
+        file_url: hw.file_url,
+        status: hw.status,
+        submission: sub ? {
+          id: sub.id,
+          homework_id: sub.homework_id,
+          student_id: sub.student_id,
+          submitted_at: sub.submitted_at,
+          marks_obtained: sub.marks_obtained !== null ? Number(sub.marks_obtained) : null,
+          feedback: sub.feedback,
+          status: sub.status,
+          ai_score: sub.ai_score !== null ? Number(sub.ai_score) : null,
+          file_url: sub.file_url
+        } : null
+      };
+    });
+
+    return mapped.sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime());
+  } catch (error) {
+    console.error("Error in getStudentHomeworks:", error);
+    return [];
+  }
+}
+
+// 10. Submit homework
+export async function submitHomework(
+  homeworkId: string,
+  studentId: string,
+  fileUrl: string | null
+): Promise<HomeworkSubmission | null> {
+  try {
+    const { data, error } = await supabase
+      .from("homework_submissions")
+      .upsert({
+        homework_id: homeworkId,
+        student_id: studentId,
+        file_url: fileUrl,
+        submitted_at: new Date().toISOString(),
+        status: 'submitted',
+        marks_obtained: null,
+        feedback: null,
+        ai_score: null
+      }, {
+        onConflict: 'homework_id,student_id'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error in submitHomework:", error);
+    return null;
+  }
+}
+
 
