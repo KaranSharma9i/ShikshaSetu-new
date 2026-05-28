@@ -5,7 +5,7 @@ You should think like a senior mobile developer, but explain and implementation 
 ---
 ## Project Overview
 
-We are building a professional more than ERP app for schools, our project name**Margam**, tagline **Digital Backbone of institutions**
+We are building a professional more than a ERP app for schools, our project name**Margam**, tagline **Digital Backbone of institutions**
 
 When any institution login throght `manage` feature to our web using *password* and their *id* (provided by us), they will see
  - their growth dashboard created using user-facing web app about many different metricies (student's attendence, student's marks and score, staff attendence,fee collection, teacher performance analysis, marketing campaigns, subject analysis, transport tracking, exam schedules, class performance, drop out prediction)
@@ -39,7 +39,7 @@ When any teacher login through `teacher` feature to our web using *their id* and
 ---
 
 ## Main Homepage of **Margam**:
-- Key feature: `student login`, `contact us` , `manage`, `teacher`, `Our expertises`
+- Key feature: A `Get started` button which will navigate to `signup` portal (account creation is managed by your institution administrator. Please contact thm to get access ,Already have an account? `login` )
 - UI:  
   - design with appropriate shades of `orange`, `yellow` and `Red`.
   - Use animation, spotlight and other feature which will make website looks modern and premium
@@ -53,76 +53,7 @@ The website should look:
 
 ---
 
-# Phase 1 — The Goal 
 
-## What this first demo website should include
-1. A dummy seed database for all the categories which will be needed. 
-2. Home pages for **Margam**, **School/`Manage`** (implemented under modular routes `app/institution/...` containing dashboard, academics, fees, circulars, registration, and events screens), **Teacher**, and **Student** with clickable buttons and active login feature.
-
-## UI:
-`School\manage`: Navy Blue colour and its shade with golden accent, grey/white background (located in `app/institution/`)
-`Student`: Light Navy Blue colour and its shade with golden accent, grey/white background with school logo in the background
-`Teacher`: Light Navy Blue colour and its shade with golden accent, grey/white background with school logo in the background
-
-## Typography
-
-Use:
-
-* Poppins
-* Inter
-* Open Sans
-
-Avoid decorative fonts.
-
-## Layout Rules
-
-### Keep:
-
-* Large spacing
-* Clear headings
-* Simple navigation
-* Large buttons
-
-### Avoid:
-
-* Clutter
-* Tiny text
-* Too many popups
-* Auto-playing videos
-
-## What this first demo should NOT include
-
-Avoid building these initially:
-
-* Full student login system
-* Attendance system
-* Live classes
-* Fee management
-* AI scoring
-* Parent dashboard
-* Complex backend
-* Mobile app
-* Full ERP
----
-
-# `The Tech Stack`
-### Frontend
-* Expo + React Native
-
-### Styling
-
-* Tailwind CSS
-
-### Hosting
-* Expo Application Services (EAS) / App Store / Play Store
-
-### Domain
-
-* Buy later
-
-### Forms
-
-* FormSubmit or EmailJS initially
 
 ### Images
 
@@ -172,11 +103,11 @@ Because later we can duplicate the same project for many schools quickly.
 
 Use:
 
-* Vercel
+* Expo dev
 
 ### Domain Example
 
-* SikshaSetu.com
+* Margam.com
 
 ---
 
