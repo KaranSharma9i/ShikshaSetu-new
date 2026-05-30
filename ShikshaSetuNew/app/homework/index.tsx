@@ -259,7 +259,7 @@ export default function HomeworkScreen() {
               return (
                 <TouchableOpacity
                   key={hw.id}
-                  onPress={() => setSelectedHw(hw)}
+                  onPress={() => router.push(`/homework/${hw.id}` as any)}
                   className="bg-white rounded-2xl mb-4 border border-gray-100 shadow-sm overflow-hidden flex-row"
                   activeOpacity={0.9}
                   style={{

@@ -763,9 +763,10 @@ export async function getStudentHomeworks(studentId: string, classId: string): P
           name,
           code
         ),
-        teacher:teachers (
+        teacher:teachers!homework_teacher_id_fkey (
           id,
-          user:users (
+          user_id,
+          user:users!teachers_user_id_fkey (
             full_name
           )
         )
@@ -836,7 +837,117 @@ export async function getStudentHomeworks(studentId: string, classId: string): P
   }
 }
 
-// 10. Submit homework
+// 10. Get a single homework by ID with submission for a specific student
+export async function getHomeworkById(
+  homeworkId: string,
+  studentId: string
+): Promise<HomeworkItem | null> {
+  try {
+    const { data: hw, error: hwError } = await supabase
+      .from("homework")
+      .select(`
+        id,
+        institution_id,
+        academic_year_id,
+        class_id,
+        subject_id,
+        teacher_id,
+        title,
+        description,
+        assign_date,
+        due_date,
+        total_marks,
+        difficulty,
+        file_url,
+        status,
+        notes,
+        subject:subjects (
+          id,
+          name,
+          code
+        ),
+        teacher:teachers!homework_teacher_id_fkey (
+          id,
+          user_id,
+          user:users!teachers_user_id_fkey (
+            full_name
+          )
+        )
+      `)
+      .eq("id", homeworkId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (hwError) throw hwError;
+    if (!hw) return null;
+
+    const { data: sub, error: subError } = await supabase
+      .from("homework_submissions")
+      .select("*")
+      .eq("homework_id", homeworkId)
+      .eq("student_id", studentId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (subError) throw subError;
+
+    const teacherObj = hw.teacher as any;
+    const teacherUser = Array.isArray(teacherObj?.user) ? teacherObj.user[0] : teacherObj?.user;
+    let teacherName = teacherUser?.full_name || "";
+
+    // Fallback: if join returned null (e.g. teacher_id mismatch), query user directly via teachers table
+    if (!teacherName && hw.teacher_id) {
+      const { data: teacherRow } = await supabase
+        .from("teachers")
+        .select("user:users!teachers_user_id_fkey ( full_name )")
+        .eq("id", hw.teacher_id)
+        .maybeSingle();
+      const fallbackUser = teacherRow?.user as any;
+      teacherName = (Array.isArray(fallbackUser) ? fallbackUser[0] : fallbackUser)?.full_name || "Unknown Teacher";
+    }
+    if (!teacherName) teacherName = "Unknown Teacher";
+
+    const subjectObj = hw.subject as any;
+    const subjectName = subjectObj?.name || "Unknown Subject";
+    const subjectCode = subjectObj?.code || "";
+
+    return {
+      id: hw.id,
+      institution_id: hw.institution_id,
+      academic_year_id: hw.academic_year_id,
+      class_id: hw.class_id,
+      subject_id: hw.subject_id,
+      subject_name: subjectName,
+      subject_code: subjectCode,
+      teacher_id: hw.teacher_id,
+      teacher_name: teacherName,
+      title: hw.title,
+      description: hw.description,
+      assign_date: hw.assign_date,
+      due_date: hw.due_date,
+      total_marks: hw.total_marks ? Number(hw.total_marks) : 100,
+      difficulty: hw.difficulty || "Medium",
+      file_url: hw.file_url,
+      status: hw.status,
+      submission: sub ? {
+        id: sub.id,
+        homework_id: sub.homework_id,
+        student_id: sub.student_id,
+        submitted_at: sub.submitted_at,
+        marks_obtained: sub.marks_obtained !== null ? Number(sub.marks_obtained) : null,
+        feedback: sub.feedback,
+        status: sub.status,
+        ai_score: sub.ai_score !== null ? Number(sub.ai_score) : null,
+        file_url: sub.file_url
+      } : null
+    };
+  } catch (error) {
+    console.error("Error in getHomeworkById:", error);
+    return null;
+  }
+}
+
+// 11. Submit homework
 export async function submitHomework(
   homeworkId: string,
   studentId: string,
@@ -867,5 +978,184 @@ export async function submitHomework(
     return null;
   }
 }
+
+// 12. Fetch detailed score and feedback for homework
+export async function getHomeworkScore(
+  homeworkId: string,
+  studentId: string
+): Promise<{
+  homework: {
+    id: string;
+    title: string;
+    subject_name: string;
+    subject_code: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard';
+    total_marks: number | null;
+  };
+  submission: {
+    id: string;
+    marks_obtained: number | null;
+    ai_score: number | null;
+    submitted_at: string;
+    status: string;
+    file_url: string | null;
+    feedback: {
+      overall_score: number;
+      grade_label: string;
+      dimensions: {
+        key: string;
+        label: string;
+        score: number;
+        max: number;
+      }[];
+      strengths: string[];
+      improvements: string[];
+    } | null;
+  } | null;
+} | null> {
+  try {
+    const { data: hw, error: hwError } = await supabase
+      .from("homework")
+      .select(`
+        id,
+        title,
+        total_marks,
+        subject_id,
+        difficulty,
+        subject:subjects (
+          name,
+          code
+        )
+      `)
+      .eq("id", homeworkId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (hwError) throw hwError;
+    if (!hw) return null;
+
+    const { data: sub, error: subError } = await supabase
+      .from("homework_submissions")
+      .select("id, marks_obtained, ai_score, feedback, submitted_at, status, file_url")
+      .eq("homework_id", homeworkId)
+      .eq("student_id", studentId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (subError) throw subError;
+
+    const subjectObj = hw.subject as any;
+    const subjectName = (Array.isArray(subjectObj) ? subjectObj[0] : subjectObj)?.name || "Unknown Subject";
+    const subjectCode = (Array.isArray(subjectObj) ? subjectObj[0] : subjectObj)?.code || "";
+
+    const homeworkDetails = {
+      id: hw.id,
+      title: hw.title,
+      subject_name: subjectName,
+      subject_code: subjectCode,
+      difficulty: (hw.difficulty || "Medium") as 'Easy' | 'Medium' | 'Hard',
+      total_marks: hw.total_marks ? Number(hw.total_marks) : null,
+    };
+
+    if (!sub) {
+      return {
+        homework: homeworkDetails,
+        submission: null,
+      };
+    }
+
+    let parsedFeedback = null;
+    if (sub.feedback) {
+      const fb = sub.feedback;
+      if (fb.overall_score !== undefined && fb.dimensions !== undefined) {
+        parsedFeedback = fb;
+      } else {
+        const scoreOutOf100 = fb.score !== undefined ? Number(fb.score) : null;
+        let overallScore = sub.ai_score !== null ? Number(sub.ai_score) : null;
+        if (overallScore === null && scoreOutOf100 !== null) {
+          overallScore = scoreOutOf100;
+        }
+
+        const normalizedScore = overallScore !== null ? (overallScore > 10 ? overallScore / 10 : overallScore) : 8.5;
+
+        let gradeLabel = "EXCELLENT EFFORT";
+        if (normalizedScore < 5) gradeLabel = "SATISFACTORY";
+        else if (normalizedScore < 7) gradeLabel = "GOOD EFFORT";
+        else if (normalizedScore < 8.5) gradeLabel = "GREAT EFFORT";
+
+        const dimensions = [];
+        const crit = fb.criteriaScores || {};
+
+        const stepsScore = crit.steps ?? crit.grammar ?? crit.neatness ?? (normalizedScore * 10);
+        dimensions.push({
+          key: "INSIGHT",
+          label: "Concept Clarity",
+          score: Number((stepsScore > 10 ? stepsScore / 10 : stepsScore).toFixed(1)),
+          max: 10,
+        });
+
+        const accScore = crit.accuracy ?? crit.vocabulary ?? (normalizedScore * 9.5);
+        dimensions.push({
+          key: "ACCURACY",
+          label: "Completeness",
+          score: Number((accScore > 10 ? accScore / 10 : accScore).toFixed(1)),
+          max: 10,
+        });
+
+        const presScore = crit.presentation ?? (normalizedScore * 9);
+        dimensions.push({
+          key: "STRUCTURE",
+          label: "Presentation",
+          score: Number((presScore > 10 ? presScore / 10 : presScore).toFixed(1)),
+          max: 10,
+        });
+
+        const strengths = [];
+        const improvements = [];
+
+        if (fb.overallFeedback) {
+          strengths.push(fb.overallFeedback);
+        } else {
+          strengths.push("Good conceptual understanding of the topic.");
+          strengths.push("Solution steps are logically laid out and easy to follow.");
+        }
+
+        if (normalizedScore < 9.5) {
+          improvements.push("Ensure minor calculation steps are written explicitly.");
+          improvements.push("Ensure handwriting/labels in diagrams are highly legible.");
+        }
+
+        parsedFeedback = {
+          overall_score: normalizedScore,
+          grade_label: gradeLabel,
+          dimensions,
+          strengths,
+          improvements,
+        };
+      }
+    }
+
+    const aiScoreNormalized = sub.ai_score !== null 
+      ? (Number(sub.ai_score) > 10 ? Number(sub.ai_score) / 10 : Number(sub.ai_score)) 
+      : null;
+
+    return {
+      homework: homeworkDetails,
+      submission: {
+        id: sub.id,
+        marks_obtained: sub.marks_obtained !== null ? Number(sub.marks_obtained) : null,
+        ai_score: aiScoreNormalized,
+        submitted_at: sub.submitted_at,
+        status: sub.status,
+        file_url: sub.file_url,
+        feedback: parsedFeedback,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getHomeworkScore:", error);
+    return null;
+  }
+}
+
 
 

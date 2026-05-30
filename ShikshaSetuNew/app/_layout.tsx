@@ -22,6 +22,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
+    // Alias names (used in some components)
     "Poppins-Regular": Poppins_400Regular,
     "Poppins-Medium": Poppins_500Medium,
     "Poppins-SemiBold": Poppins_600SemiBold,
@@ -29,6 +30,13 @@ export default function RootLayout() {
     "Inter-Regular": Inter_400Regular,
     "Inter-Medium": Inter_500Medium,
     "OpenSans-Regular": OpenSans_400Regular,
+    // Standard expo-google-fonts names (used in other components)
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
   });
 
   useEffect(() => {
