@@ -763,9 +763,10 @@ export async function getStudentHomeworks(studentId: string, classId: string): P
           name,
           code
         ),
-        teacher:teachers (
+        teacher:teachers!homework_teacher_id_fkey (
           id,
-          user:users (
+          user_id,
+          user:users!teachers_user_id_fkey (
             full_name
           )
         )
@@ -836,7 +837,117 @@ export async function getStudentHomeworks(studentId: string, classId: string): P
   }
 }
 
-// 10. Submit homework
+// 10. Get a single homework by ID with submission for a specific student
+export async function getHomeworkById(
+  homeworkId: string,
+  studentId: string
+): Promise<HomeworkItem | null> {
+  try {
+    const { data: hw, error: hwError } = await supabase
+      .from("homework")
+      .select(`
+        id,
+        institution_id,
+        academic_year_id,
+        class_id,
+        subject_id,
+        teacher_id,
+        title,
+        description,
+        assign_date,
+        due_date,
+        total_marks,
+        difficulty,
+        file_url,
+        status,
+        notes,
+        subject:subjects (
+          id,
+          name,
+          code
+        ),
+        teacher:teachers!homework_teacher_id_fkey (
+          id,
+          user_id,
+          user:users!teachers_user_id_fkey (
+            full_name
+          )
+        )
+      `)
+      .eq("id", homeworkId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (hwError) throw hwError;
+    if (!hw) return null;
+
+    const { data: sub, error: subError } = await supabase
+      .from("homework_submissions")
+      .select("*")
+      .eq("homework_id", homeworkId)
+      .eq("student_id", studentId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (subError) throw subError;
+
+    const teacherObj = hw.teacher as any;
+    const teacherUser = Array.isArray(teacherObj?.user) ? teacherObj.user[0] : teacherObj?.user;
+    let teacherName = teacherUser?.full_name || "";
+
+    // Fallback: if join returned null (e.g. teacher_id mismatch), query user directly via teachers table
+    if (!teacherName && hw.teacher_id) {
+      const { data: teacherRow } = await supabase
+        .from("teachers")
+        .select("user:users!teachers_user_id_fkey ( full_name )")
+        .eq("id", hw.teacher_id)
+        .maybeSingle();
+      const fallbackUser = teacherRow?.user as any;
+      teacherName = (Array.isArray(fallbackUser) ? fallbackUser[0] : fallbackUser)?.full_name || "Unknown Teacher";
+    }
+    if (!teacherName) teacherName = "Unknown Teacher";
+
+    const subjectObj = hw.subject as any;
+    const subjectName = subjectObj?.name || "Unknown Subject";
+    const subjectCode = subjectObj?.code || "";
+
+    return {
+      id: hw.id,
+      institution_id: hw.institution_id,
+      academic_year_id: hw.academic_year_id,
+      class_id: hw.class_id,
+      subject_id: hw.subject_id,
+      subject_name: subjectName,
+      subject_code: subjectCode,
+      teacher_id: hw.teacher_id,
+      teacher_name: teacherName,
+      title: hw.title,
+      description: hw.description,
+      assign_date: hw.assign_date,
+      due_date: hw.due_date,
+      total_marks: hw.total_marks ? Number(hw.total_marks) : 100,
+      difficulty: hw.difficulty || "Medium",
+      file_url: hw.file_url,
+      status: hw.status,
+      submission: sub ? {
+        id: sub.id,
+        homework_id: sub.homework_id,
+        student_id: sub.student_id,
+        submitted_at: sub.submitted_at,
+        marks_obtained: sub.marks_obtained !== null ? Number(sub.marks_obtained) : null,
+        feedback: sub.feedback,
+        status: sub.status,
+        ai_score: sub.ai_score !== null ? Number(sub.ai_score) : null,
+        file_url: sub.file_url
+      } : null
+    };
+  } catch (error) {
+    console.error("Error in getHomeworkById:", error);
+    return null;
+  }
+}
+
+// 11. Submit homework
 export async function submitHomework(
   homeworkId: string,
   studentId: string,
