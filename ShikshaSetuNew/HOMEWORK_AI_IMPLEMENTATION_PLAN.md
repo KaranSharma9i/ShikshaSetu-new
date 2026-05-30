@@ -1,295 +1,395 @@
 # HOMEWORK AI IMPLEMENTATION PLAN
 
-This document provides a comprehensive audit and implementation plan for adding AI Homework grading, daily quota limits, wallets, and Razorpay payment flows to the Margam ERP platform.
+---
+
+## Pricing Tiers (Source of Truth)
+
+| Plan | Price | AI Evaluations / Day / Student | AI Features Unlocked |
+|------|-------|-------------------------------|----------------------|
+| **Free** | ₹0 / month | 0 — AI fully disabled | None |
+| **Standard** | ₹35 / student / month | 6 | AI Checking, Auto Scoring, Homework Analytics |
+| **Pro** | ₹50 / student / month | 10 | Everything in Standard + Student Feedback, Personalized Suggestions, Advanced Insights, Performance Analytics |
+
+**Billing rules (confirmed):**
+- Subscription is **per-student** — each student has their own independent plan
+- Parent pays for their own child directly inside the app via Razorpay
+- Payment is **manual** — parent recharges each month themselves (no auto-recurring)
+- Plan duration is **30 rolling days** from the date of payment
+- On Free tier or expired plan: student can still see and receive homework, but AI scoring is disabled
 
 ---
 
 ## 1. Current Folder Architecture Audit
 
-This section lists the files and folders found in the project related to homework management, AI scoring, daily upload quotas, and wallet/billing.
-
 ### Area: Homework (Assignment creation, student submission, upload flow)
 
-| File Path (Relative to project root) | Current Purpose | Status |
-| --- | --- | --- |
-| app/homework/index.tsx | Expo Router screen representing the student's homework dashboard. Displays a tabbed list of active assignments (All, Pending, Submitted, Graded) and includes a modal with simulated file selection and submission. | 🟡 Partial |
-| app/homework/[id].tsx | Expo Router screen representing the detailed view of a specific homework assignment. Displays instructions, reference question sheet download link, deadline warnings, and features a mocked file upload and submission trigger. | 🟡 Partial |
-| src/types/homework.ts | TypeScript type definitions containing definitions for HomeworkItem and HomeworkSubmission schemas. | ✅ Complete |
-| src/repositories/studentRepository.ts | Data-access layer using Supabase client to fetch homework assignments list, get details for a single homework, and record submission row updates. | 🟡 Partial |
-| supabase/migrations/0019_create_homework.sql | SQL migration script creating the core homework and homework_submissions tables in the Supabase schema. | ✅ Complete |
-| supabase/migrations/0028_homework_columns.sql | SQL migration script extending homework and homework_submissions tables with difficulty levels, status flags, and properties for score storage. | ✅ Complete |
+| File Path | Current Purpose | Status |
+|-----------|----------------|--------|
+| `app/homework/index.tsx` | Student homework dashboard. Tabbed list (All, Pending, Submitted, Graded) with simulated file selection and submission modal. | 🟡 Partial |
+| `app/homework/[id].tsx` | Homework detail view. Renders instructions, status, attachment cards, and mocked file upload trigger. | 🟡 Partial |
+| `src/types/homework.ts` | TypeScript type definitions for `HomeworkItem` and `HomeworkSubmission`. | ✅ Complete |
+| `src/repositories/studentRepository.ts` | Supabase data-access layer — fetches assignment lists, single assignment detail, records submission row. Writes directly to Supabase (must be rerouted to Express backend for AI calls). | 🟡 Partial |
+| `supabase/migrations/0019_create_homework.sql` | Creates core `homework` and `homework_submissions` tables. | ✅ Complete |
+| `supabase/migrations/0028_homework_columns.sql` | Extends homework tables with difficulty, status flags, score columns. | ✅ Complete |
 
 ### Area: AI Scoring (Gemini calls, score storage, feedback generation)
 
-| File Path (Relative to project root) | Current Purpose | Status |
-| --- | --- | --- |
-| src/gemini_flash.ts | Standalone Node.js script testing connection to Gemini 3.5 Flash using the @google/genai SDK. Converts a local test asset to Base64 and executes a test grading prompt. | 🟡 Partial |
-| app/homework/score/[id].tsx | Expo Router screen placeholder meant to display the graded homework score, criteria breakdown, and teacher/AI feedback. | ❌ Missing |
-| supabase/migrations/0027_create_ai_scores.sql | SQL migration creating a standalone, unused ai_scores table (historic score logging). | 🟡 Partial |
+| File Path | Current Purpose | Status |
+|-----------|----------------|--------|
+| `src/gemini_flash.ts` | Standalone Node.js test script. Connects to Gemini API, sends a hardcoded base64 image, prints grading output. Has wrong model string and hardcoded API key. | 🟡 Partial |
+| `app/homework/score/[id].tsx` | Placeholder screen for displaying AI score, criteria breakdown, and feedback. No real data wiring. | ❌ Missing |
+| `supabase/migrations/0027_create_ai_scores.sql` | Creates a standalone `ai_scores` table — currently unused and conflicts with storing scores directly on `homework_submissions`. | 🟡 Partial |
 
 ### Area: Daily Upload Quota / Rate Limiting
 
-| File Path (Relative to project root) | Current Purpose | Status |
-| --- | --- | --- |
-| supabase/migrations/0029_billing_schema.sql | SQL migration creating the student_daily_usage table and enforce_scan_limits() trigger function. | 🟡 Partial |
-| Nightly Quota Reset Cron | Background cron scheduler to reset student evaluation counters at midnight. | ❌ Missing |
+| File Path | Current Purpose | Status |
+|-----------|----------------|--------|
+| `supabase/migrations/0029_billing_schema.sql` | Creates `student_daily_usage` table and `enforce_scan_limits()` trigger. Limits are hardcoded in trigger (6/10/0 by plan_tier). Wrong level — trigger reads from `students.plan_tier`, not from student subscription table. | 🟡 Partial |
+| Nightly Quota Reset Cron | Background scheduler to reset daily counters at midnight IST. | ❌ Missing |
 
-### Area: Wallet / Billing
+### Area: Subscription & Payments (Parent → Student plan)
 
-| File Path (Relative to project root) | Current Purpose | Status |
-| --- | --- | --- |
-| supabase/migrations/0029_billing_schema.sql | SQL migration defining wallet_tx_type and plan_tier_type enums, and creating student_wallets and wallet_transactions tables. | 🟡 Partial |
-| supabase/migrations/0030_billing_rls.sql | SQL migration implementing Row Level Security (RLS) policies for wallet, transaction, and daily usage tables. | ✅ Complete |
-| Wallet Screens / Razorpay APIs | Code files for charging, initiating payments, viewing transactions, or Razorpay checkout callbacks. | ❌ Missing |
+| File Path | Current Purpose | Status |
+|-----------|----------------|--------|
+| `student_subscriptions` table | Stores each student's active plan, expiry date, and Razorpay order reference. | ❌ Missing |
+| `subscription_payments` table | Immutable audit log of every Razorpay payment made by a parent. | ❌ Missing |
+| Razorpay order creation endpoint | Backend endpoint to create a Razorpay order before checkout. | ❌ Missing |
+| Razorpay webhook receiver | Backend endpoint to validate payment and activate student plan. | ❌ Missing |
+| Subscription screen in Expo | Parent-facing screen to view current plan, expiry, and trigger recharge. | ❌ Missing |
 
 ---
 
 ## 2. Supabase DB Audit (Read-Only)
 
-This section reports the existence, current column definitions, and compliance with the specification for the core and newly planned database tables.
+### Table: `homework_assignments`
+- **Exists:** No — table in DB is named `homework`
+- **Status:** ❌ Name mismatch. Recommend keeping the existing `homework` name and updating all spec references to match, to avoid a breaking rename migration. Decide before writing any new migration.
 
-### Table: homework_assignments
-* Exists: No
-* Status: ❌ Needs to be created
-* Note: The database currently has a table named "homework" that serves this purpose. To match the specification, the table must be created as homework_assignments or the codebase references must be updated to target the existing "homework" table.
+### Table: `homework_submissions`
+- **Exists:** Yes
+- **Missing / Mismatched Columns:**
 
-### Table: homework_submissions
-* Exists: Yes
-* Current Columns in Database:
-  * id [uuid] NOT NULL DEFAULT gen_random_uuid() (Primary Key)
-  * homework_id [uuid] NOT NULL (Foreign Key -> homework(id))
-  * student_id [uuid] NOT NULL (Foreign Key -> students(id))
-  * submitted_at [timestamptz] NOT NULL DEFAULT now()
-  * marks_obtained [numeric] NULL
-  * feedback [jsonb] NULL (Stores criteria and overall feedback)
-  * created_at [timestamptz] NOT NULL DEFAULT now()
-  * updated_at [timestamptz] NOT NULL DEFAULT now()
-  * deleted_at [timestamptz] NULL
-  * status [text] NULL DEFAULT 'submitted'::text (Has check constraint for 'submitted', 'scored')
-  * ai_score [numeric] NULL
-  * file_url [text] NULL
-* Missing/Mismatched Columns vs. Specification:
-  * ai_score: Currently NUMERIC. Spec requires NUMERIC(4,2) (score out of 10).
-  * ai_feedback: Missing. Currently, only feedback [jsonb] exists. Spec requires ai_feedback TEXT.
-  * ai_suggestions: Missing. Spec requires ai_suggestions TEXT.
-  * scored_at: Missing. Spec requires scored_at TIMESTAMPTZ.
-  * attachment_urls: Missing. DB uses file_url TEXT instead of attachment_urls TEXT[].
-  * status: Currently TEXT. Spec requires ENUM type submission_status (pending, submitted, scored, late_submitted).
+| Column | Current State | Required State |
+|--------|--------------|----------------|
+| `ai_score` | `NUMERIC` (no precision) | `NUMERIC(4,2)` with `CHECK (ai_score BETWEEN 0 AND 10)` |
+| `ai_feedback` | Missing — uses `feedback JSONB` instead | `TEXT` |
+| `ai_suggestions` | Missing | `TEXT` |
+| `scored_at` | Missing | `TIMESTAMPTZ` |
+| `attachment_urls` | Uses `file_url TEXT` (single URL) | `TEXT[]` (array — supports multiple photos) |
+| `status` | `TEXT` with check constraint | `submission_status` ENUM (`pending`, `submitted`, `scored`, `late_submitted`) |
 
-### Table: institutions
-* Exists: Yes
-* Current Columns in Database:
-  * id [uuid] NOT NULL DEFAULT gen_random_uuid() (Primary Key)
-  * name [text] NOT NULL
-  * code [varchar] NOT NULL (Unique)
-  * address [text] NULL
-  * city [text] NULL
-  * state [text] NULL
-  * pincode [varchar] NULL
-  * phone [text] NULL
-  * email [text] NULL
-  * logo_url [text] NULL
-  * status [account_status] NOT NULL DEFAULT 'active'
-  * subscription_ends_at [timestamptz] NULL
-  * created_at [timestamptz] NOT NULL DEFAULT now()
-  * updated_at [timestamptz] NOT NULL DEFAULT now()
-  * deleted_at [timestamptz] NULL
-* Missing/Mismatched Columns vs. Specification:
-  * None. Complies with requirements.
+### Table: `institutions`
+- **Exists:** Yes — fully compliant. No subscription columns needed here since billing is per-student, not per-institution.
 
-### Table: users
-* Exists: Yes
-* Current Columns in Database:
-  * id [uuid] NOT NULL DEFAULT gen_random_uuid() (Primary Key)
-  * institution_id [uuid] NOT NULL (Foreign Key -> institutions(id))
-  * role [user_role] NOT NULL
-  * login_id [text] NOT NULL (Unique combined with institution_id)
-  * password_hash [text] NOT NULL
-  * full_name [text] NOT NULL
-  * email [text] NULL
-  * phone [text] NULL
-  * profile_photo_url [text] NULL
-  * status [account_status] NOT NULL DEFAULT 'active'
-  * last_login_at [timestamptz] NULL
-  * created_at [timestamptz] NOT NULL DEFAULT now()
-  * updated_at [timestamptz] NOT NULL DEFAULT now()
-  * deleted_at [timestamptz] NULL
-* Missing/Mismatched Columns vs. Specification:
-  * None. Complies with requirements.
+### Table: `users`
+- **Exists:** Yes — fully compliant. No changes needed.
 
-### Table: ai_daily_quotas
-* Exists: No
-* Status: ❌ Needs to be created
-* Note: A table named "student_daily_usage" exists in the database, but it differs significantly from the specification. To align with requirements, the table must be created as ai_daily_quotas, or student_daily_usage must be altered to add missing fields (institution_id, plan_limit), rename usage_date to submission_date, rename upload_counter to count, and drop deleted_at.
+### Table: `students`
+- **Exists:** Yes
+- **Column to deprecate:**
 
-### Table: school_wallets
-* Exists: No
-* Status: ❌ Needs to be created
+| Column | Issue |
+|--------|-------|
+| `plan_tier` (if exists) | If this column exists, it is the wrong approach. Plan must live on `student_subscriptions`, not on the student row, because it changes monthly and needs payment history. |
 
-### Table: student_wallets
-* Exists: Yes
-* Current Columns in Database:
-  * id [uuid] NOT NULL DEFAULT gen_random_uuid() (Primary Key)
-  * created_at [timestamptz] NOT NULL DEFAULT now()
-  * updated_at [timestamptz] NOT NULL DEFAULT now()
-  * deleted_at [timestamptz] NULL (Extra column)
-  * student_id [uuid] NOT NULL (Unique, Foreign Key -> students(id))
-  * institution_id [uuid] NOT NULL (Foreign Key -> institutions(id))
-  * balance_paisa [bigint] NOT NULL DEFAULT 0 (Has positive check constraint)
-* Missing/Mismatched Columns vs. Specification:
-  * None. Required columns exist (contains additional deleted_at).
+### Table: `student_subscriptions` *(new)*
+- **Exists:** No
+- **Status:** ❌ Needs to be created
+- **Purpose:** Stores each student's current active plan and its rolling 30-day expiry.
 
-### Table: wallet_transactions
-* Exists: Yes
-* Current Columns in Database:
-  * id [uuid] NOT NULL DEFAULT gen_random_uuid() (Primary Key)
-  * created_at [timestamptz] NOT NULL DEFAULT now()
-  * updated_at [timestamptz] NOT NULL DEFAULT now() (Breaks append-only ledger rule)
-  * deleted_at [timestamptz] NULL (Breaks append-only ledger rule)
-  * student_wallet_id [uuid] NOT NULL (Foreign Key -> student_wallets(id))
-  * transaction_type [wallet_tx_type] NOT NULL
-  * amount_paisa [bigint] NOT NULL (Has check_positive_amount constraint)
-  * balance_after_paisa [bigint] NOT NULL
-  * performed_by [uuid] NOT NULL (Foreign Key -> users(id))
-* Missing/Mismatched Columns vs. Specification:
-  * institution_id: Missing. Spec requires institution_id UUID -> institutions(id).
-  * wallet_type: Missing. Spec requires wallet_type VARCHAR(20).
-  * target_id: Missing. Spec requires target_id UUID (links to student_id or school_wallet_id).
-  * razorpay_order_id: Missing. Spec requires razorpay_order_id VARCHAR(100) (nullable).
-  * amount_paisa: Mismatch. Current table enforces positive amount constraint (amount_paisa > 0). The spec requires negative values for deductions and positive values for recharges.
-  * transaction_type: Mismatch. Uses custom ENUM wallet_tx_type (which lacks AI-related values) instead of VARCHAR(30).
-  * Immutability: Table currently has updated_at and deleted_at columns, which must be removed to remain strictly append-only.
+Required columns:
+- `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- `student_id UUID NOT NULL REFERENCES students(id) ON DELETE RESTRICT` — UNIQUE (one active record per student)
+- `institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE RESTRICT`
+- `plan_tier plan_tier_type NOT NULL DEFAULT 'FREE'` — ENUM: `FREE`, `STANDARD`, `PRO`
+- `plan_limit INTEGER NOT NULL DEFAULT 0` — derived from plan_tier at payment time (FREE → 0, STANDARD → 6, PRO → 10). Stored so plan changes mid-month don't retroactively change the current period's limit.
+- `started_at TIMESTAMPTZ NOT NULL` — timestamp of payment / plan activation
+- `expires_at TIMESTAMPTZ NOT NULL` — `started_at + 30 days`
+- `razorpay_order_id VARCHAR(100)` — nullable, links to the payment that activated this plan
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `deleted_at TIMESTAMPTZ DEFAULT NULL`
+- UNIQUE constraint on `student_id` — only one subscription row per student (upserted on each payment)
 
----
+### Table: `subscription_payments` *(new)*
+- **Exists:** No
+- **Status:** ❌ Needs to be created
+- **Purpose:** Immutable audit log. Every Razorpay payment a parent makes writes one row here. Never updated or deleted.
+
+Required columns:
+- `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- `student_id UUID NOT NULL REFERENCES students(id) ON DELETE RESTRICT`
+- `institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE RESTRICT`
+- `plan_tier plan_tier_type NOT NULL` — the plan that was purchased
+- `amount_paise INTEGER NOT NULL` — amount paid in paise (₹35 = 3500, ₹50 = 5000). INTEGER not FLOAT.
+- `razorpay_order_id VARCHAR(100) NOT NULL`
+- `razorpay_payment_id VARCHAR(100)` — nullable until payment confirmed by webhook
+- `payment_status VARCHAR(20) NOT NULL DEFAULT 'pending'` — `pending`, `captured`, `failed`
+- `paid_at TIMESTAMPTZ` — set when webhook confirms capture
+- `plan_started_at TIMESTAMPTZ` — when the 30-day window begins
+- `plan_expires_at TIMESTAMPTZ` — plan_started_at + 30 days
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- ⚠️ No `updated_at`, no `deleted_at` — this table is append-only. `payment_status` is the only mutable column (updated by webhook only).
+
+### Table: `ai_daily_quotas` *(new — replaces `student_daily_usage`)*
+- **Exists:** No — `student_daily_usage` exists but is structurally wrong
+- **Status:** ❌ Needs to be created. `student_daily_usage` must be dropped.
+
+| Issue with `student_daily_usage` | Detail |
+|----------------------------------|--------|
+| Missing `institution_id` | Needed for multi-tenant scoping |
+| Missing `plan_limit` | Hardcoded in trigger instead of being stored per-row |
+| Column named `upload_counter` | Must be `count` |
+| Column named `usage_date` | Must be `submission_date` |
+| Has `deleted_at` | Quota rows are never soft-deleted |
+| Trigger reads `students.plan_tier` | Must read from `student_subscriptions.plan_limit` instead |
+
+Required columns for `ai_daily_quotas`:
+- `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- `student_id UUID NOT NULL REFERENCES students(id) ON DELETE RESTRICT`
+- `institution_id UUID NOT NULL REFERENCES institutions(id) ON DELETE RESTRICT`
+- `submission_date DATE NOT NULL`
+- `count INTEGER NOT NULL DEFAULT 0`
+- `plan_limit INTEGER NOT NULL` — copied from `student_subscriptions.plan_limit` at first submission of the day
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- UNIQUE constraint on `(student_id, submission_date)`
+- No `deleted_at`
 
 ## 3. What Is Already Done
 
-The following features have been successfully implemented:
-
 ### Database (Supabase)
-* Base data structure including institutions, users, teachers, students, classes, and subjects.
-* Homework table and core homework_submissions table schemas created.
-* student_wallets table schema created.
-* wallet_transactions schema created (referencing student_wallet_id).
-* student_daily_usage schema created to record daily student upload counts.
-* enforce_scan_limits() trigger function and check_scan_limits trigger implemented to check limits (6 for STANDARD tier, 10 for PRO tier, 0 for FREE tier) based on student plan tier.
-* Row Level Security (RLS) policies implemented for wallets and usage tables.
+- Base schema: `institutions`, `users`, `teachers`, `students`, `classes`, `subjects` — complete.
+- `homework` (assignment table) and `homework_submissions` tables — created, need column additions.
+- RLS policies on usage tables — complete (will need updating for new table names).
 
 ### Frontend (Expo / React Native)
-* Homework Dashboard (app/homework/index.tsx) displaying student homework, filters (All, Pending, Submitted, Graded), assignment meta info, and custom grading badge displays.
-* Homework Details (app/homework/[id].tsx) rendering assignment instructions, status, and attachment cards.
-* Repository endpoints (src/repositories/studentRepository.ts) fetching active homeworks, detail records, and submitting solutions.
-* Layout structure, Header, and BottomNavBar elements.
+- Homework Dashboard (`app/homework/index.tsx`) — filter tabs, assignment list, grading badge display.
+- Homework Detail (`app/homework/[id].tsx`) — instructions, status, attachment cards.
+- Repository layer (`src/repositories/studentRepository.ts`) — fetches homework, submits solution rows.
+- Layout, Header, BottomNavBar — complete.
 
-### Backend (Node.js / Express)
-* Test script (src/gemini_flash.ts) verifying basic connection to Gemini API by sending an OCR handwriting evaluation payload.
+### Backend (Node.js)
+- `src/gemini_flash.ts` — basic Gemini API connectivity proof-of-concept. Has issues (wrong model string, hardcoded key) but confirms the SDK and connection work.
 
 ---
 
 ## 4. What Needs To Be Done
 
-This section outlines the remaining tasks to implement the full production pipeline, grouped by phase.
+### Phase 1 — Database Migrations (Supabase)
 
-### Phase 1 — Database (Supabase migrations needed)
+**1a. Create `plan_tier_type` ENUM:**
+- Values: `FREE`, `STANDARD`, `PRO`
+- Used by both `student_subscriptions` and `subscription_payments`
 
-* Create enum type submission_status (pending, submitted, scored, late_submitted).
-* Alter homework_submissions table:
-  * Change type of status to submission_status.
-  * Alter ai_score column type to NUMERIC(4,2).
-  * Add column ai_feedback TEXT.
-  * Add column ai_suggestions TEXT.
-  * Add column scored_at TIMESTAMPTZ.
-  * Add column attachment_urls TEXT[].
-* Drop student_daily_usage table (or migration schema) and trigger.
-* Create table ai_daily_quotas:
-  * id UUID (Primary Key, default gen_random_uuid())
-  * student_id UUID REFERENCES students(id) ON DELETE RESTRICT
-  * institution_id UUID REFERENCES institutions(id) ON DELETE RESTRICT
-  * submission_date DATE
-  * count INTEGER DEFAULT 0
-  * plan_limit INTEGER DEFAULT 6
-  * created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
-  * Add UNIQUE constraint on (student_id, submission_date).
-* Create table school_wallets:
-  * id UUID (Primary Key, default gen_random_uuid())
-  * institution_id UUID REFERENCES institutions(id) ON DELETE RESTRICT (Unique)
-  * balance_paisa BIGINT DEFAULT 0
-  * status ENUM('ACTIVE', 'LOW_BALANCE', 'PAUSED')
-  * created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
-* Modify/Recreate wallet_transactions table:
-  * id UUID (Primary Key, default gen_random_uuid())
-  * institution_id UUID REFERENCES institutions(id) ON DELETE RESTRICT
-  * wallet_type VARCHAR(20) CHECK (wallet_type IN ('STUDENT', 'SCHOOL'))
-  * target_id UUID (foreign key checked at app level for student_id or school_wallet_id)
-  * amount_paisa INTEGER NOT NULL (allows positive and negative numbers)
-  * transaction_type VARCHAR(30) (e.g. 'AI_RECHARGE', 'AI_EVALUATION_DEDUCTION')
-  * razorpay_order_id VARCHAR(100) (Nullable)
-  * created_at TIMESTAMPTZ DEFAULT NOW()
-  * Ensure table is append-only: do NOT include updated_at or deleted_at columns.
+**1b. Create `student_subscriptions` table:**
+- Full column spec listed in Section 2 above
+- UNIQUE on `student_id` — upserted on each new payment
 
-### Phase 2 — Backend (Node.js)
+**1c. Create `subscription_payments` table:**
+- Full column spec listed in Section 2 above
+- Append-only — no `updated_at`, no `deleted_at`
+- `payment_status` is the only column updated post-insert (by webhook)
 
-* Initialize Express app in TypeScript inside a backend service directory.
-* Implement API endpoint POST /api/homework/submit-evaluate (touches homework_submissions, ai_daily_quotas, student_wallets, and wallet_transactions):
-  * Step 1: Image upload. Log metadata of image.
-  * Step 2: Quota check. Query ai_daily_quotas for student_id and current date. Check count < plan_limit. Block if limit exceeded.
-  * Step 3: Wallet check. Query student_wallets. Verify balance_paisa >= 10 (10 paisa evaluation cost floor). Block if insufficient balance.
-  * Step 4: Gemini API call. Call model gemini-2.5-flash-lite using parameters: maxOutputTokens: 300, temperature: 0.15, responseMimeType: "application/json".
-  * Step 5: Score write. Update homework_submissions setting ai_score, ai_feedback, ai_suggestions, scored_at, and status = 'scored'.
-  * Step 6: Quota increment. Upsert ai_daily_quotas incrementing count by 1.
-  * Step 7: Wallet deduction. Atomic database transaction subtracting 10 paisa from student_wallets.balance_paisa and inserting a deduction row (-10) in wallet_transactions.
-* Setup cron job (using pg-boss, node-cron, or serverless scheduler) to run nightly at 00:00 IST (18:30 UTC):
-  * Executes query: UPDATE ai_daily_quotas SET count = 0 WHERE submission_date = CURRENT_DATE.
+**1d. Create `submission_status` ENUM and update `homework_submissions`:**
+- Create ENUM: `pending`, `submitted`, `scored`, `late_submitted`
+- Alter `status` column from `TEXT` to `submission_status` ENUM
+- Alter `ai_score` to `NUMERIC(4,2)` with `CHECK (ai_score BETWEEN 0 AND 10)`
+- Add `ai_feedback TEXT`
+- Add `ai_suggestions TEXT`
+- Add `scored_at TIMESTAMPTZ`
+- Add `attachment_urls TEXT[]`
+- Migrate data from `file_url` into `attachment_urls` as a single-element array, then drop `file_url`
+
+---
+
+### Phase 2 — Backend (Node.js / Express)
+
+All AI evaluation requests must go through the Express backend. The Expo app never calls Gemini directly.
+
+**Fix `src/gemini_flash.ts` immediately:**
+- Change model string from `"gemini-3.5-flash"` to `"gemini-2.5-flash-lite"`
+- Replace hardcoded API key string with `process.env.GEMINI_API_KEY!`
+- Fix the broken image path (empty string at end of `path.join`)
+
+**Plan resolver utility — single source of truth:**
+
+```
+FREE     → daily_limit = 0,  monthly_price_paise = 0
+STANDARD → daily_limit = 6,  monthly_price_paise = 3500
+PRO      → daily_limit = 10, monthly_price_paise = 5000
+```
+
+This must be one exported function/constant. Never hardcode these numbers anywhere else in the codebase.
+
+---
+
+**Endpoint: `GET /api/student/subscription`**
+
+Touches: `student_subscriptions`
+
+Returns the student's current plan tier, expiry date, daily limit, and remaining evaluations today. The Expo app calls this on launch to gate the UI correctly.
+
+Response shape:
+```
+{
+  plan_tier: 'FREE' | 'STANDARD' | 'PRO',
+  expires_at: ISO timestamp | null,
+  is_active: boolean,
+  daily_limit: number,
+  used_today: number,
+  remaining_today: number
+}
+```
+
+---
+
+**Endpoint: `POST /api/homework/submit-evaluate`**
+
+Touches: `homework_submissions`, `ai_daily_quotas`, `student_subscriptions`
+
+| Step | Action | DB Tables Touched |
+|------|--------|-------------------|
+| 1 | Receive `{ student_id, assignment_id, base64_image }`. Validate JWT, extract `institution_id`. | — |
+| 2 | **Subscription check.** Query `student_subscriptions` for `student_id`. If `plan_tier = 'FREE'` → `403 AI_NOT_AVAILABLE`. If `expires_at < NOW()` → `403 SUBSCRIPTION_EXPIRED`. | `student_subscriptions` |
+| 3 | **Quota check.** Query `ai_daily_quotas` for `(student_id, today)`. If row missing → create it with `plan_limit` from `student_subscriptions.plan_limit`. If `count >= plan_limit` → `429 DAILY_LIMIT_REACHED`. | `ai_daily_quotas` |
+| 4 | **Gemini call.** Send compressed base64 image + homework context to `gemini-2.5-flash-lite`. Params: `maxOutputTokens: 300`, `temperature: 0.15`, `responseMimeType: "application/json"`. | — |
+| 5 | **Score write.** Update `homework_submissions`: set `ai_score`, `ai_feedback` (Standard+Pro), `ai_suggestions` (Pro only), `scored_at`, `status = 'scored'`. For Standard plan, write `null` for `ai_suggestions`. | `homework_submissions` |
+| 6 | **Quota increment.** `UPDATE ai_daily_quotas SET count = count + 1` for `(student_id, today)`. | `ai_daily_quotas` |
+| 7 | Return score payload to Expo including `plan_tier` so frontend can gate which fields to show. | — |
+
+---
+
+**Endpoint: `POST /api/payments/recharge/order`**
+
+Touches: `subscription_payments` (inserts pending row)
+
+- Validate student JWT
+- Validate requested `plan_tier` is `STANDARD` or `PRO` (cannot purchase FREE)
+- Look up price from plan resolver utility
+- Call Razorpay `orders.create` with correct amount in paise, currency `INR`
+- Insert a row in `subscription_payments` with `payment_status = 'pending'`, store `razorpay_order_id`
+- Return `{ razorpay_order_id, amount_paise, currency }` to Expo
+
+---
+
+**Endpoint: `POST /api/payments/webhook`**
+
+Touches: `subscription_payments`, `student_subscriptions`
+
+- Receive raw POST body from Razorpay
+- Validate HMAC-SHA256 signature using `RAZORPAY_WEBHOOK_SECRET` from `.env`
+- If signature invalid → return `400` immediately, log the attempt
+- If valid and `event = 'payment.captured'`:
+  - Find the `subscription_payments` row by `razorpay_order_id`
+  - Update `payment_status = 'captured'`, set `razorpay_payment_id`, set `paid_at = NOW()`
+  - Set `plan_started_at = NOW()`, `plan_expires_at = NOW() + INTERVAL '30 days'`
+  - Upsert `student_subscriptions` for this `student_id`:
+    - Set `plan_tier`, `plan_limit` (from resolver), `started_at`, `expires_at`, `razorpay_order_id`
+  - Return `200`
+- ⚠️ Wallet balance must NEVER be updated from the Expo success callback — webhook only
+
+---
+
+**Nightly cron — quota reset:**
+- Schedule at 00:00 IST (18:30 UTC)
+- `UPDATE ai_daily_quotas SET count = 0, updated_at = NOW() WHERE submission_date = CURRENT_DATE`
+- Use `node-cron` or Supabase Edge Function scheduled job
+- Log number of rows reset for monitoring
+
+---
 
 ### Phase 3 — Frontend (Expo)
 
-* Replace placeholder screen app/homework/score/[id].tsx with the actual AI score detail screen. Render overall score out of 10, AI feedback text, improvement suggestions, and criteria breakdown.
-* Replace simulated file pickers with expo-image-picker in app/homework/index.tsx and app/homework/[id].tsx.
-* Add image optimization helper using expo-image-manipulator:
-  * Select image -> crop/compress to 0.35 quality -> resize longest edge to 800px -> convert to grayscale -> convert to Base64.
-* Modify studentRepository.ts to direct submission requests to the new Express backend API evaluation endpoint instead of writing directly to Supabase.
+**Image optimization pipeline (runs on device before sending to backend):**
+- `expo-image-picker` → capture or select image
+- Pass URI to `expo-image-manipulator`:
+  - Resize longest edge → 800px
+  - Compress quality → 0.35
+  - Convert to grayscale: `actions: [{ grayscale: true }]`
+  - Export as Base64 string
+- POST `{ student_id, assignment_id, base64_image }` to Express backend
 
-### Phase 4 — Payments (Razorpay)
+**New screen: `app/student/subscription/index.tsx`**
 
-* Create backend endpoint POST /api/payments/recharge/order (touches wallet_transactions):
-  * Instantiates Razorpay SDK, calls orders.create, and returns order ID, currency, and amount.
-* Integrate Razorpay Standard Checkout in the Expo application:
-  * Install razorpay-custom-ui or use standard Webview Checkout wrapper. Collect payment options and capture responses.
-* Create backend endpoint POST /api/payments/webhook:
-  * Validates HMAC hex digest signature using the Razorpay webhook secret and the raw request body.
-  * If valid, extract order metadata and run atomic database transaction:
-    * Query student_id or school_wallet_id related to order.
-    * Add amount_paisa to student_wallets or school_wallets balance.
-    * Insert positive credit row in wallet_transactions recording transaction_type = 'AI_RECHARGE'.
+Parent-facing subscription management screen. Shows:
+- Current plan badge (Free / Standard / Pro)
+- Expiry date (e.g. "Active until 28 June 2026") or "No active plan"
+- Daily usage bar (e.g. "4 of 6 evaluations used today")
+- Upgrade / Recharge button → triggers Razorpay checkout
+- Payment history list (last 3–5 payments from `subscription_payments`)
+
+**Update: `app/homework/[id].tsx`**
+- Replace mocked file picker with real `expo-image-picker` + optimization pipeline
+- Show upload progress indicator during backend call
+- If `plan_tier = 'FREE'` → show "Upgrade to Standard to enable AI scoring" banner, no upload button
+- If `count >= plan_limit` for today → show "Daily limit reached. Try again tomorrow.", no upload button
+- If `expires_at` within 7 days → show "Your plan expires on [date]. Tap to renew." banner
+
+**New screen: `app/homework/score/[id].tsx`**
+- Overall AI score out of 10 with visual ring/bar indicator
+- `ai_feedback` text block — shown for Standard and Pro
+- `ai_suggestions` text block — shown for Pro only (hidden for Standard)
+- `scored_at` timestamp
+- If Standard plan and `ai_suggestions` is null → show "Upgrade to Pro for personalized improvement suggestions"
+
+**Update: `src/repositories/studentRepository.ts`**
+- Add `getSubscription()` → calls `GET /api/student/subscription`
+- Add `submitForEvaluation(assignmentId, base64Image)` → calls `POST /api/homework/submit-evaluate`
+- Add `createRechargeOrder(planTier)` → calls `POST /api/payments/recharge/order`
+- Remove any direct Supabase write calls for homework submission — those now go through Express
+
+---
+
+### Phase 4 — Subscription Screen UI States (All cases to handle)
+
+| State | What parent sees |
+|-------|-----------------|
+| `plan_tier = 'FREE'` | "No AI plan active. Choose a plan below." + Standard and Pro cards with prices |
+| `plan_tier = 'STANDARD'`, active | Green badge "Standard — Active until [date]". Daily bar. Recharge / Upgrade to Pro button. |
+| `plan_tier = 'PRO'`, active | Gold badge "Pro — Active until [date]". Daily bar. Recharge button. |
+| `expires_at < NOW()` | Red badge "Plan Expired". "Renew now to restore AI scoring." + plan cards |
+| `expires_at` within 7 days | Yellow warning banner inline on homework screens |
+| Payment in progress (order created, webhook not yet received) | "Payment processing... Your plan will activate shortly." |
 
 ---
 
 ## 5. Anomalies & Ambiguities Found
 
-The following inconsistencies and potential risks were identified during the codebase audit:
+| # | Anomaly | Severity | Resolution |
+|---|---------|----------|------------|
+| 1 | **Wrong Gemini model string** — `src/gemini_flash.ts` uses `"gemini-3.5-flash"`. Neither `gemini-3.5-flash` nor `gemini-3.1-flash-lite` exist. | 🔴 High | Use `"gemini-2.5-flash-lite"` everywhere |
+| 2 | **Hardcoded API key** in `src/gemini_flash.ts`. Key embedded in source — will be exposed if pushed to git. | 🔴 High | Move to `.env` as `GEMINI_API_KEY`. Add `.env` to `.gitignore` immediately. |
+| 3 | **Direct client-side Gemini risk** — if `gemini_flash.ts` logic is ported to Expo, the API key is exposed in the app bundle. | 🔴 High | All Gemini calls go through Express only |
+| 4 | **Plan gating at wrong entity level** — existing trigger reads `students.plan_tier`. The subscription is per-student but stored separately on `student_subscriptions`, not as a static column on `students`. | 🔴 High | Drop the trigger. Gate at application layer using `student_subscriptions` |
+| 5 | **Razorpay webhook secret not in `.env`** — if Razorpay integration is attempted without validating the webhook signature, any HTTP POST to the webhook URL could fake a payment. | 🔴 High | `RAZORPAY_WEBHOOK_SECRET` must be in `.env`. Validate HMAC before any DB write. |
+| 6 | **Table naming mismatch** — DB has `homework`, spec says `homework_assignments`. | 🟡 Medium | Recommend keeping `homework` and updating spec references. Avoid a breaking rename migration. |
+| 7 | **`homework_submissions.file_url`** is a single TEXT column — cannot store multiple attachment photos. | 🟡 Medium | Migrate to `attachment_urls TEXT[]` |
+| 8 | **`ai_scores` standalone table** is unused and conflicts with storing scores on `homework_submissions`. | 🟡 Medium | Drop this table |
+| 9 | **`wallet_transactions.amount_paisa > 0` constraint** — blocks negative deductions. Moot since table is being dropped. | 🟡 Medium | Drop entire table |
+| 10 | **Pro-only fields (`ai_feedback`, `ai_suggestions`) not gated** — currently stored and returned for all tiers. | 🟡 Medium | Backend: write `null` for `ai_suggestions` on Standard. Frontend: conditionally render based on `plan_tier` returned with score. |
+| 11 | **No expiry warning flow exists** — nothing currently alerts parents when a plan is about to expire. | 🟡 Medium | Add 7-day banner on homework screens. Future: push notification via FCM. |
 
-* Direct Client-Side Gemini Risk: The test script src/gemini_flash.ts instantiates the GoogleGenAI client directly. If this logic is ported directly to the client mobile application, it would expose the API key to users. All AI evaluation calls must route through the Node.js backend.
-* Hardcoded API Keys: The file src/gemini_flash.ts contains a hardcoded developer API key. All keys must be loaded from environment variables (.env).
-* Incorrect Gemini Model: The specification document references "gemini-3.1-flash-lite", which does not exist. The correct identifier is "gemini-2.5-flash-lite". Additionally, src/gemini_flash.ts references "gemini-3.5-flash", which is also incorrect.
-* Non-Append-Only Transaction Table: The database table wallet_transactions currently includes updated_at and deleted_at columns. This violates the audit logging requirement that transactions must be strictly immutable and append-only.
-* Mismatched Deduction Constraint: The database table wallet_transactions contains a check constraint check_positive_amount CHECK (amount_paisa > 0). This prevents recording negative values, which makes recording deductions (e.g. -10 paisa for AI evaluation) fail at the database level.
-* Missing Webhook Enforcement: The payment integration must enforce updates exclusively via secure signature-verified webhooks. The frontend must not directly update balances upon successful checkout callback, as this is prone to client tampering.
-* Non-Existent Tables Reference: The specification references a "homework_questions" table, which is not present in the database. Margam models assignment questions directly inside the "homework" table using description and file_url columns.
-* Inflexible Quota Gating: Daily quota enforcement is currently handled by a database trigger checking hardcoded limits based on the students.plan_tier column. This should be refactored to read plan_limit from a dynamic database field on the quota table, allowing plan limit modifications without database migration changes.
 
 ---
 
-## 6. Pricing Model Alignment Check
+## 6. Pricing & Feature Gating Alignment Check
 
-The pricing tiers shown in the plan screenshots are defined as follows:
-* Free: ₹0/month — 0 daily evaluations (AI homework features disabled).
-* Standard: ₹35/student/month — up to 6 daily AI evaluations.
-* Pro: ₹50/student/month — up to 10 daily AI evaluations.
+| Feature | Free | Standard | Pro | Gating Status |
+|---------|------|----------|-----|---------------|
+| View Student Marks | ✅ | ✅ | ✅ | ✅ Works |
+| Receive Homework | ✅ | ✅ | ✅ | ✅ Works |
+| Fee Payment Through App | ✅ | ✅ | ✅ | ✅ Works |
+| Student Profile Access | ✅ | ✅ | ✅ | ✅ Works |
+| AI Homework Checking | ❌ | ✅ | ✅ | ❌ Not gated — needs subscription check middleware |
+| Automatic AI Scoring | ❌ | ✅ | ✅ | ❌ Not gated |
+| Homework Analytics | ❌ | ✅ | ✅ | ❌ Not built |
+| Daily AI Evaluations | 0/day | 6/day | 10/day | 🟡 Partial — trigger exists but reads wrong table |
+| Student Feedback (`ai_feedback`) | ❌ | ✅ | ✅ | ❌ Not gated — returned for all tiers |
+| Personalized Suggestions (`ai_suggestions`) | ❌ | ❌ | ✅ | ❌ Not gated — not even stored separately yet |
+| Advanced Academic Insights | ❌ | ❌ | ✅ | ❌ Not built |
+| Performance Analytics | ❌ | ❌ | ✅ | ❌ Not built |
 
-### Plan Gating Logic Check
+**Overall Status: 🟡 Partial**
 
-* Codebase Status: 🟡 Partial
-* Check Details:
-  * The database contains a trigger enforce_scan_limits() that checks the student's plan_tier on student_daily_usage updates. It correctly restricts Standard students to 6 uploads and Pro students to 10.
-  * However, there is no application-layer logic in the Node.js backend or Expo frontend that is aware of these plans or communicates active plan limits.
-  * The plan_limit column requested by the spec in the daily quota table is completely missing because the table does not exist. Limits are hardcoded inside the database trigger rather than being dynamically read from a plan/subscription configuration.
+No application-layer subscription gating exists. The DB trigger reads the wrong table and has hardcoded limits. Pro-only fields are not separated in the response. None of the subscription or payment tables exist yet.

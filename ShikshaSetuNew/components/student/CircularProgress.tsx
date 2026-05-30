@@ -4,10 +4,11 @@ import Svg, { Circle } from "react-native-svg";
 
 interface CircularProgressProps {
   percentage: number;
-  label: string;
+  label?: string;
   size?: number;
   strokeWidth?: number;
   color?: string;
+  children?: React.ReactNode;
 }
 
 export default function CircularProgress({
@@ -16,6 +17,7 @@ export default function CircularProgress({
   size = 80,
   strokeWidth = 8,
   color = "#D4AF37",
+  children,
 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -50,10 +52,17 @@ export default function CircularProgress({
           />
         </Svg>
         <View className="absolute items-center justify-center">
-          <Text className="font-poppins-bold text-lg text-[#0D1B2A]">{percentage}%</Text>
+          {children ? (
+            children
+          ) : (
+            <Text className="font-poppins-bold text-lg text-[#0D1B2A]">{percentage}%</Text>
+          )}
         </View>
       </View>
-      <Text className="font-inter-medium text-[11px] text-gray-500 mt-2 text-center">{label}</Text>
+      {!!label && (
+        <Text className="font-inter-medium text-[11px] text-gray-500 mt-2 text-center">{label}</Text>
+      )}
     </View>
   );
 }
+

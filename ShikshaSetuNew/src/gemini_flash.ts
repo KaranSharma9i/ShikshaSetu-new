@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 // Explicitly pass your unique AI Studio API developer key string
-const ai = new GoogleGenAI({ apiKey: "AIzaSyBgrd0fWl7Ia-sTpY49mz3TA5xyE0qwjvU" });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 async function main() {
   try {
@@ -20,7 +20,7 @@ async function main() {
 
     // 3. Fire the multimodal data payload array
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash-lite",
       contents: [
         {
           inlineData: {
