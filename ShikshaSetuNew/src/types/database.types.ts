@@ -118,6 +118,8 @@ export interface Database {
           institution_id: string;
           created_at: string;
           updated_at: string;
+          plan_tier: Database["public"]["Enums"]["plan_tier_type"];
+          tier_expires_at: string | null;
         };
         Insert: {
           id?: string;
@@ -133,6 +135,8 @@ export interface Database {
           institution_id: string;
           created_at?: string;
           updated_at?: string;
+          plan_tier?: Database["public"]["Enums"]["plan_tier_type"];
+          tier_expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -148,6 +152,8 @@ export interface Database {
           institution_id?: string;
           created_at?: string;
           updated_at?: string;
+          plan_tier?: Database["public"]["Enums"]["plan_tier_type"];
+          tier_expires_at?: string | null;
         };
       };
       teachers: {
@@ -456,6 +462,99 @@ export interface Database {
           updated_at?: string;
         };
       };
+      student_wallets: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+          student_id: string;
+          institution_id: string;
+          balance_paisa: number;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+          student_id: string;
+          institution_id: string;
+          balance_paisa?: number;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+          student_id?: string;
+          institution_id?: string;
+          balance_paisa?: number;
+        };
+      };
+      wallet_transactions: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+          student_wallet_id: string;
+          transaction_type: Database["public"]["Enums"]["wallet_tx_type"];
+          amount_paisa: number;
+          balance_after_paisa: number;
+          performed_by: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+          student_wallet_id: string;
+          transaction_type: Database["public"]["Enums"]["wallet_tx_type"];
+          amount_paisa: number;
+          balance_after_paisa: number;
+          performed_by: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+          student_wallet_id?: string;
+          transaction_type?: Database["public"]["Enums"]["wallet_tx_type"];
+          amount_paisa?: number;
+          balance_after_paisa?: number;
+          performed_by?: string;
+        };
+      };
+      student_daily_usage: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+          student_id: string;
+          usage_date: string;
+          upload_counter: number;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+          student_id: string;
+          usage_date?: string;
+          upload_counter?: number;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+          student_id?: string;
+          usage_date?: string;
+          upload_counter?: number;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -464,7 +563,8 @@ export interface Database {
       [_ in never]: never;
     };
     Enums: {
-      [_ in never]: never;
+      plan_tier_type: "FREE" | "STANDARD" | "PRO";
+      wallet_tx_type: "MANUAL_ADMIN_RECHARGE" | "PLAN_UPGRADE_DEDUCTION" | "SYSTEM_REFUND";
     };
   };
 }
