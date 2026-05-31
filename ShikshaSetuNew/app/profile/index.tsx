@@ -3,25 +3,21 @@ import {
   View, 
   Text, 
   ScrollView, 
-  Image, 
   TouchableOpacity, 
   Alert, 
-  ActivityIndicator, 
   Platform, 
   StatusBar 
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuth } from "../../src/hooks/useAuth";
 import { 
-  getStudentProfileByUserId, 
-  updateStudentProfile, 
-  uploadProfilePhoto 
-} from "../src/repositories/studentRepository";
-import { supabase } from "../src/lib/supabase";
-import Header from "../components/student/Header";
-import BottomNavBar from "../components/student/BottomNavBar";
+  getStudentProfileByUserId
+} from "../../src/repositories/studentRepository";
+import { supabase } from "../../src/lib/supabase";
+import Header from "../../components/student/Header";
+import BottomNavBar from "../../components/student/BottomNavBar";
+import ProfilePhotoUploader from "../../components/student/ProfilePhotoUploader";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -30,7 +26,6 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<any>(null);
   const [institution, setInstitution] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfileData = async () => {
@@ -73,54 +68,7 @@ export default function ProfileScreen() {
     fetchProfileData();
   }, [userId]);
 
-  const handleImagePick = async () => {
-    if (isUploading) return;
-    
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Required',
-        'Please allow access to your photo library to update profile photo.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
-      }
-
-      const selectedAsset = result.assets[0];
-      const fileUri = selectedAsset.uri;
-      const mimeType = selectedAsset.mimeType || 'image/jpeg';
-
-      setIsUploading(true);
-
-      // 1. uploadProfilePhoto() -> returns publicUrl
-      const publicUrl = await uploadProfilePhoto(userId!, fileUri, mimeType);
-      
-      // 2. updateStudentProfile() with { profile_photo_url: publicUrl }
-      await updateStudentProfile(profile.id, userId!, { profile_photo_url: publicUrl });
-
-      // 3. Update LOCAL state to show new photo immediately WITHOUT needing to refetch
-      setProfile((prev: any) => prev ? { ...prev, profile_photo_url: publicUrl } : prev);
-      
-      Alert.alert('Success', 'Profile photo updated successfully!');
-    } catch (err: any) {
-      console.error("Upload failed:", err);
-      Alert.alert('Upload Error', err?.message || 'Failed to upload profile photo. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  // Image picking and upload is now handled by ProfilePhotoUploader component
 
   if (isLoading) {
     const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
@@ -229,44 +177,14 @@ export default function ProfileScreen() {
           }}
         >
           {/* Centered Profile Photo */}
-          <View className="items-center mb-4 relative">
-            <View className="relative">
-              <View className="w-[100px] h-[100px] rounded-full border-[3px] border-[#D4AF37] overflow-hidden bg-gray-100 justify-center items-center">
-                {profile?.profile_photo_url ? (
-                  <Image 
-                    source={{ uri: profile.profile_photo_url }} 
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Image 
-                    source={require("../assets/profile.jpg")} 
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                )}
-                
-                {/* Upload Progress Indicator over photo */}
-                {isUploading && (
-                  <View className="absolute inset-0 bg-black/40 justify-center items-center rounded-full">
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  </View>
-                )}
-              </View>
-
-              {/* Edit Button bottom-right of photo, 28x28px */}
-              <TouchableOpacity
-                onPress={handleImagePick}
-                disabled={isUploading}
-                className={`absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#0D1B2A] items-center justify-center border-2 border-white shadow-sm ${
-                  isUploading ? "opacity-50" : ""
-                }`}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="pencil" size={12} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <ProfilePhotoUploader
+            studentId={profile.id}
+            userId={userId!}
+            currentPhotoUrl={profile.profile_photo_url}
+            onUploadSuccess={(newUrl) => {
+              setProfile((prev: any) => prev ? { ...prev, profile_photo_url: newUrl } : prev);
+            }}
+          />
 
           {/* Student Name */}
           <Text className="font-poppins-bold text-[22px] text-[#0D1B2A] text-center">

@@ -183,7 +183,8 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
       ),
       user:users!inner (
         full_name,
-        profile_photo_url
+        profile_photo_url,
+        phone
       )
     `)
     .eq("id", studentId)
@@ -207,6 +208,7 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
     student_code: data.student_code,
     full_name: user?.full_name || "",
     profile_photo_url: user?.profile_photo_url,
+    phone: user?.phone || null,
     guardian_name: data.guardian_name,
     date_of_birth: data.date_of_birth,
     gender: data.gender,
@@ -520,7 +522,8 @@ export async function getStudentProfileByUserId(userId: string): Promise<Student
       ),
       user:users!inner (
         full_name,
-        profile_photo_url
+        profile_photo_url,
+        phone
       )
     `)
     .eq("user_id", userId)
@@ -545,6 +548,7 @@ export async function getStudentProfileByUserId(userId: string): Promise<Student
     student_code: data.student_code,
     full_name: user?.full_name || "",
     profile_photo_url: user?.profile_photo_url || null,
+    phone: user?.phone || null,
     guardian_name: data.guardian_name,
     date_of_birth: data.date_of_birth,
     gender: data.gender,
