@@ -1,0 +1,378 @@
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { supabase } from "@/src/lib/supabase";
+import { useAuth } from "@/src/hooks/useAuth";
+import Header from "@/components/teacher/Header";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// ─── Animated Skeleton Loader ────────────────────────────────────────────────
+function SkeletonBox({
+  width = "100%",
+  height,
+  borderRadius = 8,
+  style,
+}: {
+  width?: number | string;
+  height: number;
+  borderRadius?: number;
+  style?: any;
+}) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.7,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: "#E5E2DA",
+          opacity,
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+function HomeworkSkeleton() {
+  return (
+    <View className="flex-1 px-4 pt-4 space-y-4">
+      <SkeletonBox height={120} borderRadius={16} />
+      <SkeletonBox height={120} borderRadius={16} />
+      <SkeletonBox height={120} borderRadius={16} />
+    </View>
+  );
+}
+
+// ─── Interfaces ──────────────────────────────────────────────────────────────
+interface HomeworkListItem {
+  id: string;
+  title: string;
+  due_date: string;
+  status: string;
+  total_marks: number | null;
+  created_at: string;
+  class: {
+    id: string;
+    name: string;
+  } | null;
+  subject: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export default function HomeworkDashboard() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { userId, isLoaded, isSignedIn } = useAuth();
+
+  const [loading, setLoading] = useState(true);
+  const [homeworks, setHomeworks] = useState<HomeworkListItem[]>([]);
+  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && userId) {
+      fetchHomeworkData();
+    }
+  }, [isLoaded, isSignedIn, userId]);
+
+  const fetchHomeworkData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 1. Fetch teacher record using auth userId
+      const { data: teacherData, error: teacherErr } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("user_id", userId)
+        .single();
+
+      if (teacherErr || !teacherData) {
+        console.error("Error fetching teacher profile:", teacherErr);
+        setError("Could not retrieve teacher profile.");
+        setLoading(false);
+        return;
+      }
+
+      const teacherId = teacherData.id;
+
+      // 2. Fetch homeworks for the teacher
+      const { data: homeworksData, error: homeworksErr } = await supabase
+        .from("homework")
+        .select(`
+          id,
+          title,
+          due_date,
+          status,
+          total_marks,
+          created_at,
+          class:classes (
+            id,
+            name
+          ),
+          subject:subjects (
+            id,
+            name
+          )
+        `)
+        .eq("teacher_id", teacherId)
+        .order("created_at", { ascending: false });
+
+      if (homeworksErr) {
+        console.error("Error fetching homeworks:", homeworksErr);
+        setError("Failed to fetch homework assignments.");
+        setLoading(false);
+        return;
+      }
+
+      // Convert join data array cases to single object for typescript helper
+      const formattedHomeworks: HomeworkListItem[] = (homeworksData || []).map((hw: any) => {
+        const classObj = Array.isArray(hw.class) ? hw.class[0] : hw.class;
+        const subjectObj = Array.isArray(hw.subject) ? hw.subject[0] : hw.subject;
+        return {
+          id: hw.id,
+          title: hw.title,
+          due_date: hw.due_date,
+          status: hw.status || "active",
+          total_marks: hw.total_marks ? Number(hw.total_marks) : null,
+          created_at: hw.created_at,
+          class: classObj ? { id: classObj.id, name: classObj.name } : null,
+          subject: subjectObj ? { id: subjectObj.id, name: subjectObj.name } : null,
+        };
+      });
+
+      // 3. Fetch all active student enrollments to aggregate counts per class
+      const { data: enrollmentData, error: enrollmentErr } = await supabase
+        .from("enrollments")
+        .select(`
+          id,
+          section:sections (
+            class_id
+          )
+        `)
+        .eq("is_active", true);
+
+      if (enrollmentErr) {
+        console.warn("Could not fetch active student enrollments counts:", enrollmentErr);
+      } else {
+        const counts: Record<string, number> = {};
+        enrollmentData?.forEach((enroll: any) => {
+          const sect = Array.isArray(enroll.section) ? enroll.section[0] : enroll.section;
+          const classId = sect?.class_id;
+          if (classId) {
+            counts[classId] = (counts[classId] || 0) + 1;
+          }
+        });
+        setStudentCounts(counts);
+      }
+
+      setHomeworks(formattedHomeworks);
+      setLoading(false);
+    } catch (err) {
+      console.error("Unexpected error in fetchHomeworkData:", err);
+      setError("An unexpected error occurred while loading assignments.");
+      setLoading(false);
+    }
+  };
+
+  // Format grade title: e.g. "Class 10" -> "Grade 10"
+  const formatGradeName = (name: string) => {
+    if (!name) return "";
+    return name.includes("Class") ? name.replace("Class", "Grade") : name;
+  };
+
+  const getQuestionCount = (item: HomeworkListItem) => {
+    // Dynamic estimate based on total marks, with 5 as a safe default
+    return Math.max(5, Math.floor(Number(item.total_marks || 50) / 10));
+  };
+
+  return (
+    <View className="flex-1 bg-[#F7F3EB]">
+      <Header title="Homework" showBack={false} />
+
+      {loading ? (
+        <HomeworkSkeleton />
+      ) : error ? (
+        <View className="flex-1 justify-center items-center p-6">
+          <Ionicons name="alert-circle" size={48} color="#DC2626" />
+          <Text className="font-poppins-semibold text-lg text-[#0D1B2A] text-center mt-3">
+            Error Loading Data
+          </Text>
+          <Text className="font-inter text-gray-500 text-center mt-1">
+            {error}
+          </Text>
+          <TouchableOpacity
+            onPress={fetchHomeworkData}
+            activeOpacity={0.7}
+            className="mt-4 px-6 py-2.5 bg-[#0D1B2A] rounded-lg"
+          >
+            <Text className="font-poppins-semibold text-xs text-white">
+              Try Again
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : homeworks.length === 0 ? (
+        // Empty State
+        <View className="flex-1 justify-center items-center p-6">
+          <View className="w-24 h-24 rounded-full bg-[#FFFFFF] shadow-sm items-center justify-center mb-4 border border-gray-50">
+            <Feather name="clipboard" size={48} color="#D4AF37" />
+          </View>
+          <Text className="font-poppins-semibold text-lg text-[#0D1B2A]">
+            No assignments yet
+          </Text>
+          <Text className="font-inter text-sm text-gray-400 mt-1">
+            Create your first one!
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1 px-4"
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text className="font-poppins-semibold text-base text-[#0D1B2A] mb-4">
+            Active Assignments
+          </Text>
+
+          <View className="space-y-4">
+            {homeworks.map((item) => {
+              const grade = item.class ? formatGradeName(item.class.name) : "Grade X";
+              const subjectName = item.subject?.name || "Subject";
+              const questions = getQuestionCount(item);
+              const students = item.class ? (studentCounts[item.class.id] || 0) : 0;
+              
+              // Format Due Date
+              const dueDateObj = new Date(item.due_date);
+              const formattedDate = dueDateObj.toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              });
+
+              // Status Pill configuration
+              const isExpired = item.status === "archived" || new Date(item.due_date) < new Date();
+              const pillBg = isExpired ? "bg-gray-100 border border-gray-200" : "bg-green-50 border border-green-200";
+              const pillText = isExpired ? "text-gray-500 font-open-sans font-bold" : "text-green-700 font-open-sans font-bold";
+              const pillLabel = isExpired ? "EXPIRED" : "ACTIVE";
+
+              return (
+                <View
+                  key={item.id}
+                  className="bg-white rounded-2xl p-5 border border-gray-50 shadow-sm"
+                  style={{
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
+                >
+                  {/* Top row with Subject & Status Pill */}
+                  <View className="flex-row justify-between items-start">
+                    <Text
+                      style={{ letterSpacing: 0.5 }}
+                      className="font-open-sans font-bold text-[11px] text-[#D4AF37] uppercase"
+                    >
+                      {subjectName}
+                    </Text>
+                    <View className={`px-2 py-0.5 rounded-full ${pillBg}`}>
+                      <Text style={{ fontSize: 9 }} className={pillText}>
+                        {pillLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Title */}
+                  <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A] mt-2">
+                    {grade} — {subjectName}
+                  </Text>
+                  
+                  {/* Sub-Title / Homework Title */}
+                  <Text className="font-inter text-gray-500 text-sm mt-1" numberOfLines={1}>
+                    {item.title}
+                  </Text>
+
+                  {/* Metrics Row */}
+                  <View className="flex-row items-center space-x-6 mt-4 pt-3 border-t border-gray-50">
+                    <View className="flex-row items-center">
+                      <Feather name="file-text" size={14} color="#6B7280" />
+                      <Text className="font-inter text-gray-500 text-xs ml-1.5">
+                        {questions} Questions
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Feather name="users" size={14} color="#6B7280" />
+                      <Text className="font-inter text-gray-500 text-xs ml-1.5">
+                        {students} Students
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Due Date Row */}
+                  <View className="flex-row items-center mt-2.5">
+                    <Feather name="calendar" size={14} color="#6B7280" />
+                    <Text className="font-inter text-gray-400 text-[11px] ml-1.5">
+                      Due: {formattedDate}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Floating Action Button (FAB) */}
+      <TouchableOpacity
+        onPress={() => router.push("/(teacher)/homework/create" as any)}
+        activeOpacity={0.85}
+        className="absolute rounded-full bg-[#0D1B2A] items-center justify-center shadow-lg"
+        style={{
+          width: 56,
+          height: 56,
+          bottom: 60 + insets.bottom + 16,
+          right: 16,
+          shadowColor: "#0D1B2A",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 6,
+          elevation: 6,
+        }}
+      >
+        <Feather name="plus" size={24} color="#D4AF37" />
+      </TouchableOpacity>
+    </View>
+  );
+}
