@@ -1157,5 +1157,166 @@ export async function getHomeworkScore(
   }
 }
 
+// === SCHEDULE & EXAMS FUNCTIONS ===
 
+export async function getStudentScheduleData(
+  studentId: string,
+  classId: string,
+  institutionId: string,
+  academicYearId: string,
+  month: number,   // 1-12
+  year: number
+): Promise<{
+  holidays: { id: string; date: string; name: string }[];
+  leaves: { 
+    id: string;
+    from_date: string;
+    to_date: string;
+    status: string; 
+  }[];
+  attendance: { date: string; status: string }[];
+}> {
+  try {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
+    // Query 1: Holidays for given month/year
+    const { data: holidaysData, error: holidaysError } = await supabase
+      .from("holidays")
+      .select("id, date, name, description")
+      .eq("institution_id", institutionId)
+      .eq("academic_year_id", academicYearId)
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .is("deleted_at", null);
+
+    if (holidaysError) throw holidaysError;
+
+    // Query 2: Leaves for given month/year
+    const { data: leavesData, error: leavesError } = await supabase
+      .from("leaves")
+      .select("id, from_date, to_date, status")
+      .eq("student_id", studentId)
+      .eq("academic_year_id", academicYearId)
+      .eq("status", "approved")
+      .is("deleted_at", null)
+      .or(`and(from_date.gte.${startDate},from_date.lte.${endDate}),and(to_date.gte.${startDate},to_date.lte.${endDate})`);
+
+    if (leavesError) throw leavesError;
+
+    // Query 3: Attendance for given month/year
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .from("student_attendance")
+      .select("date, status")
+      .eq("student_id", studentId)
+      .eq("academic_year_id", academicYearId)
+      .gte("date", startDate)
+      .lte("date", endDate);
+
+    if (attendanceError) throw attendanceError;
+
+    return {
+      holidays: (holidaysData || []).map((h: any) => ({
+        id: h.id,
+        date: h.date,
+        name: h.name,
+      })),
+      leaves: (leavesData || []).map((l: any) => ({
+        id: l.id,
+        from_date: l.from_date,
+        to_date: l.to_date,
+        status: l.status,
+      })),
+      attendance: (attendanceData || []).map((a: any) => ({
+        date: a.date,
+        status: a.status,
+      })),
+    };
+  } catch (error) {
+    console.error("Error in getStudentScheduleData repository:", error);
+    return {
+      holidays: [],
+      leaves: [],
+      attendance: [],
+    };
+  }
+}
+
+export async function getUpcomingExams(
+  classId: string,
+  academicYearId: string
+): Promise<{
+  id: string;
+  title: string;
+  subject_name: string;
+  exam_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  venue: string | null;
+  syllabus_file_url: string | null;
+}[]> {
+  try {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const { data, error } = await supabase
+      .from("exams")
+      .select(`
+        id,
+        exam_name,
+        exam_date,
+        start_time,
+        end_time,
+        venue,
+        syllabus_file_url,
+        subject:subjects (
+          name
+        )
+      `)
+      .eq("class_id", classId)
+      .eq("academic_year_id", academicYearId)
+      .gte("exam_date", todayStr)
+      .is("deleted_at", null)
+      .order("exam_date", { ascending: true })
+      .limit(10);
+
+    if (error) throw error;
+
+    return (data || []).map((e: any) => {
+      const subjectObj = e.subject;
+      const subjectName = (Array.isArray(subjectObj) ? subjectObj[0] : subjectObj)?.name || "Unknown Subject";
+      return {
+        id: e.id,
+        title: e.exam_name,
+        subject_name: subjectName,
+        exam_date: e.exam_date,
+        start_time: e.start_time || null,
+        end_time: e.end_time || null,
+        venue: e.venue || null,
+        syllabus_file_url: e.syllabus_file_url || null,
+      };
+    });
+  } catch (error) {
+    console.error("Error in getUpcomingExams repository:", error);
+    return [];
+  }
+}
+
+export async function getStudentAcademicYear(
+  institutionId: string
+): Promise<{ id: string; starts_on: string; ends_on: string } | null> {
+  try {
+    const { data, error } = await supabase
+      .from("academic_years")
+      .select("id, starts_on, ends_on")
+      .eq("institution_id", institutionId)
+      .eq("is_current", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error in getStudentAcademicYear repository:", error);
+    return null;
+  }
+}
