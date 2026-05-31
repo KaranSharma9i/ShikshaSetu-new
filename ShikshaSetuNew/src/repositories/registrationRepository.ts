@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -314,7 +315,11 @@ export async function appointTeacher(
     const nextNum = (count || 0) + 1;
     const employeeCode = `TCH${String(nextNum).padStart(3, "0")}`;
     const loginId = `GS-TCH-${String(nextNum).padStart(3, "0")}`;
-    const tempPassword = "GURK" + new Date().getFullYear();
+
+    // Extract Date of Joining and parse it to generate plain-text temp password as DDMMYYYY
+    const parsedDoj = parseDob(params.doj);
+    const tempPassword = `${parsedDoj.day}${parsedDoj.month}${parsedDoj.year}`;
+    const passwordHash = bcrypt.hashSync(tempPassword, 10);
 
     const teacherEmail = `tch${nextNum}@gurukulsiksha.edu.in`;
 
@@ -328,7 +333,9 @@ export async function appointTeacher(
         full_name: params.name,
         email: teacherEmail,
         phone: "+91-94150-" + String(nextNum).padStart(5, "0"),
-        status: "active"
+        status: "active",
+        password_hash: passwordHash
+        // TODO: Set must_change_password = true when column is added for teacher portal
       })
       .select("id")
       .single();
@@ -361,12 +368,7 @@ export async function appointTeacher(
     };
   } catch (error) {
     console.error("Error in appointTeacher:", error);
-    return {
-      portalId: `TCH-2026-${Math.floor(Math.random() * 1000)}`,
-      tempPassword: "GURK" + new Date().getFullYear(),
-      status: "Active",
-      fullName: params.name
-    };
+    throw error;
   }
 }
 
