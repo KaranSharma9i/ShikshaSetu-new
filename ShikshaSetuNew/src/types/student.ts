@@ -36,6 +36,7 @@ export interface StudentProfile {
   address: string | null;
   admission_date: string | null;
   guardian_phone: string | null;
+  phone?: string | null;
   class_name: string;
   section_name: string;
   roll_number: string | null;

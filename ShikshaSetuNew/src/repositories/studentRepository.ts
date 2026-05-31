@@ -183,7 +183,8 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
       ),
       user:users!inner (
         full_name,
-        profile_photo_url
+        profile_photo_url,
+        phone
       )
     `)
     .eq("id", studentId)
@@ -207,6 +208,7 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
     student_code: data.student_code,
     full_name: user?.full_name || "",
     profile_photo_url: user?.profile_photo_url,
+    phone: user?.phone || null,
     guardian_name: data.guardian_name,
     date_of_birth: data.date_of_birth,
     gender: data.gender,
@@ -520,7 +522,8 @@ export async function getStudentProfileByUserId(userId: string): Promise<Student
       ),
       user:users!inner (
         full_name,
-        profile_photo_url
+        profile_photo_url,
+        phone
       )
     `)
     .eq("user_id", userId)
@@ -545,6 +548,7 @@ export async function getStudentProfileByUserId(userId: string): Promise<Student
     student_code: data.student_code,
     full_name: user?.full_name || "",
     profile_photo_url: user?.profile_photo_url || null,
+    phone: user?.phone || null,
     guardian_name: data.guardian_name,
     date_of_birth: data.date_of_birth,
     gender: data.gender,
@@ -1320,3 +1324,142 @@ export async function getStudentAcademicYear(
     return null;
   }
 }
+
+export async function updateStudentProfile(
+  studentId: string,
+  userId: string,
+  updates: {
+    phone?: string;
+    guardian_name?: string;
+    guardian_phone?: string;
+    address?: string;
+    profile_photo_url?: string;
+  }
+): Promise<StudentProfile | null> {
+  const userUpdates: any = {};
+  if (updates.phone !== undefined) userUpdates.phone = updates.phone;
+  if (updates.profile_photo_url !== undefined) userUpdates.profile_photo_url = updates.profile_photo_url;
+
+  const studentUpdates: any = {};
+  if (updates.guardian_name !== undefined) studentUpdates.guardian_name = updates.guardian_name;
+  if (updates.guardian_phone !== undefined) studentUpdates.guardian_phone = updates.guardian_phone;
+  if (updates.address !== undefined) studentUpdates.address = updates.address;
+
+  const promises = [];
+  if (Object.keys(userUpdates).length > 0) {
+    promises.push(
+      supabase.from("users").update(userUpdates).eq("id", userId)
+    );
+  }
+  if (Object.keys(studentUpdates).length > 0) {
+    promises.push(
+      supabase.from("students").update(studentUpdates).eq("id", studentId)
+    );
+  }
+
+  if (promises.length > 0) {
+    const results = await Promise.all(promises);
+    for (const res of results) {
+      if (res.error) {
+        console.error("Error in updateStudentProfile:", res.error);
+        throw res.error;
+      }
+    }
+  }
+
+  return getStudentProfile(studentId);
+}
+
+export async function uploadProfilePhoto(
+  userId: string,
+  fileUri: string,
+  mimeType: string
+): Promise<string> {
+  const response = await fetch(fileUri);
+  const blob = await response.blob();
+  const fileExt = mimeType.split('/')[1] || 'jpg';
+  const filePath = `${userId}/profile.${fileExt}`;
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, blob, {
+      contentType: mimeType,
+      upsert: true  // overwrite existing photo
+    });
+
+  if (error) {
+    console.error("Error uploading profile photo:", error);
+    throw error;
+  }
+
+  const { data } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+export async function getStudentTimetable(
+  sectionId: string,
+  academicYearId: string,
+  day: string
+): Promise<{
+  period_number: number;
+  starts_at: string;
+  ends_at: string;
+  room: string | null;
+  subject_name: string;
+  subject_code: string;
+  teacher_name: string;
+}[]> {
+  const { data, error } = await supabase
+    .from("timetable")
+    .select(`
+      period_number,
+      starts_at,
+      ends_at,
+      room,
+      class_subjects:class_subjects!inner (
+        subject:subjects!inner (
+          name,
+          code
+        ),
+        teacher:users (
+          full_name
+        )
+      )
+    `)
+    .eq("section_id", sectionId)
+    .eq("academic_year_id", academicYearId)
+    .eq("day", day.toLowerCase())
+    .is("deleted_at", null)
+    .order("period_number", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching timetable:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => {
+    const classSubject = Array.isArray(row.class_subjects)
+      ? row.class_subjects[0]
+      : row.class_subjects;
+    const subject = Array.isArray(classSubject?.subject)
+      ? classSubject.subject[0]
+      : classSubject?.subject;
+    const teacher = Array.isArray(classSubject?.teacher)
+      ? classSubject.teacher[0]
+      : classSubject?.teacher;
+
+    return {
+      period_number: row.period_number,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      room: row.room || null,
+      subject_name: subject?.name || "Unknown Subject",
+      subject_code: subject?.code || "",
+      teacher_name: teacher?.full_name || "Assigned Teacher",
+    };
+  });
+}
+
