@@ -164,6 +164,7 @@ export interface Database {
           specialization: string | null;
           qualification: string | null;
           gender: string | null;
+          date_of_birth: string | null;
           date_of_joining: string | null;
           emergency_contact: string | null;
           address: string | null;
@@ -178,6 +179,7 @@ export interface Database {
           specialization?: string | null;
           qualification?: string | null;
           gender?: string | null;
+          date_of_birth?: string | null;
           date_of_joining?: string | null;
           emergency_contact?: string | null;
           address?: string | null;
@@ -192,6 +194,7 @@ export interface Database {
           specialization?: string | null;
           qualification?: string | null;
           gender?: string | null;
+          date_of_birth?: string | null;
           date_of_joining?: string | null;
           emergency_contact?: string | null;
           address?: string | null;
