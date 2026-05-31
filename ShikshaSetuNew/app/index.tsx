@@ -253,8 +253,49 @@ export default function Index() {
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* ── Profile Setup Pending Callout ────────────────────────── */}
+          {!student && (
+            <View style={{ paddingHorizontal: 20, paddingTop: 20, marginBottom: 4 }}>
+              <View
+                style={{
+                  backgroundColor: "#FFFBEB",
+                  borderColor: "#FDE68A",
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  padding: 16,
+                  flexDirection: "row",
+                  gap: 12,
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="alert-circle-outline" size={24} color="#D97706" />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins-SemiBold",
+                      fontSize: 13,
+                      color: "#92400E",
+                    }}
+                  >
+                    Profile Setup Pending
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: "Inter-Regular",
+                      fontSize: 11,
+                      color: "#B45309",
+                      marginTop: 2,
+                    }}
+                  >
+                    Your student record is not fully set up. Please contact your school administrator to complete your profile registration.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* ── Welcome Hero Card ─────────────────────────────────── */}
-          <View style={{ paddingHorizontal: 20, paddingTop: 20, marginBottom: 16 }}>
+          <View style={{ paddingHorizontal: 20, paddingTop: student ? 20 : 10, marginBottom: 16 }}>
             <View
               style={{
                 backgroundColor: "#0D1B2A",

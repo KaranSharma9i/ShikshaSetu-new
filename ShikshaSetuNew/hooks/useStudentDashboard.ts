@@ -61,7 +61,21 @@ export function useStudentDashboard() {
       // 1. Fetch Profile
       const studentProfile = await getStudentProfileByUserId(userId);
       if (!studentProfile) {
-        throw new Error("Student profile not found for this user.");
+        console.warn("Student profile not found for user:", userId);
+        setData({
+          student: null,
+          upcomingExam: null,
+          pendingFee: null,
+          stats: {
+            homeworkAvg: 0,
+            homeworkLabel: "No submissions yet",
+            examAvg: 0,
+          },
+          circulars: [],
+          isLoading: false,
+          error: null,
+        });
+        return;
       }
 
       const studentId = studentProfile.id;

@@ -162,6 +162,9 @@ export async function registerStudent(
       email: params.studentEmail,
       password: password,
       email_confirm: true,
+      user_metadata: {
+        is_admin_registered: true,
+      },
     });
 
     if (signUpErr) {
