@@ -8,6 +8,10 @@ import {
   Animated,
   Image,
   Dimensions,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -162,6 +166,172 @@ export default function StudentDetailScreen() {
   const [homeworkTotal, setHomeworkTotal] = useState(0);
   const [homeworkSubmitted, setHomeworkSubmitted] = useState(0);
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+
+  // Individual marks editing modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalExams, setModalExams] = useState<any[]>([]);
+  const [modalMarks, setModalMarks] = useState<Record<string, string>>({});
+  const [initialModalMarks, setInitialModalMarks] = useState<Record<string, string>>({});
+
+  const loadStudentExams = async () => {
+    if (!student) return;
+    try {
+      setModalLoading(true);
+
+      // Fetch exams for student's class
+      const { data: examsData, error: examsErr } = await supabase
+        .from("exams")
+        .select(`
+          id,
+          exam_name,
+          exam_date,
+          total_marks,
+          subject:subjects!inner (
+            name
+          )
+        `)
+        .eq("class_id", student.class_id)
+        .order("exam_date", { ascending: false });
+
+      if (examsErr) {
+        console.error("Error loading exams for modal:", examsErr);
+        setModalLoading(false);
+        return;
+      }
+
+      // Fetch results for this student
+      const { data: resultsData, error: resultsErr } = await supabase
+        .from("exam_results")
+        .select("exam_id, marks_obtained")
+        .eq("student_id", student.id);
+
+      if (resultsErr) {
+        console.error("Error loading results for modal:", resultsErr);
+        setModalLoading(false);
+        return;
+      }
+
+      const resultsMap: Record<string, string> = {};
+      resultsData?.forEach((res) => {
+        if (res.marks_obtained !== null && res.marks_obtained !== undefined) {
+          resultsMap[res.exam_id] = res.marks_obtained.toString();
+        }
+      });
+
+      const processedExams = (examsData || []).map((exam: any) => {
+        const sub = Array.isArray(exam.subject) ? exam.subject[0] : exam.subject;
+        return {
+          id: exam.id,
+          exam_name: exam.exam_name,
+          exam_date: exam.exam_date,
+          total_marks: exam.total_marks ? Number(exam.total_marks) : 100,
+          subject_name: sub?.name || "Unknown Subject",
+          marks_obtained: resultsMap[exam.id] || "",
+        };
+      });
+
+      setModalExams(processedExams);
+      
+      const initialMarks: Record<string, string> = {};
+      processedExams.forEach((e) => {
+        initialMarks[e.id] = e.marks_obtained;
+      });
+      setModalMarks(initialMarks);
+      setInitialModalMarks({ ...initialMarks });
+      setModalLoading(false);
+    } catch (err) {
+      console.error("Failed loading student exams:", err);
+      setModalLoading(false);
+    }
+  };
+
+  const handleModalMarkChange = (examId: string, val: string) => {
+    if (val !== "" && !/^\d*\.?\d*$/.test(val)) return;
+
+    setModalMarks((prev) => ({
+      ...prev,
+      [examId]: val,
+    }));
+  };
+
+  const isModalInputInvalid = (examId: string) => {
+    const exam = modalExams.find((e) => e.id === examId);
+    if (!exam) return false;
+    const valStr = modalMarks[examId];
+    if (!valStr || valStr.trim() === "") return false;
+    const val = parseFloat(valStr);
+    return isNaN(val) || val < 0 || val > exam.total_marks;
+  };
+
+  const hasAnyModalValidationErrors = () => {
+    let invalid = false;
+    modalExams.forEach((e) => {
+      if (isModalInputInvalid(e.id)) invalid = true;
+    });
+    return invalid;
+  };
+
+  const hasModalChanges = () => {
+    for (const e of modalExams) {
+      const current = modalMarks[e.id] || "";
+      const initial = initialModalMarks[e.id] || "";
+      if (current.trim() !== initial.trim()) return true;
+    }
+    return false;
+  };
+
+  const saveStudentMarks = async () => {
+    if (!student) return;
+
+    if (hasAnyModalValidationErrors()) return;
+
+    try {
+      setModalLoading(true);
+
+      const upsertData = modalExams
+        .filter((e) => modalMarks[e.id] !== undefined && modalMarks[e.id].trim() !== "")
+        .map((e) => ({
+          exam_id: e.id,
+          student_id: student.id,
+          marks_obtained: parseFloat(modalMarks[e.id]),
+        }));
+
+      const deleteIds = modalExams
+        .filter(
+          (e) =>
+            initialModalMarks[e.id] !== undefined &&
+            (modalMarks[e.id] === undefined || modalMarks[e.id].trim() === "")
+        )
+        .map((e) => e.id);
+
+      if (upsertData.length > 0) {
+        const { error: upsertErr } = await supabase
+          .from("exam_results")
+          .upsert(upsertData, {
+            onConflict: "exam_id,student_id",
+          });
+        if (upsertErr) throw upsertErr;
+      }
+
+      if (deleteIds.length > 0) {
+        const { error: deleteErr } = await supabase
+          .from("exam_results")
+          .delete()
+          .eq("student_id", student.id)
+          .in("exam_id", deleteIds);
+        if (deleteErr) throw deleteErr;
+      }
+
+      setModalVisible(false);
+      // Refresh all statistics and chart data
+      loadProfileAndRank();
+    } catch (err) {
+      console.error("Failed saving individual marks:", err);
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isLoaded && isSignedIn && userId && id) {
@@ -1019,6 +1189,93 @@ export default function StudentDetailScreen() {
                 )}
               </View>
 
+              {/* Section: Exam Marks Card */}
+              <View className="px-4">
+                <View
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 16,
+                    shadowColor: "rgba(0,0,0,0.04)",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 1,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
+                  className="p-4 mb-4 border border-gray-100"
+                >
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text
+                      style={{ fontFamily: "Poppins-SemiBold", color: "#0D1B2A" }}
+                      className="text-base font-bold"
+                    >
+                      Exam Marks
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setModalVisible(true);
+                        loadStudentExams();
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={{ fontFamily: "Inter-SemiBold", color: "#D4AF37" }}
+                        className="text-xs underline font-medium"
+                      >
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Render list of exam marks for the student */}
+                  {examResults.length === 0 ? (
+                    <Text className="font-inter text-gray-400 text-xs py-2">
+                      No exam marks recorded yet.
+                    </Text>
+                  ) : (
+                    <View className="space-y-2">
+                      {examResults.slice(0, 3).map((res, index) => {
+                        const exam = Array.isArray(res.exam) ? res.exam[0] : res.exam;
+                        const examName = exam?.exam_name || "Exam";
+                        const totalMarks = exam?.total_marks || 100;
+                        const marksVal = res.marks_obtained !== null ? `${res.marks_obtained}/${totalMarks}` : "—";
+                        const examDate = exam?.exam_date ? dayjs(exam.exam_date).format("DD MMM YYYY") : "";
+
+                        return (
+                          <View
+                            key={exam?.id || index}
+                            className="flex-row justify-between items-center py-2 border-b border-gray-50 last:border-b-0"
+                          >
+                            <View className="flex-1 pr-2">
+                              <Text
+                                style={{ fontFamily: "Inter-Medium" }}
+                                className="text-[#0D1B2A] text-sm font-semibold"
+                                numberOfLines={1}
+                              >
+                                {examName}
+                              </Text>
+                              <Text className="font-inter text-gray-400 text-[11px] mt-0.5">
+                                {examDate}
+                              </Text>
+                            </View>
+                            <Text
+                              style={{ fontFamily: "Poppins-Bold" }}
+                              className="text-[#0D1B2A] text-sm font-bold"
+                            >
+                              {marksVal}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                      {examResults.length > 3 && (
+                        <Text className="font-inter text-gray-400 text-[11px] text-center mt-1">
+                          + {examResults.length - 3} more exams
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </View>
+
               {/* Section 3: AI Engagement Card */}
               <View className="px-4">
                 <View
@@ -1188,6 +1445,169 @@ export default function StudentDetailScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* MarksEditModal */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              maxHeight: "80%",
+            }}
+          >
+            {/* Drag Handle */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                backgroundColor: "#E4E2E1",
+                borderRadius: 2,
+                alignSelf: "center",
+                marginBottom: 16,
+              }}
+            />
+
+            <Text
+              style={{ fontFamily: "Poppins-SemiBold" }}
+              className="text-[#0D1B2A] text-lg font-bold mb-4"
+            >
+              Edit Marks for {student?.full_name}
+            </Text>
+
+            {modalLoading && modalExams.length === 0 ? (
+              <View className="py-12 justify-center items-center">
+                <ActivityIndicator size="large" color="#D4AF37" />
+              </View>
+            ) : (
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
+              >
+                {modalExams.length === 0 ? (
+                  <Text className="font-inter text-gray-400 text-xs py-4 text-center">
+                    No exams found for this class.
+                  </Text>
+                ) : (
+                  <ScrollView style={{ maxHeight: 240 }} className="mb-6" showsVerticalScrollIndicator={false}>
+                    {modalExams.map((exam) => {
+                      const isInvalid = isModalInputInvalid(exam.id);
+                      return (
+                        <View
+                          key={exam.id}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingVertical: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: "#E4E2E1",
+                          }}
+                        >
+                          <View className="flex-1 pr-2">
+                            <Text
+                              style={{ fontFamily: "Poppins-Medium" }}
+                              className="text-[#0D1B2A] text-sm font-semibold"
+                            >
+                              {exam.exam_name}
+                            </Text>
+                            <Text className="font-inter text-gray-400 text-[11px] mt-0.5">
+                              {exam.subject_name} • {dayjs(exam.exam_date).format("DD MMM YYYY")}
+                            </Text>
+                          </View>
+
+                          <View className="items-end">
+                            <TextInput
+                              style={{
+                                width: 72,
+                                height: 36,
+                                textAlign: "center",
+                                borderWidth: 1,
+                                borderColor: isInvalid ? "#DC2626" : "#E4E2E1",
+                                borderRadius: 8,
+                                fontFamily: "Poppins-Bold",
+                                fontSize: 14,
+                                color: "#0D1B2A",
+                                backgroundColor: "#FFFFFF",
+                              }}
+                              placeholder="—"
+                              placeholderTextColor="#9CA3AF"
+                              keyboardType="numeric"
+                              value={modalMarks[exam.id] || ""}
+                              onChangeText={(val) => handleModalMarkChange(exam.id, val)}
+                            />
+                            {isInvalid && (
+                              <Text
+                                style={{ fontFamily: "OpenSans" }}
+                                className="text-[10px] text-[#DC2626] mt-0.5"
+                              >
+                                Max {exam.total_marks}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+
+                {/* Save and Cancel buttons */}
+                <View className="space-y-2">
+                  <TouchableOpacity
+                    disabled={!hasModalChanges() || hasAnyModalValidationErrors() || modalLoading}
+                    onPress={saveStudentMarks}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: "#0D1B2A",
+                      height: 48,
+                      borderRadius: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: (!hasModalChanges() || hasAnyModalValidationErrors() || modalLoading) ? 0.5 : 1,
+                    }}
+                    className="w-full flex-row text-center justify-center"
+                  >
+                    {modalLoading && (
+                      <ActivityIndicator size="small" color="#D4AF37" className="mr-2" />
+                    )}
+                    <Text
+                      style={{ fontFamily: "Poppins-SemiBold", color: "#D4AF37" }}
+                      className="text-sm font-bold text-center"
+                    >
+                      {modalLoading ? "Saving..." : "Save Marks"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    activeOpacity={0.7}
+                    style={{
+                      height: 48,
+                      borderRadius: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    className="w-full"
+                  >
+                    <Text
+                      style={{ fontFamily: "Poppins-SemiBold" }}
+                      className="text-[#0D1B2A] text-sm font-semibold text-center"
+                    >
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

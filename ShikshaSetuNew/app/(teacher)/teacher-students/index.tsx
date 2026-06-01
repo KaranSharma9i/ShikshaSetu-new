@@ -790,7 +790,7 @@ export default function StudentListScreen() {
                         key={student.id}
                         onPress={() =>
                           router.push({
-                            pathname: "/(teacher)/students/[id]" as any,
+                            pathname: "/(teacher)/teacher-students/[id]" as any,
                             params: { id: student.id },
                           })
                         }

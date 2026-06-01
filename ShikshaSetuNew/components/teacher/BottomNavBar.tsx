@@ -22,12 +22,12 @@ export default function BottomNavBar() {
     },
     {
       name: "Homework",
-      route: "/(teacher)/homework",
+      route: "/(teacher)/teacher-homework",
       icon: "file-text" as const,
     },
     {
       name: "Students",
-      route: "/(teacher)/students",
+      route: "/(teacher)/teacher-students",
       icon: "users" as const,
     },
     {

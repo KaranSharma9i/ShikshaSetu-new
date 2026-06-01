@@ -25,6 +25,7 @@ module.exports = {
         "poppins-bold": ["Poppins-Bold"],
         inter: ["Inter-Regular"],
         "inter-medium": ["Inter-Medium"],
+        "inter-semibold": ["Inter-SemiBold"],
         opensans: ["OpenSans-Regular"],
       },
     },

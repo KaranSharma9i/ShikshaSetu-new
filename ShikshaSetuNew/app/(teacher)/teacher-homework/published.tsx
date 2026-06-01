@@ -143,7 +143,7 @@ export default function HomeworkPublished() {
         <View className="w-full space-y-3">
           {/* Primary View Sent Assignment */}
           <TouchableOpacity
-            onPress={() => router.push("/(teacher)/homework" as any)}
+            onPress={() => router.push("/(teacher)/teacher-homework" as any)}
             activeOpacity={0.85}
             className="w-full h-[52px] bg-[#0D1B2A] rounded-2xl flex-row items-center justify-center"
           >

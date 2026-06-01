@@ -375,7 +375,7 @@ export default function HomeworkDashboard() {
 
       {/* Floating Action Button (FAB) */}
       <TouchableOpacity
-        onPress={() => router.push("/(teacher)/homework/create" as any)}
+        onPress={() => router.push("/(teacher)/teacher-homework/create" as any)}
         activeOpacity={0.85}
         className="absolute rounded-full bg-[#0D1B2A] items-center justify-center shadow-lg"
         style={{

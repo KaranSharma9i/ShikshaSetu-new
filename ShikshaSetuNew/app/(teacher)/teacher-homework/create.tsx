@@ -258,7 +258,7 @@ export default function CreateHomework() {
         });
 
       router.push({
-        pathname: "/(teacher)/homework/published" as any,
+        pathname: "/(teacher)/teacher-homework/published" as any,
         params: {
           subject: selectedSubject.name,
           grade: selectedGrade.name,
