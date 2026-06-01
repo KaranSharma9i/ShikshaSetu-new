@@ -1,0 +1,431 @@
+# Project Architecture Diagram
+
+```text
+.
+├── .claude/
+│   └── settings.local.json
+├── package-lock.json
+├── package.json
+└── ShikshaSetuNew/
+    ├── .claude/
+    │   ├── Skills/
+    │   │   └── database-skills/
+    │   │       └── margam-db.skill
+    │   ├── specs/
+    │   │   └── 01-seed-data.md
+    │   ├── settings.json
+    │   └── settings.local.json
+    ├── .vscode/
+    │   ├── extensions.json
+    │   └── settings.json
+    ├── app/
+    │   ├── auth/
+    │   │   ├── signin.tsx
+    │   │   ├── signup.tsx
+    │   │   └── _layout.tsx
+    │   ├── homework/
+    │   │   ├── score/
+    │   │   │   ├── [id].tsx
+    │   │   │   └── _layout.tsx
+    │   │   ├── index.tsx
+    │   │   ├── [id].tsx
+    │   │   └── _layout.tsx
+    │   ├── institution/
+    │   │   ├── academics.tsx
+    │   │   ├── attendance.tsx
+    │   │   ├── circulars.tsx
+    │   │   ├── events.tsx
+    │   │   ├── fees.tsx
+    │   │   ├── index.tsx
+    │   │   ├── register.tsx
+    │   │   ├── utilities.tsx
+    │   │   └── _layout.tsx
+    │   ├── profile/
+    │   │   ├── edit.tsx
+    │   │   ├── index.tsx
+    │   │   └── _layout.tsx
+    │   ├── students/
+    │   │   ├── index.tsx
+    │   │   └── [id].tsx
+    │   ├── teachers/
+    │   │   ├── index.tsx
+    │   │   └── [id].tsx
+    │   ├── circulars.tsx
+    │   ├── fees.tsx
+    │   ├── index.tsx
+    │   ├── onboarding.tsx
+    │   ├── report-card.tsx
+    │   ├── schedule.tsx
+    │   ├── timetable.tsx
+    │   └── _layout.tsx
+    ├── assets/
+    │   ├── 01-institution-attendance/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       └── student_attendance_analytics/
+    │   │           └── screen.png
+    │   ├── 01-institution-circulars&exetend-time/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── circular_broadcast_success/
+    │   │       │   └── screen.png
+    │   │       ├── circular_generator/
+    │   │       │   └── screen.png
+    │   │       ├── extend_time_limit/
+    │   │       │   └── screen.png
+    │   │       └── time_extension_success/
+    │   │           └── screen.png
+    │   ├── 01-institution-class-performance/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── class_performance_with_subject_analysis_link/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── marks_score_overview/
+    │   │       │   └── code.html
+    │   │       └── subject_analysis/
+    │   │           ├── code.html
+    │   │           └── screen.png
+    │   ├── 01-institution-dashboard/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── 01-institution-fee/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── fee_collection_dashboard/
+    │   │       │   └── screen.png
+    │   │       └── format_fee_reminder/
+    │   │           └── screen.png
+    │   ├── 01-institution-form-new-user/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── add_new_student_detailed_info/
+    │   │       │   └── screen.png
+    │   │       ├── add_new_teacher_personal_info/
+    │   │       │   └── screen.png
+    │   │       ├── review_student_submission/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── review_teacher_submission/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── student_registration_success/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       └── teacher_appointment_success/
+    │   │           ├── code.html
+    │   │           └── screen.png
+    │   ├── 01-institution-profile-and-show-more/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_calendar/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── access_confirmed/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── add_new_event/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── events_hub/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       ├── institution_profile/
+    │   │       │   └── screen.png
+    │   │       └── more_utilities/
+    │   │           └── screen.png
+    │   ├── 01-institution-student-details/
+    │   │   └── stitch_gurukul_shikshalaya_student_portal/
+    │   │       ├── gurukul_academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── student_list/
+    │   │       │   ├── code.html
+    │   │       │   └── screen.png
+    │   │       └── student_profile/
+    │   │           ├── code.html
+    │   │           └── screen.png
+    │   ├── 01-institution-teacher-management/
+    │   │   └── stitch_gurukul_shikshalaya_teacher_management/
+    │   │       ├── modern_gurukul/
+    │   │       │   └── DESIGN.md
+    │   │       ├── teacher_detail_profile/
+    │   │       │   └── screen.png
+    │   │       └── teacher_list/
+    │   │           └── screen.png
+    │   ├── 01-institution-teacher-performance/
+    │   │   └── stitch_gurukul_shikshalaya_institution_portal/
+    │   │       ├── academic_excellence/
+    │   │       │   └── DESIGN.md
+    │   │       ├── teacher_detailed_profile/
+    │   │       │   └── screen.png
+    │   │       └── teacher_performance_analysis/
+    │   │           └── screen.png
+    │   ├── images/
+    │   │   ├── android-icon-background.png
+    │   │   ├── android-icon-foreground.png
+    │   │   ├── android-icon-monochrome.png
+    │   │   ├── favicon.png
+    │   │   ├── icon.png
+    │   │   ├── partial-react-logo.png
+    │   │   ├── react-logo.png
+    │   │   ├── react-logo@2x.png
+    │   │   ├── react-logo@3x.png
+    │   │   └── splash-icon.png
+    │   ├── student-dashboard/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── student-homework/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── student-homework-score/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── student-homework-upload/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── student-profile/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── student-report-card/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── student-schedule/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── teacher-dashboard/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── teacher-homework-assigned/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── teacher-homework-generation/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── teacher-profile/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── teacher-student-details/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── teacher-student-list/
+    │   │   ├── DESIGN.md
+    │   │   └── screen.png
+    │   ├── gurukul.png
+    │   ├── icon.png
+    │   ├── infographic-1-margam.png
+    │   ├── infographic-2-gurukul shikshalay.png
+    │   ├── mascot.png
+    │   └── profile.jpg
+    ├── components/
+    │   ├── institution/
+    │   │   ├── BottomNavBar.tsx
+    │   │   └── Header.tsx
+    │   ├── student/
+    │   │   ├── BottomNavBar.tsx
+    │   │   ├── CircularProgress.tsx
+    │   │   ├── Header.tsx
+    │   │   └── ProfilePhotoUploader.tsx
+    │   ├── ui/
+    │   │   ├── collapsible.tsx
+    │   │   ├── icon-symbol.ios.tsx
+    │   │   └── icon-symbol.tsx
+    │   ├── external-link.tsx
+    │   ├── haptic-tab.tsx
+    │   ├── hello-wave.tsx
+    │   ├── parallax-scroll-view.tsx
+    │   ├── themed-text.tsx
+    │   └── themed-view.tsx
+    ├── constants/
+    │   ├── schoolData.ts
+    │   └── theme.ts
+    ├── db/
+    │   ├── migrations/
+    │   │   ├── 0001_create_institutions.sql
+    │   │   ├── 0002_create_users.sql
+    │   │   ├── 0003_create_sessions.sql
+    │   │   ├── 0004_create_academic_years.sql
+    │   │   ├── 0005_create_classes.sql
+    │   │   ├── 0006_create_sections.sql
+    │   │   ├── 0007_create_subjects.sql
+    │   │   ├── 0008_create_class_subjects.sql
+    │   │   ├── 0009_create_timetable.sql
+    │   │   ├── 0010_create_students.sql
+    │   │   ├── 0011_create_enrollments.sql
+    │   │   ├── 0012_create_student_attendance.sql
+    │   │   ├── 0013_create_leaves.sql
+    │   │   ├── 0014_create_holidays.sql
+    │   │   ├── 0015_create_teachers.sql
+    │   │   ├── 0016_create_teacher_attendance.sql
+    │   │   ├── 0017_create_teacher_performance.sql
+    │   │   ├── 0018_create_exams.sql
+    │   │   ├── 0019_create_homework.sql
+    │   │   ├── 0020_create_fees.sql
+    │   │   ├── 0021_create_circulars.sql
+    │   │   ├── 0022_create_transport.sql
+    │   │   ├── 0023_create_marketing.sql
+    │   │   ├── 0024_remove_password_hash.sql
+    │   │   ├── 0025_add_auth_user_trigger.sql
+    │   │   ├── 0026_drop_sessions_table.sql
+    │   │   ├── 0027_create_ai_scores.sql
+    │   │   ├── 0028_homework_columns.sql
+    │   │   ├── 0029_billing_schema.sql
+    │   │   ├── 0029_exams_syllabus.sql
+    │   │   ├── 0030_billing_rls.sql
+    │   │   └── All_view.sql
+    │   ├── assign-teachers.js
+    │   ├── index.ts
+    │   ├── inspect-attendance-all.js
+    │   ├── inspect-attendance-dates.js
+    │   ├── inspect-attendance-rows.js
+    │   ├── inspect-attendance-students.js
+    │   ├── inspect-attendance.js
+    │   ├── inspect-ay.js
+    │   ├── inspect-data.js
+    │   ├── inspect-enrollments-all.js
+    │   ├── inspect-komal.js
+    │   ├── inspect-nursery-attendance.js
+    │   ├── inspect-student-data.js
+    │   ├── inspect-tables.js
+    │   ├── supabase.js
+    │   ├── test-ay-query.js
+    │   ├── test-db.js
+    │   ├── test-db.ts
+    │   └── verify_attendance_repository.ts
+    ├── hooks/
+    │   ├── use-color-scheme.ts
+    │   ├── use-color-scheme.web.ts
+    │   ├── use-theme-color.ts
+    │   └── useStudentDashboard.ts
+    ├── margam-db-skill/
+    │   └── margam-db-skill/
+    │       ├── references/
+    │       │   ├── academics.md
+    │       │   ├── circulars.md
+    │       │   ├── core.md
+    │       │   ├── exams.md
+    │       │   ├── fees.md
+    │       │   ├── homework.md
+    │       │   ├── marketing.md
+    │       │   ├── students.md
+    │       │   ├── teachers.md
+    │       │   └── transport.md
+    │       └── SKILL.md
+    ├── scripts/
+    │   ├── alter-transport.js
+    │   ├── apply-rls.js
+    │   ├── check-local-db.js
+    │   ├── check-users.js
+    │   ├── check_attendance_schema.js
+    │   ├── check_schema.js
+    │   ├── debug-submissions.js
+    │   ├── diagnose_academics.js
+    │   ├── reset-project.js
+    │   ├── run-any-query.js
+    │   ├── run-homework-query.js
+    │   ├── run-query-2.js
+    │   ├── run-query-3.js
+    │   ├── run-sql.js
+    │   ├── run_migrations.js
+    │   ├── seed-yash-schedule.ts
+    │   ├── seed-yash-timetable.ts
+    │   ├── seed_database.js
+    │   ├── setup-storage.ts
+    │   ├── setup_ai_scores.js
+    │   ├── setup_attendance_data.js
+    │   ├── setup_fee_data.js
+    │   ├── test_alter_type.js
+    │   ├── test_conn.js
+    │   ├── verify_attendance_data.js
+    │   ├── verify_attendance_repository.js
+    │   ├── verify_attendance_repository.ts
+    │   └── verify_seed.js
+    ├── src/
+    │   ├── context/
+    │   │   └── AuthContext.tsx
+    │   ├── hooks/
+    │   │   ├── useAuth.ts
+    │   │   └── useQuery.ts
+    │   ├── lib/
+    │   │   └── supabase.ts
+    │   ├── providers/
+    │   │   └── AuthProvider.tsx
+    │   ├── repositories/
+    │   │   ├── academicRepository.ts
+    │   │   ├── attendanceRepository.ts
+    │   │   ├── circularRepository.ts
+    │   │   ├── eventRepository.ts
+    │   │   ├── feeRepository.ts
+    │   │   ├── metricRepository.ts
+    │   │   ├── registrationRepository.ts
+    │   │   ├── studentRepository.ts
+    │   │   └── teacherRepository.ts
+    │   ├── types/
+    │   │   ├── database.types.ts
+    │   │   ├── declarations.d.ts
+    │   │   ├── homework.ts
+    │   │   ├── student.ts
+    │   │   └── teacher.ts
+    │   └── utils/
+    │       └── error.ts
+    ├── supabase/
+    │   ├── .temp/
+    │   │   └── cli-latest
+    │   └── migrations/
+    │       ├── 0001_create_institutions.sql
+    │       ├── 0002_create_users.sql
+    │       ├── 0003_create_sessions.sql
+    │       ├── 0004_create_academic_years.sql
+    │       ├── 0005_create_classes.sql
+    │       ├── 0006_create_sections.sql
+    │       ├── 0007_create_subjects.sql
+    │       ├── 0008_create_class_subjects.sql
+    │       ├── 0009_create_timetable.sql
+    │       ├── 0010_create_students.sql
+    │       ├── 0011_create_enrollments.sql
+    │       ├── 0012_create_student_attendance.sql
+    │       ├── 0013_create_leaves.sql
+    │       ├── 0014_create_holidays.sql
+    │       ├── 0015_create_teachers.sql
+    │       ├── 0016_create_teacher_attendance.sql
+    │       ├── 0017_create_teacher_performance.sql
+    │       ├── 0018_create_exams.sql
+    │       ├── 0019_create_homework.sql
+    │       ├── 0020_create_fees.sql
+    │       ├── 0021_create_circulars.sql
+    │       ├── 0022_create_transport.sql
+    │       ├── 0023_create_marketing.sql
+    │       ├── 0024_remove_password_hash.sql
+    │       ├── 0025_add_auth_user_trigger.sql
+    │       ├── 0026_drop_sessions_table.sql
+    │       ├── 0027_create_ai_scores.sql
+    │       ├── 0028_homework_columns.sql
+    │       ├── 0029_billing_schema.sql
+    │       ├── 0029_exams_syllabus.sql
+    │       ├── 0030_billing_rls.sql
+    │       └── All_view.sql
+    ├── .env
+    ├── .eslintrc.js
+    ├── .gitignore
+    ├── AGENTS.md
+    ├── app.json
+    ├── babel.config.js
+    ├── CLAUDE.md
+    ├── eslint.config.js
+    ├── expo-env.d.ts
+    ├── expo-fix.md
+    ├── global.css
+    ├── HOMEWORK_AI_IMPLEMENTATION_PLAN.md
+    ├── margam-db.skill
+    ├── metro.config.js
+    ├── nativewind-env.d.ts
+    ├── open_router.md
+    ├── open_router.ts
+    ├── tailwind.config.js
+    └── tsconfig.json
+```

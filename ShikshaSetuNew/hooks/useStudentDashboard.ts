@@ -37,7 +37,7 @@ export interface StudentDashboardData {
 }
 
 export function useStudentDashboard() {
-  const { userId, isSignedIn, isLoaded } = useAuth();
+  const { userId, isSignedIn, isLoaded, role } = useAuth();
   const [data, setData] = useState<StudentDashboardData>({
     student: null,
     upcomingExam: null,
@@ -53,6 +53,8 @@ export function useStudentDashboard() {
   });
 
   const fetchData = useCallback(async () => {
+    // Don't look up student profile for teachers/institutions
+    if (role && role !== "student") return;
     if (!userId) return;
 
     setData(prev => ({ ...prev, isLoading: true, error: null }));
@@ -126,7 +128,7 @@ export function useStudentDashboard() {
         error: err?.message || "Failed to load dashboard data.",
       }));
     }
-  }, [userId]);
+  }, [userId, role]);
 
   useEffect(() => {
     if (isLoaded && isSignedIn && userId) {

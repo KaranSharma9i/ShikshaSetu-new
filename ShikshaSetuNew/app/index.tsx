@@ -141,7 +141,7 @@ export default function Index() {
   // ── Redirect logic ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.replace("/onboarding");
+      router.replace("/auth/signin");
     }
   }, [isLoaded, isSignedIn]);
 
@@ -150,7 +150,7 @@ export default function Index() {
       if (role === "institution_admin") {
         router.replace("/institution");
       } else if (role === "teacher") {
-        router.replace("/teachers" as any);
+        router.replace("/(teacher)/" as any);
       }
     }
   }, [isLoaded, isSignedIn, role]);

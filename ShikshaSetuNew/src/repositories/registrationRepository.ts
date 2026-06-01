@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { createClient } from "@supabase/supabase-js";
+import * as Crypto from "expo-crypto";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -32,11 +33,18 @@ export interface StudentRegistrationParams {
 
 export interface TeacherAppointmentParams {
   name: string;
-  subject: string;
-  classes: string;
+  subjects: string[]; // array of selected subject names
+  classes: string[]; // array of selected class-section strings e.g. ["Class 10-A", "Class 9-B"]
+  dob: string; // ISO date string YYYY-MM-DD
+  gender: string; // "Male" | "Female" | "Other"
+  contactNumber: string;
+  email: string;
+  address: string;
   doj: string;
   experience: string;
   qualification: string;
+  emergencyContact: string;
+  sections: string[]; // array of selected section labels
 }
 
 export interface RegistrationResult {
@@ -299,6 +307,79 @@ export async function registerStudent(
   }
 }
 
+export async function getSubjectsForTeacherForm(
+  institutionId: string
+): Promise<{ id: string; name: string }[]> {
+  try {
+    const { data, error } = await supabase
+      .from("subjects")
+      .select("id, name")
+      .eq("institution_id", institutionId)
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching subjects for teacher form:", error);
+    return [];
+  }
+}
+
+export async function getClassesWithSectionsForTeacherForm(
+  institutionId: string
+): Promise<{ class_name: string; section_name: string; label: string }[]> {
+  try {
+    // 1. Get current academic year
+    const { data: ayData, error: ayErr } = await supabase
+      .from("academic_years")
+      .select("id")
+      .eq("institution_id", institutionId)
+      .eq("is_current", true)
+      .maybeSingle();
+
+    if (ayErr) throw ayErr;
+
+    // 2. Get all classes for this institution
+    const { data: classesData, error: clsErr } = await supabase
+      .from("classes")
+      .select("id, name")
+      .eq("institution_id", institutionId)
+      .order("grade_number", { ascending: true });
+
+    if (clsErr) throw clsErr;
+    if (!classesData || classesData.length === 0) return [];
+
+    // 3. Get sections for these classes
+    const classIds = classesData.map((c: any) => c.id);
+    let sectionsQuery = supabase
+      .from("sections")
+      .select("id, name, class_id")
+      .in("class_id", classIds);
+
+    if (ayData) {
+      sectionsQuery = sectionsQuery.eq("academic_year_id", ayData.id);
+    }
+
+    const { data: sectionsData, error: secErr } = await sectionsQuery;
+    if (secErr) throw secErr;
+
+    // 4. Build class-section combinations
+    const classMap: Record<string, string> = {};
+    classesData.forEach((c: any) => { classMap[c.id] = c.name; });
+
+    const results = (sectionsData || []).map((s: any) => ({
+      class_name: classMap[s.class_id] || "",
+      section_name: s.name,
+      label: `${classMap[s.class_id] || ""}-${s.name}`,
+    }));
+
+    return results.sort((a, b) => a.label.localeCompare(b.label));
+  } catch (error) {
+    console.error("Error fetching classes with sections for teacher form:", error);
+    return [];
+  }
+}
+
 export async function appointTeacher(
   institutionId: string,
   params: TeacherAppointmentParams
@@ -314,9 +395,14 @@ export async function appointTeacher(
     const nextNum = (count || 0) + 1;
     const employeeCode = `TCH${String(nextNum).padStart(3, "0")}`;
     const loginId = `GS-TCH-${String(nextNum).padStart(3, "0")}`;
-    const tempPassword = "GURK" + new Date().getFullYear();
 
-    const teacherEmail = `tch${nextNum}@gurukulsiksha.edu.in`;
+    // Extract Date of Joining and parse it to generate plain-text temp password as DDMMYYYY
+    const parsedDoj = parseDob(params.doj);
+    const tempPassword = `${parsedDoj.day}${parsedDoj.month}${parsedDoj.year}`;
+    const passwordHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      tempPassword
+    );
 
     // 2. Insert user profile into public.users
     const { data: userData, error: userErr } = await supabase
@@ -326,29 +412,39 @@ export async function appointTeacher(
         role: "teacher",
         login_id: loginId,
         full_name: params.name,
-        email: teacherEmail,
-        phone: "+91-94150-" + String(nextNum).padStart(5, "0"),
-        status: "active"
+        email: params.email,
+        phone: params.contactNumber,
+        status: "active",
+        password_hash: passwordHash
       })
       .select("id")
       .single();
 
-    if (userErr) throw userErr;
+    if (userErr) {
+      // Handle duplicate email error
+      const msg = (userErr.message || "").toLowerCase();
+      if (msg.includes("unique") || msg.includes("already exists") || msg.includes("duplicate") || msg.includes("users_email_key")) {
+        throw new Error(`The email address "${params.email}" is already registered. Please use a different email.`);
+      }
+      throw userErr;
+    }
 
     // 3. Insert teacher profile into public.teachers
     const formattedDoj = params.doj ? formatBirthDate(params.doj) : new Date().toISOString().slice(0, 10);
+    const formattedDob = params.dob ? formatBirthDate(params.dob) : null;
     const { error: tchErr } = await supabase
       .from("teachers")
       .insert({
         user_id: userData.id,
         institution_id: institutionId,
         employee_code: employeeCode,
-        specialization: params.subject,
+        specialization: params.subjects.join(", "),
         qualification: params.qualification,
-        gender: "male", // default placeholder
+        gender: formatGender(params.gender),
+        date_of_birth: formattedDob,
         date_of_joining: formattedDoj,
-        address: "Auraiya, Uttar Pradesh",
-        emergency_contact: "+91-94150-00000"
+        address: params.address,
+        emergency_contact: params.emergencyContact
       });
 
     if (tchErr) throw tchErr;
@@ -361,12 +457,7 @@ export async function appointTeacher(
     };
   } catch (error) {
     console.error("Error in appointTeacher:", error);
-    return {
-      portalId: `TCH-2026-${Math.floor(Math.random() * 1000)}`,
-      tempPassword: "GURK" + new Date().getFullYear(),
-      status: "Active",
-      fullName: params.name
-    };
+    throw error;
   }
 }
 

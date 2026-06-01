@@ -11,9 +11,11 @@ import {
 import {
   Inter_400Regular,
   Inter_500Medium,
+  Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
 import {
   OpenSans_400Regular,
+  OpenSans_700Bold,
 } from "@expo-google-fonts/open-sans";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -29,7 +31,10 @@ export default function RootLayout() {
     "Poppins-Bold": Poppins_700Bold,
     "Inter-Regular": Inter_400Regular,
     "Inter-Medium": Inter_500Medium,
+    "Inter-SemiBold": Inter_600SemiBold,
     "OpenSans-Regular": OpenSans_400Regular,
+    "OpenSans-Bold": OpenSans_700Bold,
+    "OpenSans": OpenSans_400Regular,
     // Standard expo-google-fonts names (used in other components)
     Poppins_400Regular,
     Poppins_500Medium,
@@ -37,6 +42,9 @@ export default function RootLayout() {
     Poppins_700Bold,
     Inter_400Regular,
     Inter_500Medium,
+    Inter_600SemiBold,
+    OpenSans_400Regular,
+    OpenSans_700Bold,
   });
 
   useEffect(() => {

@@ -9,13 +9,15 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { useAuth } from "../../src/hooks/useAuth";
-import { registerStudent, appointTeacher, getNextStudentCode, getSectionsForClass } from "../../src/repositories/registrationRepository";
+import { registerStudent, appointTeacher, getNextStudentCode, getSectionsForClass, getSubjectsForTeacherForm, getClassesWithSectionsForTeacherForm } from "../../src/repositories/registrationRepository";
 import { handleError } from "../../src/utils/error";
 
 const CLASSES = [
@@ -76,11 +78,31 @@ export default function RegisterUser() {
 
   // Teacher Form State
   const [teacherName, setTeacherName] = useState("");
-  const [teacherSubject, setTeacherSubject] = useState("");
-  const [teacherClasses, setTeacherClasses] = useState("");
-  const [doj, setDoj] = useState("");
+  const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
+  const [teacherDob, setTeacherDob] = useState<Date | null>(null);
+  const [teacherGender, setTeacherGender] = useState("");
+  const [teacherContact, setTeacherContact] = useState("");
+  const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherAddress, setTeacherAddress] = useState("");
+  const [doj, setDoj] = useState<Date | null>(null);
   const [experience, setExperience] = useState("");
   const [qualification, setQualification] = useState("");
+  const [teacherEmergencyContact, setTeacherEmergencyContact] = useState("");
+  const [teacherSections, setTeacherSections] = useState<string[]>([]);
+
+  // Dynamic data for teacher form
+  const [subjectsList, setSubjectsList] = useState<{ id: string; name: string }[]>([]);
+  const [classSectionsList, setClassSectionsList] = useState<{ class_name: string; section_name: string; label: string }[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+
+  // Date picker visibility
+  const [showTeacherDobPicker, setShowTeacherDobPicker] = useState(false);
+  const [showDojPicker, setShowDojPicker] = useState(false);
+
+  // Teacher form validation errors
+  const [teacherErrors, setTeacherErrors] = useState<Record<string, string>>({});
 
   // Load next student code
   useEffect(() => {
@@ -103,6 +125,23 @@ export default function RegisterUser() {
     }
   }, [institutionId, studentGrade, regType]);
 
+  // Load subjects and classes for teacher form
+  useEffect(() => {
+    if (institutionId && regType === "teacher") {
+      setLoadingSubjects(true);
+      getSubjectsForTeacherForm(institutionId)
+        .then((data) => setSubjectsList(data))
+        .catch((err) => console.error("Failed to load subjects:", err))
+        .finally(() => setLoadingSubjects(false));
+
+      setLoadingClasses(true);
+      getClassesWithSectionsForTeacherForm(institutionId)
+        .then((data) => setClassSectionsList(data))
+        .catch((err) => console.error("Failed to load classes:", err))
+        .finally(() => setLoadingClasses(false));
+    }
+  }, [institutionId, regType]);
+
   const resetForms = () => {
     setStep(1);
     setStudentName("");
@@ -119,11 +158,19 @@ export default function RegisterUser() {
     setSections([]);
     
     setTeacherName("");
-    setTeacherSubject("");
-    setTeacherClasses("");
-    setDoj("");
+    setTeacherSubjects([]);
+    setTeacherClasses([]);
+    setTeacherDob(null);
+    setTeacherGender("");
+    setTeacherContact("");
+    setTeacherEmail("");
+    setTeacherAddress("");
+    setDoj(null);
     setExperience("");
     setQualification("");
+    setTeacherEmergencyContact("");
+    setTeacherSections([]);
+    setTeacherErrors({});
     setRegisteredUser(null);
 
     if (institutionId) {
@@ -195,28 +242,110 @@ export default function RegisterUser() {
     }
   };
 
+  const validateTeacherStep1 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!teacherName.trim()) errors.teacherName = "Faculty name is required";
+    if (teacherSubjects.length === 0) errors.teacherSubjects = "Select at least one subject";
+    if (teacherClasses.length === 0) errors.teacherClasses = "Select at least one class";
+    if (!teacherDob) {
+      errors.teacherDob = "Date of birth is required";
+    } else if (teacherDob >= new Date()) {
+      errors.teacherDob = "Date of birth must be a past date";
+    }
+    if (!teacherGender) errors.teacherGender = "Please select a gender";
+    if (!teacherContact.trim()) {
+      errors.teacherContact = "Contact number is required";
+    } else if (!/^\d{10,15}$/.test(teacherContact.replace(/[\s\-\+]/g, ""))) {
+      errors.teacherContact = "Enter a valid phone number (10+ digits)";
+    }
+    if (!teacherEmail.trim()) {
+      errors.teacherEmail = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teacherEmail.trim())) {
+      errors.teacherEmail = "Enter a valid email address";
+    }
+    if (!teacherAddress.trim()) errors.teacherAddress = "Address is required";
+    
+    setTeacherErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateTeacherStep2 = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!doj) {
+      errors.doj = "Date of joining is required";
+    }
+    if (!experience.trim()) errors.experience = "Teaching experience is required";
+    if (!qualification.trim()) errors.qualification = "Qualification is required";
+    if (!teacherEmergencyContact.trim()) {
+      errors.teacherEmergencyContact = "Emergency contact is required";
+    } else if (!/^\d{10,15}$/.test(teacherEmergencyContact.replace(/[\s\-\+]/g, ""))) {
+      errors.teacherEmergencyContact = "Enter a valid phone number (10+ digits)";
+    }
+    
+    setTeacherErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const formatDateDisplay = (date: Date | null): string => {
+    if (!date) return "";
+    return date.toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+  };
+
+  const handleTeacherDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowTeacherDobPicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setTeacherDob(selectedDate);
+      setTeacherErrors((prev) => { const n = { ...prev }; delete n.teacherDob; return n; });
+    }
+  };
+
+  const handleDojChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDojPicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setDoj(selectedDate);
+      setTeacherErrors((prev) => { const n = { ...prev }; delete n.doj; return n; });
+    }
+  };
+
+  const toggleChipSelection = (
+    value: string,
+    currentSelection: string[],
+    setSelection: React.Dispatch<React.SetStateAction<string[]>>,
+    errorKey: string
+  ) => {
+    if (currentSelection.includes(value)) {
+      setSelection(currentSelection.filter((v) => v !== value));
+    } else {
+      setSelection([...currentSelection, value]);
+    }
+    setTeacherErrors((prev) => { const n = { ...prev }; delete n[errorKey]; return n; });
+  };
+
   const handleRegisterTeacher = async () => {
     if (step === 1) {
-      if (!teacherName.trim() || !teacherSubject.trim() || !teacherClasses.trim()) {
-        Alert.alert("Input Required", "Please enter Faculty Name, Specialization, and Classes.");
-        return;
-      }
+      if (!validateTeacherStep1()) return;
       setStep(2);
     } else if (step === 2) {
-      if (!doj.trim() || !experience.trim() || !qualification.trim()) {
-        Alert.alert("Input Required", "Please fill in Date of Joining, Experience, and Qualification.");
-        return;
-      }
+      if (!validateTeacherStep2()) return;
 
       setIsSubmitting(true);
       try {
         const res = await appointTeacher(institutionId || "", {
           name: teacherName.trim(),
-          subject: teacherSubject.trim(),
-          classes: teacherClasses.trim(),
-          doj: doj.trim(),
+          subjects: teacherSubjects,
+          classes: teacherClasses,
+          dob: teacherDob ? teacherDob.toISOString().slice(0, 10) : "",
+          gender: teacherGender,
+          contactNumber: teacherContact.trim(),
+          email: teacherEmail.trim(),
+          address: teacherAddress.trim(),
+          doj: doj ? doj.toISOString().slice(0, 10) : "",
           experience: experience.trim(),
           qualification: qualification.trim(),
+          emergencyContact: teacherEmergencyContact.trim(),
+          sections: teacherSections,
         });
 
         setRegisteredUser({
@@ -728,35 +857,180 @@ export default function RegisterUser() {
                     </Text>
                     <TextInput
                       value={teacherName}
-                      onChangeText={setTeacherName}
+                      onChangeText={(t) => { setTeacherName(t); setTeacherErrors((p) => { const n = {...p}; delete n.teacherName; return n; }); }}
                       placeholder="e.g. Dr. Amit Sharma"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherName ? "border-red-400" : "border-gray-200"}`}
                     />
+                    {teacherErrors.teacherName && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherName}</Text>}
+                    {!teacherErrors.teacherName && <View className="mb-3" />}
 
-                    {/* Subject Specialization */}
+                    {/* Subject Specialization — Multi-select Chips */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
                       Subject Specialization
                     </Text>
-                    <TextInput
-                      value={teacherSubject}
-                      onChangeText={setTeacherSubject}
-                      placeholder="e.g. Mathematics & Computing"
-                      placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
-                    />
+                    {loadingSubjects ? (
+                      <View className="flex-row items-center py-3 mb-1">
+                        <ActivityIndicator size="small" color="#735c00" />
+                        <Text className="text-[10px] text-neutral-steel font-inter ml-2">Loading subjects...</Text>
+                      </View>
+                    ) : (
+                      <View className="flex-row flex-wrap gap-2 mb-1">
+                        {subjectsList.map((sub) => {
+                          const selected = teacherSubjects.includes(sub.name);
+                          return (
+                            <TouchableOpacity
+                              key={sub.id}
+                              onPress={() => toggleChipSelection(sub.name, teacherSubjects, setTeacherSubjects, "teacherSubjects")}
+                              className={`px-3 py-2 rounded-lg border ${selected ? "bg-[#735c00] border-[#735c00]" : "bg-[#FCFAFA] border-gray-200"}`}
+                            >
+                              <Text className={`text-[10px] font-poppins-semibold ${selected ? "text-white" : "text-neutral-steel"}`}>
+                                {sub.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {subjectsList.length === 0 && !loadingSubjects && (
+                          <Text className="text-[10px] text-neutral-steel font-inter py-2">No subjects found</Text>
+                        )}
+                      </View>
+                    )}
+                    {teacherErrors.teacherSubjects && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherSubjects}</Text>}
+                    {!teacherErrors.teacherSubjects && <View className="mb-3" />}
 
-                    {/* Classes Assigned */}
+                    {/* Classes Assigned — Multi-select Chips */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
                       Classes Assigned
                     </Text>
+                    {loadingClasses ? (
+                      <View className="flex-row items-center py-3 mb-1">
+                        <ActivityIndicator size="small" color="#735c00" />
+                        <Text className="text-[10px] text-neutral-steel font-inter ml-2">Loading classes...</Text>
+                      </View>
+                    ) : (
+                      <View className="flex-row flex-wrap gap-2 mb-1">
+                        {classSectionsList.map((cs) => {
+                          const selected = teacherClasses.includes(cs.label);
+                          return (
+                            <TouchableOpacity
+                              key={cs.label}
+                              onPress={() => toggleChipSelection(cs.label, teacherClasses, setTeacherClasses, "teacherClasses")}
+                              className={`px-3 py-2 rounded-lg border ${selected ? "bg-[#735c00] border-[#735c00]" : "bg-[#FCFAFA] border-gray-200"}`}
+                            >
+                              <Text className={`text-[10px] font-poppins-semibold ${selected ? "text-white" : "text-neutral-steel"}`}>
+                                {cs.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {classSectionsList.length === 0 && !loadingClasses && (
+                          <Text className="text-[10px] text-neutral-steel font-inter py-2">No classes found</Text>
+                        )}
+                      </View>
+                    )}
+                    {teacherErrors.teacherClasses && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherClasses}</Text>}
+                    {!teacherErrors.teacherClasses && <View className="mb-3" />}
+
+                    {/* Date of Birth */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Date of Birth (DOB)
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setShowTeacherDobPicker(true)}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 flex-row items-center justify-between ${teacherErrors.teacherDob ? "border-red-400" : "border-gray-200"}`}
+                    >
+                      <Text className={`font-inter text-xs ${teacherDob ? "text-[#0F1C2C]" : "text-[#9CA3AF]"}`}>
+                        {teacherDob ? formatDateDisplay(teacherDob) : "Select date of birth"}
+                      </Text>
+                      <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                    {showTeacherDobPicker && (
+                      <DateTimePicker
+                        value={teacherDob || new Date(1990, 0, 1)}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        maximumDate={new Date()}
+                        onChange={handleTeacherDobChange}
+                      />
+                    )}
+                    {teacherErrors.teacherDob && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherDob}</Text>}
+                    {!teacherErrors.teacherDob && <View className="mb-3" />}
+
+                    {/* Gender — Single-select Chips */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Gender
+                    </Text>
+                    <View className="flex-row gap-2 mb-1">
+                      {["Male", "Female", "Other"].map((gen) => (
+                        <TouchableOpacity
+                          key={gen}
+                          onPress={() => { setTeacherGender(gen); setTeacherErrors((p) => { const n = {...p}; delete n.teacherGender; return n; }); }}
+                          className={`flex-1 py-2.5 rounded-lg border items-center ${
+                            teacherGender === gen
+                              ? "bg-[#735c00] border-[#735c00]"
+                              : "bg-[#FCFAFA] border-gray-200"
+                          }`}
+                        >
+                          <Text
+                            className={`text-[10px] font-poppins-semibold ${
+                              teacherGender === gen ? "text-white" : "text-neutral-steel"
+                            }`}
+                          >
+                            {gen}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {teacherErrors.teacherGender && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherGender}</Text>}
+                    {!teacherErrors.teacherGender && <View className="mb-3" />}
+
+                    {/* Contact Number */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Contact Number
+                    </Text>
                     <TextInput
-                      value={teacherClasses}
-                      onChangeText={setTeacherClasses}
-                      placeholder="e.g. Grade 10-A, Grade 9-B"
+                      value={teacherContact}
+                      onChangeText={(t) => { setTeacherContact(t); setTeacherErrors((p) => { const n = {...p}; delete n.teacherContact; return n; }); }}
+                      placeholder="e.g. 9876543210"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
+                      keyboardType="phone-pad"
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherContact ? "border-red-400" : "border-gray-200"}`}
                     />
+                    {teacherErrors.teacherContact && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherContact}</Text>}
+                    {!teacherErrors.teacherContact && <View className="mb-3" />}
+
+                    {/* Email Address */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Email Address
+                    </Text>
+                    <TextInput
+                      value={teacherEmail}
+                      onChangeText={(t) => { setTeacherEmail(t); setTeacherErrors((p) => { const n = {...p}; delete n.teacherEmail; return n; }); }}
+                      placeholder="e.g. amit.sharma@school.edu"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherEmail ? "border-red-400" : "border-gray-200"}`}
+                    />
+                    {teacherErrors.teacherEmail && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherEmail}</Text>}
+                    {!teacherErrors.teacherEmail && <View className="mb-3" />}
+
+                    {/* Address */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Address
+                    </Text>
+                    <TextInput
+                      value={teacherAddress}
+                      onChangeText={(t) => { setTeacherAddress(t); setTeacherErrors((p) => { const n = {...p}; delete n.teacherAddress; return n; }); }}
+                      placeholder="e.g. 123 Main Street, City, State"
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                      className={`bg-[#FCFAFA] border px-4 py-3 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] min-h-[72px] ${teacherErrors.teacherAddress ? "border-red-400" : "border-gray-200"}`}
+                    />
+                    {teacherErrors.teacherAddress && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-4">{teacherErrors.teacherAddress}</Text>}
+                    {!teacherErrors.teacherAddress && <View className="mb-4" />}
 
                     {/* Next Button */}
                     <TouchableOpacity
@@ -778,17 +1052,29 @@ export default function RegisterUser() {
                       Step 2: Profile Background
                     </Text>
 
-                    {/* DOJ */}
+                    {/* DOJ — Date Picker */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
                       Date of Joining (DOJ)
                     </Text>
-                    <TextInput
-                      value={doj}
-                      onChangeText={setDoj}
-                      placeholder="e.g. May 20, 2026"
-                      placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
-                    />
+                    <TouchableOpacity
+                      onPress={() => setShowDojPicker(true)}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 flex-row items-center justify-between ${teacherErrors.doj ? "border-red-400" : "border-gray-200"}`}
+                    >
+                      <Text className={`font-inter text-xs ${doj ? "text-[#0F1C2C]" : "text-[#9CA3AF]"}`}>
+                        {doj ? formatDateDisplay(doj) : "Select date of joining"}
+                      </Text>
+                      <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                    {showDojPicker && (
+                      <DateTimePicker
+                        value={doj || new Date()}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={handleDojChange}
+                      />
+                    )}
+                    {teacherErrors.doj && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.doj}</Text>}
+                    {!teacherErrors.doj && <View className="mb-3" />}
 
                     {/* Experience */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
@@ -796,11 +1082,13 @@ export default function RegisterUser() {
                     </Text>
                     <TextInput
                       value={experience}
-                      onChangeText={setExperience}
+                      onChangeText={(t) => { setExperience(t); setTeacherErrors((p) => { const n = {...p}; delete n.experience; return n; }); }}
                       placeholder="e.g. 8 Years"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.experience ? "border-red-400" : "border-gray-200"}`}
                     />
+                    {teacherErrors.experience && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.experience}</Text>}
+                    {!teacherErrors.experience && <View className="mb-3" />}
 
                     {/* Qualification */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
@@ -808,16 +1096,69 @@ export default function RegisterUser() {
                     </Text>
                     <TextInput
                       value={qualification}
-                      onChangeText={setQualification}
+                      onChangeText={(t) => { setQualification(t); setTeacherErrors((p) => { const n = {...p}; delete n.qualification; return n; }); }}
                       placeholder="e.g. Ph.D. in Applied Mathematics"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.qualification ? "border-red-400" : "border-gray-200"}`}
                     />
+                    {teacherErrors.qualification && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.qualification}</Text>}
+                    {!teacherErrors.qualification && <View className="mb-3" />}
+
+                    {/* Emergency Contact Number */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Emergency Contact Number
+                    </Text>
+                    <TextInput
+                      value={teacherEmergencyContact}
+                      onChangeText={(t) => { setTeacherEmergencyContact(t); setTeacherErrors((p) => { const n = {...p}; delete n.teacherEmergencyContact; return n; }); }}
+                      placeholder="e.g. 9876543210"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherEmergencyContact ? "border-red-400" : "border-gray-200"}`}
+                    />
+                    {teacherErrors.teacherEmergencyContact && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherEmergencyContact}</Text>}
+                    {!teacherErrors.teacherEmergencyContact && <View className="mb-3" />}
+
+                    {/* Sections — Multi-select Chips (derived from class-sections data) */}
+                    <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                      Sections
+                    </Text>
+                    {loadingClasses ? (
+                      <View className="flex-row items-center py-3 mb-1">
+                        <ActivityIndicator size="small" color="#735c00" />
+                        <Text className="text-[10px] text-neutral-steel font-inter ml-2">Loading sections...</Text>
+                      </View>
+                    ) : (
+                      <View className="flex-row flex-wrap gap-2 mb-1">
+                        {(() => {
+                          const uniqueSections = Array.from(new Set(classSectionsList.map((cs) => cs.section_name))).sort();
+                          return uniqueSections.map((sec) => {
+                            const selected = teacherSections.includes(sec);
+                            return (
+                              <TouchableOpacity
+                                key={sec}
+                                onPress={() => toggleChipSelection(sec, teacherSections, setTeacherSections, "teacherSections")}
+                                className={`px-4 py-2 rounded-lg border ${selected ? "bg-[#735c00] border-[#735c00]" : "bg-[#FCFAFA] border-gray-200"}`}
+                              >
+                                <Text className={`text-[10px] font-poppins-semibold ${selected ? "text-white" : "text-neutral-steel"}`}>
+                                  {sec}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          });
+                        })()}
+                        {classSectionsList.length === 0 && !loadingClasses && (
+                          <Text className="text-[10px] text-neutral-steel font-inter py-2">No sections found</Text>
+                        )}
+                      </View>
+                    )}
+                    {teacherErrors.teacherSections && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-4">{teacherErrors.teacherSections}</Text>}
+                    {!teacherErrors.teacherSections && <View className="mb-4" />}
 
                     {/* Buttons Layout */}
                     <View className="flex-row gap-3">
                       <TouchableOpacity
-                        onPress={() => setStep(1)}
+                        onPress={() => { setStep(1); setTeacherErrors({}); }}
                         className="flex-1 border border-gray-200 py-4 rounded-xl items-center"
                       >
                         <Text className="text-neutral-steel font-poppins-bold text-xs">Back</Text>
