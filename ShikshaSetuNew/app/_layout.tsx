@@ -32,6 +32,7 @@ export default function RootLayout() {
     "Inter-Medium": Inter_500Medium,
     "OpenSans-Regular": OpenSans_400Regular,
     "OpenSans-Bold": OpenSans_700Bold,
+    "OpenSans": OpenSans_400Regular,
     // Standard expo-google-fonts names (used in other components)
     Poppins_400Regular,
     Poppins_500Medium,
@@ -39,6 +40,8 @@ export default function RootLayout() {
     Poppins_700Bold,
     Inter_400Regular,
     Inter_500Medium,
+    OpenSans_400Regular,
+    OpenSans_700Bold,
   });
 
   useEffect(() => {

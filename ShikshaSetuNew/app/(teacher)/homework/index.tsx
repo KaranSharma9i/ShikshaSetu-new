@@ -283,8 +283,6 @@ export default function HomeworkDashboard() {
 
               // Status Pill configuration
               const isExpired = item.status === "archived" || new Date(item.due_date) < new Date();
-              const pillBg = isExpired ? "bg-gray-100 border border-gray-200" : "bg-green-50 border border-green-200";
-              const pillText = isExpired ? "text-gray-500 font-open-sans font-bold" : "text-green-700 font-open-sans font-bold";
               const pillLabel = isExpired ? "EXPIRED" : "ACTIVE";
 
               return (
@@ -302,26 +300,47 @@ export default function HomeworkDashboard() {
                   {/* Top row with Subject & Status Pill */}
                   <View className="flex-row justify-between items-start">
                     <Text
-                      style={{ letterSpacing: 0.5 }}
-                      className="font-open-sans font-bold text-[11px] text-[#D4AF37] uppercase"
+                      style={{
+                        fontFamily: "OpenSans_700Bold",
+                        fontSize: 11,
+                        fontWeight: "700",
+                        letterSpacing: 1.2,
+                        textTransform: "uppercase",
+                        color: "#D4AF37",
+                        marginBottom: 4,
+                      }}
                     >
                       {subjectName}
                     </Text>
-                    <View className={`px-2 py-0.5 rounded-full ${pillBg}`}>
-                      <Text style={{ fontSize: 9 }} className={pillText}>
+                    <View
+                      style={{
+                        backgroundColor: isExpired ? "#F3F4F6" : "#DCFCE7",
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 9999,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: isExpired ? "#6B7280" : "#16A34A",
+                          fontSize: 11,
+                          fontWeight: "700",
+                          fontFamily: "OpenSans_700Bold",
+                        }}
+                      >
                         {pillLabel}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Title */}
-                  <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A] mt-2">
-                    {grade} — {subjectName}
+                  {/* Homework Title (Main Heading) */}
+                  <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A] mt-1.5">
+                    {item.title}
                   </Text>
                   
-                  {/* Sub-Title / Homework Title */}
-                  <Text className="font-inter text-gray-500 text-sm mt-1" numberOfLines={1}>
-                    {item.title}
+                  {/* Class — Subject (Small Subtitle) */}
+                  <Text className="font-inter text-gray-500 text-[12px] mt-1">
+                    {grade} — {subjectName}
                   </Text>
 
                   {/* Metrics Row */}
