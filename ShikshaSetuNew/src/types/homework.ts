@@ -1,3 +1,25 @@
+export type QuestionType = 'MCQ' | 'VERY_SHORT' | 'SHORT' | 'LONG' | 'CASE_STUDY' | 'ASSERTION_REASON';
+
+export interface GeneratedQuestion {
+  type: QuestionType;
+  question: string;
+  options: string[] | null;
+  question_number: number;
+}
+
+export interface GeneratedContent {
+  questions: GeneratedQuestion[];
+  metadata: {
+    subject: string;
+    grade: string;
+    title: string;
+    topic: string;
+    total_questions: number;
+    generated_at: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard';
+  };
+}
+
 export interface HomeworkSubmission {
   id: string;
   homework_id: string;
@@ -15,6 +37,8 @@ export interface HomeworkItem {
   institution_id: string;
   academic_year_id: string;
   class_id: string;
+  section_id: string;
+  section_name?: string;
   subject_id: string;
   subject_name: string;
   subject_code: string;
@@ -28,5 +52,21 @@ export interface HomeworkItem {
   difficulty: 'Easy' | 'Medium' | 'Hard';
   file_url: string | null;
   status: 'draft' | 'active' | 'archived';
+  ai_generated?: boolean;
+  generated_content?: GeneratedContent | null;
+  pdf_url?: string | null;
+  generation_status?: 'generating' | 'generated' | 'published' | 'failed' | null;
+  question_config?: {
+    mcq: number;
+    very_short: number;
+    short: number;
+    long: number;
+    case_study: number;
+    assertion_reason: number;
+  } | null;
   submission?: HomeworkSubmission | null;
+  section?: {
+    id: string;
+    name: string;
+  } | null;
 }

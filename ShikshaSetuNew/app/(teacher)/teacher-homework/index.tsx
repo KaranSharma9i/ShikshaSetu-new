@@ -85,6 +85,10 @@ interface HomeworkListItem {
     id: string;
     name: string;
   } | null;
+  section: {
+    id: string;
+    name: string;
+  } | null;
   subject: {
     id: string;
     name: string;
@@ -142,6 +146,10 @@ export default function HomeworkDashboard() {
             id,
             name
           ),
+          section:sections (
+            id,
+            name
+          ),
           subject:subjects (
             id,
             name
@@ -160,6 +168,7 @@ export default function HomeworkDashboard() {
       // Convert join data array cases to single object for typescript helper
       const formattedHomeworks: HomeworkListItem[] = (homeworksData || []).map((hw: any) => {
         const classObj = Array.isArray(hw.class) ? hw.class[0] : hw.class;
+        const sectionObj = Array.isArray(hw.section) ? hw.section[0] : hw.section;
         const subjectObj = Array.isArray(hw.subject) ? hw.subject[0] : hw.subject;
         return {
           id: hw.id,
@@ -169,18 +178,17 @@ export default function HomeworkDashboard() {
           total_marks: hw.total_marks ? Number(hw.total_marks) : null,
           created_at: hw.created_at,
           class: classObj ? { id: classObj.id, name: classObj.name } : null,
+          section: sectionObj ? { id: sectionObj.id, name: sectionObj.name } : null,
           subject: subjectObj ? { id: subjectObj.id, name: subjectObj.name } : null,
         };
       });
 
-      // 3. Fetch all active student enrollments to aggregate counts per class
+      // 3. Fetch all active student enrollments to aggregate counts per section
       const { data: enrollmentData, error: enrollmentErr } = await supabase
         .from("enrollments")
         .select(`
           id,
-          section:sections (
-            class_id
-          )
+          section_id
         `)
         .eq("is_active", true);
 
@@ -189,10 +197,9 @@ export default function HomeworkDashboard() {
       } else {
         const counts: Record<string, number> = {};
         enrollmentData?.forEach((enroll: any) => {
-          const sect = Array.isArray(enroll.section) ? enroll.section[0] : enroll.section;
-          const classId = sect?.class_id;
-          if (classId) {
-            counts[classId] = (counts[classId] || 0) + 1;
+          const sectionId = enroll.section_id;
+          if (sectionId) {
+            counts[sectionId] = (counts[sectionId] || 0) + 1;
           }
         });
         setStudentCounts(counts);
@@ -268,10 +275,12 @@ export default function HomeworkDashboard() {
 
           <View className="space-y-4">
             {homeworks.map((item) => {
-              const grade = item.class ? formatGradeName(item.class.name) : "Grade X";
+              const gradeName = item.class ? formatGradeName(item.class.name) : "Grade X";
+              const sectionName = item.section ? item.section.name : "";
+              const grade = sectionName ? `${gradeName} - ${sectionName}` : gradeName;
               const subjectName = item.subject?.name || "Subject";
               const questions = getQuestionCount(item);
-              const students = item.class ? (studentCounts[item.class.id] || 0) : 0;
+              const students = item.section ? (studentCounts[item.section.id] || 0) : 0;
               
               // Format Due Date
               const dueDateObj = new Date(item.due_date);

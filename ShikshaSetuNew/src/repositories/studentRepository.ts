@@ -744,14 +744,28 @@ export async function getLatestCirculars(institutionId: string): Promise<any[]> 
 // 9. Fetch homeworks for student class with submissions
 export async function getStudentHomeworks(studentId: string, classId: string): Promise<HomeworkItem[]> {
   try {
-    // Fetch all active homework assignments for this class
-    const { data: homeworks, error: hwError } = await supabase
+    // Fetch student's active enrollment to get their section_id
+    const { data: enrollment, error: enrollErr } = await supabase
+      .from("enrollments")
+      .select("section_id")
+      .eq("student_id", studentId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (enrollErr) {
+      console.error("Error fetching enrollment for homework filtering:", enrollErr);
+    }
+    const sectionId = enrollment?.section_id;
+
+    // Fetch all active homework assignments for this section (or class fallback)
+    let query = supabase
       .from("homework")
       .select(`
         id,
         institution_id,
         academic_year_id,
         class_id,
+        section_id,
         subject_id,
         teacher_id,
         title,
@@ -775,9 +789,16 @@ export async function getStudentHomeworks(studentId: string, classId: string): P
           )
         )
       `)
-      .eq("class_id", classId)
       .eq("status", "active")
       .is("deleted_at", null);
+
+    if (sectionId) {
+      query = query.eq("section_id", sectionId);
+    } else {
+      query = query.eq("class_id", classId);
+    }
+
+    const { data: homeworks, error: hwError } = await query;
 
     if (hwError) throw hwError;
 

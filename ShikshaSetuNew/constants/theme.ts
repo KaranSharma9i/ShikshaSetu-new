@@ -25,6 +25,16 @@ export const Colors = {
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
   },
+  surface: '#FFFFFF',
+  border: '#E4E2E1',
+  gold: '#D4AF37',
+  borderGold: '#D4AF37',
+  badgeGoldBg: '#FFF3CD',
+  textGold: '#856404',
+  badgeNavyBg: '#E6ECF2',
+  navyBlue: '#0D1B2A',
+  text: '#0D1B2A',
+  pageBackground: '#F7F3EB',
 };
 
 export const Fonts = Platform.select({
@@ -51,3 +61,68 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  base: 16,
+  lg: 24,
+  xl: 32,
+};
+
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+};
+
+export const Shadow = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  gold: {
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+};
+
+export const FontSize = {
+  xs: 11,
+  sm: 12,
+  base: 14,
+  md: 16,
+  lg: 18,
+  xl: 20,
+  xxl: 22,
+  xxxl: 28,
+};
+
+export const ButtonTokens = {
+  secondary: {
+    borderColor: '#0D1B2A',
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+    textColor: '#0D1B2A',
+  },
+  gold: {
+    backgroundColor: '#D4AF37',
+    textColor: '#0D1B2A',
+  },
+};
+
