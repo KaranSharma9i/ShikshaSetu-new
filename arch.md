@@ -1,8 +1,6 @@
 # Project Architecture Diagram
 
 ```text
-.claude/
-  settings.local.json
 ShikshaSetuNew/
   .claude/
     Skills/
@@ -286,6 +284,7 @@ ShikshaSetuNew/
       0029_billing_schema.sql
       0029_exams_syllabus.sql
       0030_billing_rls.sql
+      0031_homework_ai_generation.sql
       All_view.sql
     assign-teachers.js
     index.ts
@@ -355,6 +354,18 @@ ShikshaSetuNew/
     verify_attendance_repository.js
     verify_attendance_repository.ts
     verify_seed.js
+  server/
+    middleware/
+      auth.ts
+    routes/
+      homework.ts
+    services/
+      gemini.ts
+      pdf.ts
+    types/
+      generation.ts
+    config.ts
+    index.ts
   src/
     context/
       AuthContext.tsx
@@ -385,8 +396,6 @@ ShikshaSetuNew/
       error.ts
     gemini_flash.ts
   supabase/
-    .temp/
-      cli-latest
     migrations/
       0001_create_institutions.sql
       0002_create_users.sql
@@ -419,6 +428,7 @@ ShikshaSetuNew/
       0029_billing_schema.sql
       0029_exams_syllabus.sql
       0030_billing_rls.sql
+      0031_homework_ai_generation.sql
       All_view.sql
     .gitignore
     config.toml
