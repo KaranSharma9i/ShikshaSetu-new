@@ -93,6 +93,8 @@ interface HomeworkListItem {
     id: string;
     name: string;
   } | null;
+  generated_content?: any;
+  question_config?: any;
 }
 
 export default function HomeworkDashboard() {
@@ -142,6 +144,8 @@ export default function HomeworkDashboard() {
           status,
           total_marks,
           created_at,
+          generated_content,
+          question_config,
           class:classes (
             id,
             name
@@ -180,6 +184,8 @@ export default function HomeworkDashboard() {
           class: classObj ? { id: classObj.id, name: classObj.name } : null,
           section: sectionObj ? { id: sectionObj.id, name: sectionObj.name } : null,
           subject: subjectObj ? { id: subjectObj.id, name: subjectObj.name } : null,
+          generated_content: hw.generated_content,
+          question_config: hw.question_config,
         };
       });
 
@@ -221,6 +227,30 @@ export default function HomeworkDashboard() {
   };
 
   const getQuestionCount = (item: HomeworkListItem) => {
+    try {
+      if (item.generated_content) {
+        const content = typeof item.generated_content === "string"
+          ? JSON.parse(item.generated_content)
+          : item.generated_content;
+        if (content && content.questions && Array.isArray(content.questions)) {
+          return content.questions.length;
+        }
+        if (content && content.metadata && content.metadata.total_questions) {
+          return Number(content.metadata.total_questions);
+        }
+      }
+      if (item.question_config) {
+        const config = typeof item.question_config === "string"
+          ? JSON.parse(item.question_config)
+          : item.question_config;
+        if (config) {
+          const sum = Object.values(config).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
+          if (sum > 0) return sum;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse question count:", e);
+    }
     // Dynamic estimate based on total marks, with 5 as a safe default
     return Math.max(5, Math.floor(Number(item.total_marks || 50) / 10));
   };
@@ -295,8 +325,10 @@ export default function HomeworkDashboard() {
               const pillLabel = isExpired ? "EXPIRED" : "ACTIVE";
 
               return (
-                <View
+                <TouchableOpacity
                   key={item.id}
+                  onPress={() => router.push(`/(teacher)/teacher-homework/${item.id}` as any)}
+                  activeOpacity={0.85}
                   className="bg-white rounded-2xl p-5 border border-gray-50 shadow-sm"
                   style={{
                     shadowColor: "#000",
@@ -375,7 +407,7 @@ export default function HomeworkDashboard() {
                       Due: {formattedDate}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>

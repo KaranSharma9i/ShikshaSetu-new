@@ -279,12 +279,117 @@ export async function getTeacherProfile(teacherId: string): Promise<TeacherProfi
       date_of_joining: data.date_of_joining || null,
       address: data.address || null,
       emergency_contact: data.emergency_contact || null,
+      profile_photo_url: user?.profile_photo_url || null,
     };
   } catch (error) {
     console.error("Error in getTeacherProfile repository:", error);
     return null;
   }
 }
+
+// 2b. Fetch teacher profile details by user_id
+export async function getTeacherProfileByUserId(userId: string): Promise<TeacherProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from("teachers")
+      .select(`
+        id,
+        user_id,
+        employee_code,
+        date_of_birth,
+        gender,
+        qualification,
+        specialization,
+        date_of_joining,
+        address,
+        emergency_contact,
+        user:users!inner (
+          full_name,
+          email,
+          phone,
+          profile_photo_url,
+          status,
+          last_login_at
+        )
+      `)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    const user = Array.isArray(data.user) ? data.user[0] : data.user;
+
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      employee_code: data.employee_code,
+      full_name: user?.full_name || "",
+      email: user?.email || null,
+      phone: user?.phone || null,
+      status: user?.status === "active" ? "Active" : "Inactive",
+      last_login_at: user?.last_login_at || null,
+      date_of_birth: data.date_of_birth || null,
+      gender: data.gender || null,
+      qualification: data.qualification || null,
+      specialization: data.specialization || null,
+      date_of_joining: data.date_of_joining || null,
+      address: data.address || null,
+      emergency_contact: data.emergency_contact || null,
+      profile_photo_url: user?.profile_photo_url || null,
+    };
+  } catch (error) {
+    console.error("Error in getTeacherProfileByUserId repository:", error);
+    return null;
+  }
+}
+
+// 2c. Update teacher profile details
+export async function updateTeacherProfile(
+  teacherId: string,
+  userId: string,
+  updates: {
+    phone?: string;
+    email?: string;
+    address?: string;
+    emergency_contact?: string;
+    profile_photo_url?: string;
+  }
+): Promise<TeacherProfile | null> {
+  const userUpdates: any = {};
+  if (updates.phone !== undefined) userUpdates.phone = updates.phone;
+  if (updates.email !== undefined) userUpdates.email = updates.email;
+  if (updates.profile_photo_url !== undefined) userUpdates.profile_photo_url = updates.profile_photo_url;
+
+  const teacherUpdates: any = {};
+  if (updates.address !== undefined) teacherUpdates.address = updates.address;
+  if (updates.emergency_contact !== undefined) teacherUpdates.emergency_contact = updates.emergency_contact;
+
+  const promises = [];
+  if (Object.keys(userUpdates).length > 0) {
+    promises.push(
+      supabase.from("users").update(userUpdates).eq("id", userId)
+    );
+  }
+  if (Object.keys(teacherUpdates).length > 0) {
+    promises.push(
+      supabase.from("teachers").update(teacherUpdates).eq("id", teacherId)
+    );
+  }
+
+  if (promises.length > 0) {
+    const results = await Promise.all(promises);
+    for (const res of results) {
+      if (res.error) {
+        console.error("Error in updateTeacherProfile:", res.error);
+        throw res.error;
+      }
+    }
+  }
+
+  return getTeacherProfile(teacherId);
+}
+
 
 // 3. Fetch teacher performance details
 export async function getTeacherPerformance(

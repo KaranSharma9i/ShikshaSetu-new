@@ -26,6 +26,7 @@ export interface TeacherProfile {
   date_of_joining: string | null;
   address: string | null;
   emergency_contact: string | null;
+  profile_photo_url: string | null;
 }
 
 export interface SubjectMetric {
