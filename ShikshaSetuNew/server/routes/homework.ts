@@ -29,10 +29,13 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
       "question_config",
       "teacher_id",
       "class_id",
+      "section_id",
+      "section_name",
       "subject_id",
       "institution_id",
       "academic_year_id",
       "due_date",
+      "difficulty",
     ];
 
     // 1. Validate request body
@@ -78,6 +81,7 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
           institution_id: req.body.institution_id,
           academic_year_id: req.body.academic_year_id,
           class_id: req.body.class_id,
+          section_id: req.body.section_id,
           subject_id: req.body.subject_id,
           teacher_id: req.body.teacher_id,
           title: req.body.title,
@@ -90,6 +94,7 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
           question_config: req.body.question_config,
           status: "draft",
           total_marks: null,
+          difficulty: req.body.difficulty,
         });
       } catch (dbError) {
         console.error("Failed to insert failed homework row:", dbError);
@@ -107,6 +112,7 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
         institution_id: req.body.institution_id,
         academic_year_id: req.body.academic_year_id,
         class_id: req.body.class_id,
+        section_id: req.body.section_id,
         subject_id: req.body.subject_id,
         teacher_id: req.body.teacher_id,
         title: req.body.title,
@@ -119,6 +125,7 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
         question_config: req.body.question_config,
         status: "draft",
         total_marks: null,
+        difficulty: req.body.difficulty,
       })
       .select("id")
       .single();

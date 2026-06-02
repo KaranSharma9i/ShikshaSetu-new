@@ -48,6 +48,21 @@ Subject: ${req.subject}
 Title: ${req.title}
 Topic/Instructions: ${req.topic_description}
 
+Difficulty Level: ${req.difficulty}
+Question complexity guidelines for this difficulty:
+
+Easy: Direct recall and basic comprehension. Simple language. Questions
+test factual knowledge from the chapter. Suitable for students who are
+encountering the topic for the first time.
+Medium: Application and understanding. Questions require students to apply
+concepts, explain reasoning, or solve straightforward problems. Moderate
+cognitive demand.
+Hard: Analysis, evaluation and higher-order thinking (Bloom's Taxonomy
+levels 4–6). Questions require synthesis of multiple concepts, critical
+reasoning, or multi-step problem solving. Challenging for average students.
+
+Generate ALL questions at the ${req.difficulty} difficulty level described above.
+
 Generate exactly the following number of questions by type:
 - Multiple Choice (MCQ): ${mcq || 0} questions
 - Very Short Answer: ${very_short || 0} questions
@@ -132,6 +147,7 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
           topic: req.topic_description,
           total_questions: totalQuestions,
           generated_at: new Date().toISOString(),
+          difficulty: req.difficulty,
         },
       };
 
@@ -247,6 +263,7 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
         topic: req.topic_description,
         total_questions: totalQuestions,
         generated_at: new Date().toISOString(),
+        difficulty: req.difficulty,
       },
     };
   }

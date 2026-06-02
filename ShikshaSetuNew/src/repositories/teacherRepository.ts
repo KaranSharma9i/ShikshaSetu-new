@@ -833,10 +833,13 @@ export async function generateHomework(payload: {
   };
   teacher_id: string;
   class_id: string;
+  section_id: string;
+  section_name: string;
   subject_id: string;
   institution_id: string;
   academic_year_id: string;
   due_date: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
 }): Promise<{
   homework_id: string;
   generated_content: GeneratedContent;

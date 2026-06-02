@@ -16,6 +16,7 @@ export interface GeneratedContent {
     topic: string;
     total_questions: number;
     generated_at: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard';
   };
 }
 
@@ -36,6 +37,8 @@ export interface HomeworkItem {
   institution_id: string;
   academic_year_id: string;
   class_id: string;
+  section_id: string;
+  section_name?: string;
   subject_id: string;
   subject_name: string;
   subject_code: string;
@@ -62,4 +65,8 @@ export interface HomeworkItem {
     assertion_reason: number;
   } | null;
   submission?: HomeworkSubmission | null;
+  section?: {
+    id: string;
+    name: string;
+  } | null;
 }

@@ -31,6 +31,7 @@ export interface GeneratedContent {
     topic: string;
     total_questions: number;
     generated_at: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard';
   };
 }
 
@@ -42,8 +43,11 @@ export interface GenerateHomeworkRequest {
   question_config: QuestionConfig;
   teacher_id: string;
   class_id: string;
+  section_id: string;
+  section_name: string;
   subject_id: string;
   institution_id: string;
   academic_year_id: string;
   due_date: string;        // ISO date string
+  difficulty: 'Easy' | 'Medium' | 'Hard';
 }

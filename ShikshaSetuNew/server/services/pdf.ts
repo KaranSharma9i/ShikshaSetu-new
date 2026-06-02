@@ -91,7 +91,8 @@ export class PdfService {
         doc.fontSize(18).font("Helvetica-Bold").fillColor("#1a1a2e").text("HOMEWORK ASSIGNMENT", { align: "center" });
 
         doc.moveDown(0.5);
-        doc.fontSize(12).font("Helvetica").fillColor("#4a5568").text(`${req.grade}  |  Subject: ${req.subject}  |  Title: ${req.title}`, {
+        const gradeSectionText = req.section_name ? `${req.grade} - ${req.section_name}` : req.grade;
+        doc.fontSize(12).font("Helvetica").fillColor("#4a5568").text(`${gradeSectionText}  |  Subject: ${req.subject}  |  Title: ${req.title}`, {
           align: "center",
         });
 
