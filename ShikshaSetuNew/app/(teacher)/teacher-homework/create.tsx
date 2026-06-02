@@ -8,12 +8,16 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  Alert,
+  StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/hooks/useAuth";
 import Header from "@/components/teacher/Header";
+import { generateHomework } from "@/src/repositories/teacherRepository";
+import { Colors } from "@/constants/theme";
 
 interface GradeItem {
   id: string;
@@ -27,13 +31,18 @@ interface SubjectItem {
 
 export default function CreateHomework() {
   const router = useRouter();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, institutionId, isLoaded, isSignedIn } = useAuth();
 
   // Loading States
   const [loading, setLoading] = useState(true);
   const [dailyLimitLoading, setDailyLimitLoading] = useState(false);
   const [preparingOverlay, setPreparingOverlay] = useState(false);
   const [teacher, setTeacher] = useState<any>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [academicYearId, setAcademicYearId] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState<string>(
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+  );
 
   // Form Fields
   const [grades, setGrades] = useState<GradeItem[]>([]);
@@ -70,7 +79,7 @@ export default function CreateHomework() {
       // 1. Fetch teacher record using auth userId
       const { data: teacherData, error: teacherErr } = await supabase
         .from("teachers")
-        .select("id, user_id")
+        .select("id, user_id, institution_id")
         .eq("user_id", userId)
         .single();
 
@@ -83,6 +92,21 @@ export default function CreateHomework() {
       setTeacher(teacherData);
       const teacherId = teacherData.id;
       const teacherUserId = teacherData.user_id;
+
+      // Fetch active academic year
+      const { data: ayData, error: ayErr } = await supabase
+        .from("academic_years")
+        .select("id")
+        .eq("institution_id", teacherData.institution_id)
+        .eq("is_current", true)
+        .maybeSingle();
+
+      if (ayErr) {
+        console.error("Error fetching academic year:", ayErr);
+      }
+      if (ayData) {
+        setAcademicYearId(ayData.id);
+      }
 
       // 2. Fetch distinct grades/classes taught by this teacher
       // Join class_subjects -> sections -> classes
@@ -224,51 +248,100 @@ export default function CreateHomework() {
     return "book" as const;
   };
 
+  const questionConfig = {
+    mcq: mcqCount,
+    very_short: veryShortCount,
+    short: shortCount,
+    long: longCount,
+    case_study: caseStudyCount,
+    assertion_reason: assertionReasonCount,
+  };
+
   // Form Valuations & Total Questions
-  const totalQuestions =
-    mcqCount +
-    veryShortCount +
-    shortCount +
-    longCount +
-    caseStudyCount +
-    assertionReasonCount;
+  const totalQuestions = Object.values(questionConfig).reduce(
+    (sum, val) => sum + val,
+    0
+  );
 
   const isFormValid =
     selectedGrade !== null &&
     !gradeAlreadyUsedToday &&
     selectedSubject !== null &&
     title.trim() !== "" &&
+    topicDescription.trim() !== "" &&
     totalQuestions > 0 &&
     !dailyLimitLoading;
 
-  const handleGenerateQuestions = () => {
-    if (!isFormValid || !selectedGrade || !selectedSubject) return;
+  const validateForm = (): string | null => {
+    if (!selectedGrade) return "Please select a grade";
+    if (!selectedSubject) return "Please select a subject";
+    if (!title.trim()) return "Please enter a title";
+    if (!topicDescription.trim()) return "Please enter a topic description";
+    if (totalQuestions === 0) return "Please add at least one question";
+    return null;
+  };
 
-    // Show brief loading overlay for 500ms
-    setPreparingOverlay(true);
+  const handleGenerate = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      Alert.alert("Missing Information", validationError);
+      return;
+    }
 
-    setTimeout(() => {
-      setPreparingOverlay(false);
-      
-      const formattedDueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        .toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
+    if (!teacher) {
+      Alert.alert("Error", "Teacher profile not loaded yet. Please wait.");
+      return;
+    }
+
+    const instId = teacher.institution_id || institutionId;
+    if (!instId) {
+      Alert.alert("Error", "Institution ID not found.");
+      return;
+    }
+
+    if (!academicYearId) {
+      Alert.alert("Error", "Active academic year not found.");
+      return;
+    }
+
+    setIsGenerating(true);
+
+    try {
+      const result = await generateHomework({
+        grade: selectedGrade!.name,
+        subject: selectedSubject!.name,
+        title: title.trim(),
+        topic_description: topicDescription.trim(),
+        question_config: questionConfig,
+        teacher_id: teacher.id,
+        class_id: selectedGrade!.id,
+        subject_id: selectedSubject!.id,
+        institution_id: instId,
+        academic_year_id: academicYearId,
+        due_date: dueDate,
+      });
 
       router.push({
-        pathname: "/(teacher)/teacher-homework/published" as any,
+        pathname: "/(teacher)/teacher-homework/preview" as any,
         params: {
-          subject: selectedSubject.name,
-          grade: selectedGrade.name,
-          chapter: title, // title serves as chapter param
-          questionCount: totalQuestions.toString(),
-          studentCount: "42",
-          dueDate: formattedDueDate,
+          homework_id: result.homework_id,
+          generated_content: JSON.stringify(result.generated_content),
+          pdf_url: result.pdf_url ?? "",
+          grade: selectedGrade!.name,
+          subject: selectedSubject!.name,
+          title: title.trim(),
+          due_date: dueDate,
         },
       });
-    }, 500);
+    } catch (error: any) {
+      Alert.alert(
+        "Generation Failed",
+        error.message ?? "Something went wrong. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -533,16 +606,24 @@ export default function CreateHomework() {
 
           {/* Action Trigger Button */}
           <TouchableOpacity
-            disabled={!isFormValid}
-            onPress={handleGenerateQuestions}
+            style={[
+              styles.generateButton,
+              (isGenerating || !isFormValid) && styles.generateButtonDisabled,
+            ]}
+            onPress={handleGenerate}
+            disabled={isGenerating || !isFormValid}
             activeOpacity={0.85}
-            className={`w-full h-14 rounded-2xl items-center justify-center flex-row bg-[#0D1B2A] ${
-              !isFormValid ? "opacity-50" : ""
-            }`}
           >
-            <Text className="font-poppins-semibold text-[16px] text-[#D4AF37]">
-              Generate Questions →
-            </Text>
+            {isGenerating ? (
+              <View style={styles.generateButtonContent}>
+                <ActivityIndicator size="small" color={Colors.gold} />
+                <Text style={styles.generateButtonText}>Generating...</Text>
+              </View>
+            ) : (
+              <View style={styles.generateButtonContent}>
+                <Text style={styles.generateButtonText}>Generate Questions →</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </ScrollView>
       )}
@@ -559,3 +640,29 @@ export default function CreateHomework() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  generateButton: {
+    width: "100%",
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    backgroundColor: "#0D1B2A",
+  },
+  generateButtonDisabled: {
+    opacity: 0.5,
+  },
+  generateButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  generateButtonText: {
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 16,
+    color: "#D4AF37",
+  },
+});

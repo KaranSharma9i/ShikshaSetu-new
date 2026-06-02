@@ -7,6 +7,7 @@ import {
   SubjectMetric,
   AIScoreHistoryPoint,
 } from "../types/teacher";
+import { GeneratedContent } from "../types/homework";
 
 // Helper to format dates to MMM YY (e.g. '2026-05-01' -> 'May 26')
 function formatShortDate(dateStr: string): string {
@@ -815,5 +816,46 @@ export async function getClassPerformanceCardData(
     console.error("Error in getClassPerformanceCardData:", error);
     return null;
   }
+}
+
+export async function generateHomework(payload: {
+  grade: string;
+  subject: string;
+  title: string;
+  topic_description: string;
+  question_config: {
+    mcq: number;
+    very_short: number;
+    short: number;
+    long: number;
+    case_study: number;
+    assertion_reason: number;
+  };
+  teacher_id: string;
+  class_id: string;
+  subject_id: string;
+  institution_id: string;
+  academic_year_id: string;
+  due_date: string;
+}): Promise<{
+  homework_id: string;
+  generated_content: GeneratedContent;
+  pdf_url: string | null;
+  generation_status: string;
+}> {
+  const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL ?? 'http://localhost:3001';
+
+  const response = await fetch(`${SERVER_URL}/api/teacher/homework/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Server error' }));
+    throw new Error(error.error ?? `Server responded with ${response.status}`);
+  }
+
+  return response.json();
 }
 
