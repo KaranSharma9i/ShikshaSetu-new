@@ -165,7 +165,7 @@ export default function BulkMarksScreen() {
   // Load exams when class selection changes
   useEffect(() => {
     if (selectedClass) {
-      loadExamsForClass(selectedClass.class_id);
+      loadExamsForClass(selectedClass.class_id, selectedClass.section_id);
     } else {
       setExamOptions([]);
       setSelectedExam(null);
@@ -173,14 +173,35 @@ export default function BulkMarksScreen() {
       setMarksMap({});
       setInitialMarksMap({});
     }
-  }, [selectedClass?.class_id]);
+  }, [selectedClass?.section_id]);
 
-  const loadExamsForClass = async (classId: string) => {
+  const loadExamsForClass = async (classId: string, sectionId: string) => {
     try {
       setSelectedExam(null);
       setStudents([]);
       setMarksMap({});
       setInitialMarksMap({});
+
+      // Fetch subjects taught by the teacher in this specific section
+      const { data: assignedSubjects, error: subjectsErr } = await supabase
+        .from("class_subjects")
+        .select("subject_id")
+        .eq("teacher_id", userId)
+        .eq("section_id", sectionId)
+        .is("deleted_at", null);
+
+      if (subjectsErr) {
+        console.error("Error loading assigned subjects:", subjectsErr);
+        setExamOptions([]);
+        return;
+      }
+
+      const subjectIds = (assignedSubjects || []).map((s) => s.subject_id);
+
+      if (subjectIds.length === 0) {
+        setExamOptions([]);
+        return;
+      }
 
       const { data: examsData, error: examsErr } = await supabase
         .from("exams")
@@ -195,6 +216,7 @@ export default function BulkMarksScreen() {
           )
         `)
         .eq("class_id", classId)
+        .in("subject_id", subjectIds)
         .order("exam_date", { ascending: false });
 
       if (examsErr) {
@@ -549,7 +571,7 @@ export default function BulkMarksScreen() {
                   style={{ fontFamily: "Inter-Regular" }}
                   className="text-gray-500 text-[13px] mt-1 italic"
                 >
-                  No exams found for this class
+                  No exams found for your subjects in this class
                 </Text>
               ) : (
                 <>
