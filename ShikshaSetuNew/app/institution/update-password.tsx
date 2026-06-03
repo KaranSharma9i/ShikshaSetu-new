@@ -18,7 +18,7 @@ import BottomNavBar from "../../components/institution/BottomNavBar";
 
 export default function InstitutionUpdatePasswordScreen() {
   const router = useRouter();
-  const { email } = useAuth();
+  useAuth();
 
   // Form states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -58,9 +58,19 @@ export default function InstitutionUpdatePasswordScreen() {
     setError("");
 
     try {
-      // 1. Verify current password by signing in
+      // 1. Get current user's email directly from Supabase to prevent stale context/hook values
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email;
+
+      if (!userEmail) {
+        setError("User email not found. Please log in again.");
+        setIsSaving(false);
+        return;
+      }
+
+      // 2. Verify current password by signing in
       const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: email!,
+        email: userEmail,
         password: currentPassword,
       });
 
