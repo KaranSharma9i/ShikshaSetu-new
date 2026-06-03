@@ -13,6 +13,11 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/hooks/useAuth";
 import Header from "@/components/teacher/Header";
+import {
+  getTeacherProfileByUserId,
+  getTeacherClassesTaught,
+  getTeacherSectionDetails,
+} from "@/src/repositories/teacherRepository";
 
 // ─── Animated Skeleton Box (Opacity Pulse) ───────────────────
 function SkeletonBox({
@@ -123,39 +128,11 @@ export default function StudentListScreen() {
   // Teacher Profile Data
   const [teacher, setTeacher] = useState<any>(null);
 
-  // Timetable raw result stored in state
-  const [timetableData, setTimetableData] = useState<any[] | null>(null);
+  // Classes state
+  const [classes, setClasses] = useState<ClassSectionItem[]>([]);
 
   // Selected class state
   const [selectedClass, setSelectedClass] = useState<ClassSectionItem | null>(null);
-
-  // Memoized classes array
-  const classes = useMemo(() => {
-    if (!timetableData) return [];
-    const seen = new Set();
-    const mapped = timetableData.filter(row => {
-      const key = row.section_id;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).map(row => {
-      const sec = Array.isArray(row.section) ? row.section[0] : row.section;
-      const cls = sec ? (Array.isArray(sec.class) ? sec.class[0] : sec.class) : null;
-      return {
-        class_id: cls?.id || "",
-        class_name: cls?.name || "",
-        section_id: row.section_id,
-        section_name: sec?.name || "",
-        label: `${cls?.name || ""}-${sec?.name || ""}`
-      };
-    });
-
-    // Sort by class name, then section name
-    return mapped.sort((a, b) => {
-      if (a.class_name !== b.class_name) return a.class_name.localeCompare(b.class_name);
-      return a.section_name.localeCompare(b.section_name);
-    });
-  }, [timetableData]);
 
   // Aggregate Stats state
   const [classAvg, setClassAvg] = useState<string>("—");
@@ -179,80 +156,28 @@ export default function StudentListScreen() {
       setError(null);
 
       // 1. Fetch teacher record using auth userId
-      const { data: teacherData, error: teacherErr } = await supabase
-        .from("teachers")
-        .select("id, user_id")
-        .eq("user_id", userId)
-        .single();
-
-      if (teacherErr || !teacherData) {
-        console.error("Error fetching teacher:", teacherErr);
+      if (!userId) {
+        setError("Could not load teacher profile");
+        setLoading(false);
+        return;
+      }
+      const teacherProfileData = await getTeacherProfileByUserId(userId);
+      if (!teacherProfileData) {
         setError("Could not load teacher profile");
         setLoading(false);
         return;
       }
 
-      setTeacher(teacherData);
-      const teacherUserId = teacherData.user_id;
+      setTeacher(teacherProfileData);
 
-      // 2. Fetch distinct classes & sections taught by teacher from timetable table
-      const { data: timetableDataRes, error: timetableErr } = await supabase
-        .from("timetable")
-        .select(`
-          section_id,
-          section:sections!inner (
-            id,
-            name,
-            class:classes!inner (
-              id,
-              name
-            )
-          ),
-          class_subjects:class_subjects!inner (
-            teacher_id
-          )
-        `);
-
-      if (timetableErr) {
-        console.error("Error fetching timetable:", timetableErr);
-        setError("Could not load assigned classes");
-        setLoading(false);
-        return;
-      }
-
-      // Filter rows taught by this teacher (using teacherUserId which matches users.id)
-      const teacherRows = (timetableDataRes || []).filter((row: any) => {
-        const cs = Array.isArray(row.class_subjects) ? row.class_subjects[0] : row.class_subjects;
-        return cs && cs.teacher_id === teacherUserId;
-      });
-
-      setTimetableData(teacherRows);
-
-      // Extract unique classes for initial selection
-      const seen = new Set();
-      const uniqueClasses = teacherRows.filter(row => {
-        const key = row.section_id;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }).map(row => {
-        const sec = Array.isArray(row.section) ? row.section[0] : row.section;
-        const cls = sec ? (Array.isArray(sec.class) ? sec.class[0] : sec.class) : null;
-        return {
-          class_id: cls?.id || "",
-          class_name: cls?.name || "",
-          section_id: row.section_id,
-          section_name: sec?.name || "",
-          label: `${cls?.name || ""}-${sec?.name || ""}`
-        };
-      }).sort((a, b) => {
-        if (a.class_name !== b.class_name) return a.class_name.localeCompare(b.class_name);
-        return a.section_name.localeCompare(b.section_name);
-      });
+      // 2. Fetch distinct classes & sections taught by teacher
+      const uniqueClasses = await getTeacherClassesTaught(teacherProfileData.id);
+      setClasses(uniqueClasses);
 
       if (uniqueClasses.length > 0) {
         setSelectedClass(uniqueClasses[0]);
       } else {
+        setSelectedClass(null);
         setLoading(false);
       }
     } catch (err) {
@@ -275,197 +200,18 @@ export default function StudentListScreen() {
       setError(null);
       setCurrentPage(1);
 
-      // ─── Query 1: Fetch Exams for Class Average ───
-      const { data: examsData, error: examsErr } = await supabase
-        .from("exams")
-        .select("id, total_marks, exam_date")
-        .eq("class_id", tab.class_id)
-        .order("exam_date", { ascending: true }); // chronological
+      if (!teacher) return;
 
-      if (examsErr) console.error("Error fetching exams:", examsErr);
+      const details = await getTeacherSectionDetails(
+        teacher.id,
+        tab.section_id,
+        tab.class_id
+      );
 
-      const examIds = examsData?.map((e) => e.id) || [];
-      let examResultsData: any[] = [];
-
-      if (examIds.length > 0) {
-        const { data: erData, error: erErr } = await supabase
-          .from("exam_results")
-          .select("marks_obtained, exam_id, student_id")
-          .in("exam_id", examIds);
-
-        if (erErr) console.error("Error fetching exam results:", erErr);
-        examResultsData = erData || [];
-      }
-
-      // Calculate class average
-      let totalObtained = 0;
-      let totalMaxMarks = 0;
-      examResultsData.forEach((r: any) => {
-        const ex = examsData?.find((e) => e.id === r.exam_id);
-        if (r.marks_obtained !== null && ex) {
-          totalObtained += Number(r.marks_obtained);
-          totalMaxMarks += Number(ex.total_marks || 100);
-        }
-      });
-      const avgMarksPct =
-        totalMaxMarks > 0 ? ((totalObtained / totalMaxMarks) * 100).toFixed(1) + "%" : "—";
-      setClassAvg(avgMarksPct);
-
-      // ─── Query 2: Fetch enrolled students for selected section ───
-      const { data: enrollmentsData, error: enrollmentsErr } = await supabase
-        .from("enrollments")
-        .select(`
-          student_id,
-          roll_number,
-          student:students!inner (
-            id,
-            student_code,
-            user:users!inner (
-              id,
-              full_name,
-              avatar_url:profile_photo_url
-            )
-          )
-        `)
-        .eq("section_id", tab.section_id)
-        .eq("is_active", true);
-
-      if (enrollmentsErr) {
-        console.error("Error fetching enrollments:", enrollmentsErr);
-        setError("Could not load student list");
-        setLoading(false);
-        return;
-      }
-
-      const sIds = enrollmentsData?.map((e) => e.student_id) || [];
-
-      // ─── Query 3: Fetch AI Scores for Stats & Badges ───
-      let dbAiScores: Record<string, number> = {};
-      let totalAiSum = 0;
-      let aiCount = 0;
-
-      if (sIds.length > 0) {
-        const { data: aiScoresData, error: aiScoresErr } = await supabase
-          .from("ai_scores")
-          .select("student_id, score, date")
-          .in("student_id", sIds)
-          .order("date", { ascending: false });
-
-        if (aiScoresErr) console.error("Error fetching AI scores:", aiScoresErr);
-
-        aiScoresData?.forEach((s) => {
-          // Keep only latest score per student for display
-          if (dbAiScores[s.student_id] === undefined) {
-            const rawScore = Number(s.score);
-            const scoreVal = rawScore > 10 ? rawScore / 10 : rawScore;
-            dbAiScores[s.student_id] = scoreVal;
-          }
-          // Cumulative calculation for section stats
-          const cumulativeScore = Number(s.score);
-          totalAiSum += cumulativeScore > 10 ? cumulativeScore / 10 : cumulativeScore;
-          aiCount++;
-        });
-      }
-      const avgAiTalent = aiCount > 0 ? (totalAiSum / aiCount).toFixed(1) + "/10" : "—";
-      setAiTalentScore(avgAiTalent);
-
-      // ─── Query 4: Fetch Student Attendance for stats ───
-      let avgAtt = "—";
-      if (sIds.length > 0) {
-        const { data: attendanceData, error: attErr } = await supabase
-          .from("student_attendance")
-          .select("status")
-          .in("student_id", sIds);
-
-        if (attErr) console.error("Error fetching attendance:", attErr);
-
-        if (attendanceData && attendanceData.length > 0) {
-          let presentCount = 0;
-          attendanceData.forEach((att) => {
-            if (att.status === "present" || att.status === "late") {
-              presentCount++;
-            }
-          });
-          avgAtt = Math.round((presentCount / attendanceData.length) * 100) + "%";
-        }
-      }
-      setAttendanceRate(avgAtt);
-
-      // ─── Processing: Students Table Mapping, Marks Avg, and Trends ───
-      const mappedStudents: StudentItem[] = (enrollmentsData || []).map((e: any) => {
-        const studentObj = Array.isArray(e.student) ? e.student[0] : e.student;
-        const userObj = studentObj
-          ? Array.isArray(studentObj.user)
-            ? studentObj.user[0]
-            : studentObj.user
-          : null;
-
-        const sid = studentObj?.id;
-
-        // Filter exam results for this student
-        const sResults = examResultsData.filter(
-          (r) => r.student_id === sid && r.marks_obtained !== null
-        );
-
-        let studentObtained = 0;
-        let studentMax = 0;
-        sResults.forEach((r) => {
-          const ex = examsData?.find((e) => e.id === r.exam_id);
-          if (ex) {
-            studentObtained += Number(r.marks_obtained);
-            studentMax += Number(ex.total_marks || 100);
-          }
-        });
-        const marksPct = studentMax > 0 ? Math.round((studentObtained / studentMax) * 100) : null;
-
-        // Fetch student's latest AI score
-        const aiScore = dbAiScores[sid] !== undefined ? dbAiScores[sid] : null;
-
-        // Calculate trend (Compare last 2 exam scores)
-        const sortedStudentResults = sResults
-          .map((r) => {
-            const ex = examsData?.find((e) => e.id === r.exam_id);
-            return {
-              ...r,
-              exam_date: ex ? new Date(ex.exam_date) : new Date(0),
-              total_marks: ex ? Number(ex.total_marks || 100) : 100,
-            };
-          })
-          .sort((a, b) => a.exam_date.getTime() - b.exam_date.getTime()); // oldest first
-
-        let trend: "improving" | "declining" | "stable" = "stable";
-        if (sortedStudentResults.length >= 2) {
-          const latest = sortedStudentResults[sortedStudentResults.length - 1];
-          const prev = sortedStudentResults[sortedStudentResults.length - 2];
-
-          const latestPct = (Number(latest.marks_obtained) / latest.total_marks) * 100;
-          const prevPct = (Number(prev.marks_obtained) / prev.total_marks) * 100;
-
-          if (latestPct > prevPct) trend = "improving";
-          else if (latestPct < prevPct) trend = "declining";
-        }
-
-        return {
-          id: sid,
-          roll_number: e.roll_number,
-          student_code: studentObj?.student_code || "",
-          full_name: userObj?.full_name || "Unknown Student",
-          avatar_url: userObj?.avatar_url || null,
-          marks: marksPct,
-          ai_score: aiScore,
-          trend,
-        };
-      });
-
-      // Sort by marks % descending (students with highest scores at top)
-      mappedStudents.sort((a, b) => {
-        if (a.marks === null && b.marks === null) return 0;
-        if (a.marks === null) return 1; // move nulls to end
-        if (b.marks === null) return -1;
-        return b.marks - a.marks; // desc
-      });
-
-      setStudents(mappedStudents);
+      setClassAvg(details.classAvg);
+      setAiTalentScore(details.aiTalentScore);
+      setAttendanceRate(details.attendanceRate);
+      setStudents(details.students);
       setLoading(false);
     } catch (err) {
       console.error("Failed to load tab details:", err);
@@ -539,6 +285,16 @@ export default function StudentListScreen() {
       {/* Tabs / Loading / List View */}
       {loading && classes.length === 0 ? (
         <StudentListSkeleton />
+      ) : classes.length === 0 ? (
+        <View className="flex-1 justify-center items-center p-6 bg-[#F7F3EB]">
+          <Ionicons name="people-outline" size={48} color="#D4AF37" />
+          <Text className="font-poppins-bold text-base text-[#0D1B2A] mt-3">
+            No students assigned yet
+          </Text>
+          <Text className="font-inter text-xs text-gray-500 text-center mt-1.5">
+            No students assigned yet. Contact your administrator.
+          </Text>
+        </View>
       ) : (
         <ScrollView
           className="flex-1"

@@ -950,3 +950,120 @@ export async function getInstitutionSections(institutionId: string): Promise<{ i
     return [];
   }
 }
+
+export interface ClassAttendanceBreakdown {
+  classId: string;
+  className: string;
+  sectionId: string;
+  sectionName: string;
+  presentCount: number;
+  absentCount: number;
+  totalCount: number;
+}
+
+export async function getInstitutionAttendance(
+  institutionId: string,
+  date: string
+): Promise<ClassAttendanceBreakdown[]> {
+  try {
+    // 1. Fetch all classes and sections for the institution
+    const { data: sectionsData, error: sectionsError } = await supabase
+      .from("sections")
+      .select(`
+        id,
+        name,
+        class:classes!inner (
+          id,
+          name,
+          institution_id
+        )
+      `)
+      .eq("class.institution_id", institutionId)
+      .is("deleted_at", null);
+
+    if (sectionsError) throw sectionsError;
+
+    const sections = (sectionsData || []).map((s: any) => {
+      const classObj = Array.isArray(s.class) ? s.class[0] : s.class;
+      return {
+        sectionId: s.id,
+        sectionName: s.name,
+        classId: classObj?.id || "",
+        className: classObj?.name || "",
+      };
+    });
+
+    const sectionIds = sections.map(s => s.sectionId);
+    if (sectionIds.length === 0) return [];
+
+    // 2. Fetch all active enrollments for these sections to get active student counts
+    const { data: enrollmentsData, error: enrollmentsError } = await supabase
+      .from("enrollments")
+      .select("student_id, section_id")
+      .in("section_id", sectionIds)
+      .eq("is_active", true)
+      .is("deleted_at", null);
+
+    if (enrollmentsError) throw enrollmentsError;
+
+    // Group active student IDs by section ID
+    const sectionActiveStudents: Record<string, Set<string>> = {};
+    sectionIds.forEach(id => {
+      sectionActiveStudents[id] = new Set();
+    });
+    enrollmentsData?.forEach(e => {
+      if (e.section_id && e.student_id) {
+        sectionActiveStudents[e.section_id].add(e.student_id);
+      }
+    });
+
+    // 3. Fetch student attendance for this date
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .from("student_attendance")
+      .select("student_id, status")
+      .eq("date", date)
+      .is("deleted_at", null);
+
+    if (attendanceError) throw attendanceError;
+
+    // Group attendance status by student_id
+    const studentAttendanceMap: Record<string, string> = {};
+    attendanceData?.forEach(att => {
+      if (att.student_id && att.status) {
+        studentAttendanceMap[att.student_id] = att.status.toLowerCase();
+      }
+    });
+
+    // 4. Compute breakdown per section
+    const breakdown: ClassAttendanceBreakdown[] = sections.map(sec => {
+      const activeStudents = sectionActiveStudents[sec.sectionId] || new Set();
+      let presentCount = 0;
+      let absentCount = 0;
+
+      activeStudents.forEach(studentId => {
+        const status = studentAttendanceMap[studentId];
+        if (status === "present" || status === "late") {
+          presentCount++;
+        } else {
+          absentCount++;
+        }
+      });
+
+      return {
+        classId: sec.classId,
+        className: sec.className,
+        sectionId: sec.sectionId,
+        sectionName: sec.sectionName,
+        presentCount,
+        absentCount,
+        totalCount: activeStudents.size,
+      };
+    });
+
+    return breakdown;
+  } catch (error) {
+    console.error("Error in getInstitutionAttendance repository:", error);
+    return [];
+  }
+}
+
