@@ -324,6 +324,23 @@ export default function ProfileScreen() {
 
           <View className="h-[1px] bg-[#F3F4F6] w-full" />
 
+          {/* Update Password */}
+          <TouchableOpacity
+            onPress={() => router.push("/profile/update-password" as any)}
+            className="flex-row items-center py-3.5"
+            activeOpacity={0.7}
+          >
+            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+              <Ionicons name="key-outline" size={20} color="#FFFFFF" />
+            </View>
+            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+              Update Password
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color="#6B7280" />
+          </TouchableOpacity>
+
+          <View className="h-[1px] bg-[#F3F4F6] w-full" />
+
           {/* Logout */}
           <TouchableOpacity
             onPress={() => Alert.alert(

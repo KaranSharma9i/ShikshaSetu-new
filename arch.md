@@ -15,6 +15,7 @@ ShikshaSetu/
         index.tsx
         more/
           circulars.tsx
+          edit.tsx
           exams.tsx
           index.tsx
           marks.tsx
@@ -25,6 +26,7 @@ ShikshaSetu/
           index.tsx
           preview.tsx
           published.tsx
+          [id].tsx
           _layout.tsx
         teacher-students/
           index.tsx
@@ -216,6 +218,9 @@ ShikshaSetu/
       teacher-homework-generation/
         DESIGN.md
         screen.png
+      teacher-homework-insights/
+        DESIGN.md
+        screen.png
       teacher-profile/
         DESIGN.md
         screen.png
@@ -243,6 +248,7 @@ ShikshaSetu/
       teacher/
         BottomNavBar.tsx
         Header.tsx
+        ProfilePhotoUploader.tsx
       themed-text.tsx
       themed-view.tsx
       ui/
@@ -301,6 +307,8 @@ ShikshaSetu/
         0030_billing_rls.sql
         0031_homework_ai_generation.sql
         0032_add_homework_section.sql
+        0033_fix_homework_submissions_ai_scoring.sql
+        0034_add_users_student_select_policy.sql
         All_view.sql
       supabase.js
       test-ay-query.js
@@ -340,9 +348,11 @@ ShikshaSetu/
     package.json
     scripts/
       alter-transport.js
+      apply-migration-033.js
       apply-rls.js
       check-local-db.js
       check-users.js
+      check_aarav.js
       check_attendance_schema.js
       check_schema.js
       debug-submissions.js
@@ -376,11 +386,15 @@ ShikshaSetu/
         auth.ts
       routes/
         homework.ts
+        studentHomework.ts
       services/
         gemini.ts
         pdf.ts
+        scoringService.ts
       types/
         generation.ts
+      utils/
+        planResolver.ts
     src/
       context/
         AuthContext.tsx
@@ -446,6 +460,8 @@ ShikshaSetu/
         0030_billing_rls.sql
         0031_homework_ai_generation.sql
         0032_add_homework_section.sql
+        0033_fix_homework_submissions_ai_scoring.sql
+        0034_add_users_student_select_policy.sql
         All_view.sql
     tailwind.config.js
     test_rls_functions.js
