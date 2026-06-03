@@ -10,7 +10,7 @@ async function main() {
   try {
     // 1. Point the system to your local test asset file (adjust name/path if needed)
     // Since this script is inside src/, we look up one folder level to find the assets directory
-    const imagePath = path.join(__dirname, "..", "assets", "");
+    const imagePath = path.join(__dirname, "..", "assets", "gurukul.png");
     
     // 2. Read the image file synchronously and turn it into a Base64 string
     const imageBuffer = fs.readFileSync(imagePath);

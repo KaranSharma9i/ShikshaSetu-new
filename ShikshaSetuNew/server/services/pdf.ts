@@ -1,23 +1,6 @@
 import PDFDocument from "pdfkit";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../config";
 import { GeneratedContent, GenerateHomeworkRequest } from "../types/generation";
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey =
-  process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "";
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("Missing Supabase URL or Service Role Key in environment variables.");
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
 
 export class PdfService {
   async generateAndUpload(

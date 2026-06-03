@@ -239,7 +239,7 @@ export default function HomeworkInsightsScreen() {
       // 3. Fetch submissions for this homework assignment
       const { data: submissionsData, error: submissionsErr } = await supabase
         .from("homework_submissions")
-        .select("id, student_id, submitted_at, marks_obtained, feedback, status, ai_score, file_url")
+        .select("id, student_id, submitted_at, marks_obtained, ai_feedback, status, ai_score, attachment_urls")
         .eq("homework_id", id);
 
       if (submissionsErr) {

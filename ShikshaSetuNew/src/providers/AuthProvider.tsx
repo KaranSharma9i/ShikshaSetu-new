@@ -112,8 +112,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      fetchUserProfile(session);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn("Initial session recovery failed, clearing credentials:", error.message);
+        // Stale/invalid token in storage, sign out to clear it
+        supabase.auth.signOut().catch(() => {});
+        fetchUserProfile(null);
+      } else {
+        fetchUserProfile(session);
+      }
+    }).catch(err => {
+      console.warn("getSession promise rejected:", err);
+      supabase.auth.signOut().catch(() => {});
+      fetchUserProfile(null);
     });
 
     // Listen for auth state changes

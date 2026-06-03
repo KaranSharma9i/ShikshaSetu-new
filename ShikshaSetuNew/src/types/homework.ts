@@ -26,9 +26,10 @@ export interface HomeworkSubmission {
   student_id: string;
   submitted_at: string;
   marks_obtained: number | null;
-  feedback: any | null;
+  ai_feedback: any | null;
   status: 'submitted' | 'scored';
   ai_score: number | null;
+  attachment_urls: string[] | null;
   file_url: string | null;
 }
 

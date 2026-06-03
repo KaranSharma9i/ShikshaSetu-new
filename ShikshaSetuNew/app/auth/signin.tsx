@@ -64,7 +64,7 @@ export default function SigninScreen() {
       await signIn(emailAddress, password);
       router.replace("/");
     } catch (err: any) {
-      console.error(err);
+      console.warn("Sign-in failed:", err?.message || err);
       const errMsg =
         err?.message ||
         "Invalid email or password.";

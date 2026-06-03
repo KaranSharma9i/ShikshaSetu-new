@@ -7,9 +7,12 @@ import { schoolData } from "../../constants/schoolData";
 interface HeaderProps {
   studentName?: string;
   profilePhotoUrl?: string | null;
+  title?: string;
+  showBack?: boolean;
+  onBack?: () => void;
 }
 
-export default function Header({ studentName, profilePhotoUrl }: HeaderProps) {
+export default function Header({ studentName, profilePhotoUrl, title, showBack = false, onBack }: HeaderProps) {
   const router = useRouter();
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
   
@@ -32,24 +35,43 @@ export default function Header({ studentName, profilePhotoUrl }: HeaderProps) {
         paddingBottom: 15,
       }}
     >
-      {/* Left side: Logo + School Name */}
-      <View className="flex-row items-center space-x-2.5">
-        <View className="w-9 h-9 rounded-lg bg-white items-center justify-center border border-gray-100 overflow-hidden shadow-sm">
-          <Image
-            source={schoolData.config.logo}
-            style={{ width: 26, height: 26 }}
-            resizeMode="contain"
-          />
+      {/* Left side: Logo + School Name or Back Button + Title */}
+      {showBack ? (
+        <View className="flex-row items-center space-x-3">
+          <TouchableOpacity
+            onPress={onBack}
+            activeOpacity={0.7}
+            className="p-1 -ml-1"
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Ionicons name="chevron-back" size={24} color="#0D1B2A" />
+          </TouchableOpacity>
+          {title ? (
+            <Text className="font-poppins-bold text-[16px] text-[#0D1B2A] leading-tight">
+              {title}
+            </Text>
+          ) : null}
         </View>
-        <View>
-          <Text className="font-poppins-bold text-[13px] text-[#0D1B2A] leading-tight">
-            {nameParts[0] || "Gurukul"}
-          </Text>
-          <Text className="font-poppins-bold text-[13px] text-[#0D1B2A] leading-tight mt-0.5">
-            {nameParts[1] || "Shikshalaya"}
-          </Text>
+      ) : (
+        <View className="flex-row items-center space-x-2.5">
+          <View className="w-9 h-9 rounded-lg bg-white items-center justify-center border border-gray-100 overflow-hidden shadow-sm">
+            <Image
+              source={schoolData.config.logo}
+              style={{ width: 26, height: 26 }}
+              resizeMode="contain"
+            />
+          </View>
+          <View>
+            <Text className="font-poppins-bold text-[13px] text-[#0D1B2A] leading-tight">
+              {nameParts[0] || "Gurukul"}
+            </Text>
+            <Text className="font-poppins-bold text-[13px] text-[#0D1B2A] leading-tight mt-0.5">
+              {nameParts[1] || "Shikshalaya"}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Right side: Bell icon + Avatar */}
       <View className="flex-row items-center space-x-4">
