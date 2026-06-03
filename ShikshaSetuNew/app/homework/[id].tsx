@@ -410,6 +410,42 @@ export default function HomeworkDetailScreen() {
               </View>
             )}
 
+            {/* Homework PDF Card */}
+            {homework.pdf_url && (
+              <View style={{ marginTop: 16, marginBottom: 4 }}>
+                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: '#74777D', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                  HOMEWORK PAPER
+                </Text>
+                <View style={{ backgroundColor: Colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.border }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (homework.pdf_url) {
+                        Linking.openURL(homework.pdf_url).catch(() => {
+                          Alert.alert('Error', 'Unable to open PDF.');
+                        });
+                      }
+                    }}
+                    activeOpacity={0.8}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: Colors.navyBlue,
+                      borderRadius: 8,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Ionicons name="document-text-outline" size={18} color={Colors.surface} />
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.surface }}>
+                      View PDF
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* ── d) Question sheet attachment card ─── */}
             {homework.file_url && (
               <AttachmentCard fileUrl={homework.file_url} />
@@ -429,7 +465,21 @@ export default function HomeworkDetailScreen() {
               handleCameraCapture={handleCameraCapture}
               handleGalleryPick={handleGalleryPick}
               handleSubmitForScoring={handleSubmitForScoring}
-              onReviewFeedback={() => router.push(`/homework/score/${homework.id}` as any)}
+              onReviewFeedback={() => {
+                if (!homework || !homework.submission) return;
+                router.push({
+                  pathname: '/homework/score/[id]',
+                  params: {
+                    id: homework.submission.id,
+                    ai_score: String(homework.submission.ai_score ?? 0),
+                    ai_feedback: JSON.stringify(homework.submission.ai_feedback ?? {}),
+                    plan_tier: subscriptionStatus?.plan_tier ?? 'STANDARD',
+                    scored_at: homework.submission.submitted_at ?? new Date().toISOString(),
+                    homework_title: homework.title,
+                    remaining_today: String(subscriptionStatus?.remaining_today ?? 0),
+                  },
+                });
+              }}
             />
 
           </View>

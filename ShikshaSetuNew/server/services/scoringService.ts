@@ -71,7 +71,7 @@ Respond with ONLY this JSON structure. Do not wrap the JSON output in markdown b
       }
     ],
     config: {
-      maxOutputTokens: 400,
+      maxOutputTokens: 2048,
       temperature: 0.1,
       responseMimeType: "application/json",
     }

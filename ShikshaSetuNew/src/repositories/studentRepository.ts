@@ -887,6 +887,7 @@ export async function getHomeworkById(
         total_marks,
         difficulty,
         file_url,
+        pdf_url,
         status,
         notes,
         subject:subjects (
@@ -957,6 +958,7 @@ export async function getHomeworkById(
       total_marks: hw.total_marks ? Number(hw.total_marks) : 100,
       difficulty: hw.difficulty || "Medium",
       file_url: hw.file_url,
+      pdf_url: hw.pdf_url,
       status: hw.status,
       submission: sub ? {
         id: sub.id,

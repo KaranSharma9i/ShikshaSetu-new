@@ -6,11 +6,11 @@ async function run() {
   await client.connect();
   try {
     const res = await client.query(`
-      SELECT schemaname, tablename, policyname, qual 
+      SELECT schemaname, tablename, policyname, qual, cmd
       FROM pg_policies 
-      WHERE qual LIKE '%teachers.id%' OR qual LIKE '%class_subjects.teacher_id%'
+      WHERE tablename IN ('users', 'teachers', 'homework')
     `);
-    console.log("Policies with potential teacher ID mismatches:");
+    console.log("Policies:");
     console.table(res.rows);
   } catch (err) {
     console.error(err);

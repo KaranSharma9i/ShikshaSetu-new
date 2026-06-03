@@ -1,7 +1,7 @@
 import { Alert } from "react-native";
 
 export function handleError(error: any, contextDescription?: string) {
-  console.error(`[Error] ${contextDescription ? `${contextDescription}: ` : ""}`, error);
+  console.warn(`[Error] ${contextDescription ? `${contextDescription}: ` : ""}`, error);
 
   let userMessage = error?.message || "An unexpected error occurred. Please try again.";
 
