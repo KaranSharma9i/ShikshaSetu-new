@@ -404,10 +404,44 @@ export async function appointTeacher(
       tempPassword
     );
 
+    const supabaseServiceRoleKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    if (!supabaseServiceRoleKey) {
+      throw new Error("Service role key is missing. Add EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY to your .env file");
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+
+    const { data: signUpData, error: signUpErr } = await supabaseAdmin.auth.admin.createUser({
+      email: params.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        is_admin_registered: true,
+      },
+    });
+
+    if (signUpErr) {
+      console.error("Supabase Admin createUser failed:", signUpErr);
+      throw new Error(signUpErr.message);
+    }
+
+    if (!signUpData.user) {
+      throw new Error("Auth account creation failed: No user returned");
+    }
+
+    const authUserId = signUpData.user.id;
+
     // 2. Insert user profile into public.users
     const { data: userData, error: userErr } = await supabase
       .from("users")
       .insert({
+        id: authUserId,
         institution_id: institutionId,
         role: "teacher",
         login_id: loginId,

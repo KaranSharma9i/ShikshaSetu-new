@@ -63,7 +63,8 @@ export default function RegisterUser() {
   const [studentGrade, setStudentGrade] = useState("LKG");
   const [studentSection, setStudentSection] = useState("A");
   const [sections, setSections] = useState<string[]>([]);
-  const [dob, setDob] = useState("");
+  const [dob, setDob] = useState<Date | null>(null);
+  const [showStudentDobPicker, setShowStudentDobPicker] = useState(false);
   const [gender, setGender] = useState("Male");
   const [address, setAddress] = useState("");
   const [transport, setTransport] = useState("School Shuttle");
@@ -145,7 +146,8 @@ export default function RegisterUser() {
   const resetForms = () => {
     setStep(1);
     setStudentName("");
-    setDob("");
+    setDob(null);
+    setShowStudentDobPicker(false);
     setAddress("");
     setPrevInst("");
     setGpa("");
@@ -182,7 +184,7 @@ export default function RegisterUser() {
 
   const handleNextStepStudent = () => {
     if (step === 1) {
-      if (!studentName.trim() || !dob.trim()) {
+      if (!studentName.trim() || !dob) {
         Alert.alert("Input Required", "Please enter Candidate Name and Date of Birth.");
         return;
       }
@@ -211,7 +213,7 @@ export default function RegisterUser() {
       const res = await registerStudent(institutionId || "", {
         name: studentName.trim(),
         grade: studentGrade,
-        dob: dob.trim(),
+        dob: dob ? dob.toISOString().slice(0, 10) : "",
         gender,
         address: address.trim(),
         prevInst: prevInst.trim(),
@@ -291,6 +293,13 @@ export default function RegisterUser() {
   const formatDateDisplay = (date: Date | null): string => {
     if (!date) return "";
     return date.toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+  };
+
+  const handleStudentDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowStudentDobPicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setDob(selectedDate);
+    }
   };
 
   const handleTeacherDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -527,13 +536,24 @@ export default function RegisterUser() {
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
                       Date of Birth
                     </Text>
-                    <TextInput
-                      value={dob}
-                      onChangeText={setDob}
-                      placeholder="e.g. May 14, 2008"
-                      placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
-                    />
+                    <TouchableOpacity
+                      onPress={() => setShowStudentDobPicker(true)}
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 flex-row items-center justify-between"
+                    >
+                      <Text className={`font-inter text-xs ${dob ? "text-[#0F1C2C]" : "text-[#9CA3AF]"}`}>
+                        {dob ? formatDateDisplay(dob) : "Select date of birth"}
+                      </Text>
+                      <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                    {showStudentDobPicker && (
+                      <DateTimePicker
+                        value={dob || new Date(2010, 0, 1)}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        maximumDate={new Date()}
+                        onChange={handleStudentDobChange}
+                      />
+                    )}
 
                     {/* Class Selector */}
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">

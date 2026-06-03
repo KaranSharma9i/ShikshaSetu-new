@@ -142,6 +142,20 @@ export default function UtilitiesHub() {
               <Ionicons name="chevron-forward" size={16} color="#778598" />
             </TouchableOpacity>
 
+            {/* Update Password */}
+            <TouchableOpacity
+              onPress={() => router.push("/institution/update-password" as any)}
+              className="flex-row items-center justify-between p-4 border-b border-gray-150"
+            >
+              <View className="flex-row items-center space-x-3">
+                <Ionicons name="key-outline" size={18} color="#0F1C2C" />
+                <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">
+                  Update Password
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#778598" />
+            </TouchableOpacity>
+
             {/* Logout */}
             <TouchableOpacity
               onPress={async () => {

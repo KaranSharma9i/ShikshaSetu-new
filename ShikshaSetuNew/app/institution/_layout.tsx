@@ -17,6 +17,18 @@ export default function InstitutionLayout() {
     return <Redirect href="/onboarding" />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="academics" />
+      <Stack.Screen name="attendance" />
+      <Stack.Screen name="circulars" />
+      <Stack.Screen name="events" />
+      <Stack.Screen name="fees" />
+      <Stack.Screen name="register" />
+      <Stack.Screen name="utilities" />
+      <Stack.Screen name="update-password" />
+    </Stack>
+  );
 }
 
