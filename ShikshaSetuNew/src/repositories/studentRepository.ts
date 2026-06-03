@@ -848,10 +848,11 @@ export async function getStudentHomeworks(studentId: string, classId: string): P
           student_id: sub.student_id,
           submitted_at: sub.submitted_at,
           marks_obtained: sub.marks_obtained !== null ? Number(sub.marks_obtained) : null,
-          feedback: sub.feedback,
+          ai_feedback: sub.ai_feedback,
           status: sub.status,
           ai_score: sub.ai_score !== null ? Number(sub.ai_score) : null,
-          file_url: sub.file_url
+          attachment_urls: sub.attachment_urls,
+          file_url: sub.attachment_urls?.[0] || null
         } : null
       };
     });
@@ -963,10 +964,11 @@ export async function getHomeworkById(
         student_id: sub.student_id,
         submitted_at: sub.submitted_at,
         marks_obtained: sub.marks_obtained !== null ? Number(sub.marks_obtained) : null,
-        feedback: sub.feedback,
+        ai_feedback: sub.ai_feedback,
         status: sub.status,
         ai_score: sub.ai_score !== null ? Number(sub.ai_score) : null,
-        file_url: sub.file_url
+        attachment_urls: sub.attachment_urls,
+        file_url: sub.attachment_urls?.[0] || null
       } : null
     };
   } catch (error) {
@@ -987,11 +989,11 @@ export async function submitHomework(
       .upsert({
         homework_id: homeworkId,
         student_id: studentId,
-        file_url: fileUrl,
+        attachment_urls: fileUrl ? [fileUrl] : null,
         submitted_at: new Date().toISOString(),
         status: 'submitted',
         marks_obtained: null,
-        feedback: null,
+        ai_feedback: null,
         ai_score: null
       }, {
         onConflict: 'homework_id,student_id'
@@ -1026,8 +1028,9 @@ export async function getHomeworkScore(
     ai_score: number | null;
     submitted_at: string;
     status: string;
+    attachment_urls: string[] | null;
     file_url: string | null;
-    feedback: {
+    ai_feedback: {
       overall_score: number;
       grade_label: string;
       dimensions: {
@@ -1064,7 +1067,7 @@ export async function getHomeworkScore(
 
     const { data: sub, error: subError } = await supabase
       .from("homework_submissions")
-      .select("id, marks_obtained, ai_score, feedback, submitted_at, status, file_url")
+      .select("id, marks_obtained, ai_score, ai_feedback, submitted_at, status, attachment_urls")
       .eq("homework_id", homeworkId)
       .eq("student_id", studentId)
       .is("deleted_at", null)
@@ -1093,8 +1096,8 @@ export async function getHomeworkScore(
     }
 
     let parsedFeedback = null;
-    if (sub.feedback) {
-      const fb = sub.feedback;
+    if (sub.ai_feedback) {
+      const fb = sub.ai_feedback;
       if (fb.overall_score !== undefined && fb.dimensions !== undefined) {
         parsedFeedback = fb;
       } else {
@@ -1175,8 +1178,9 @@ export async function getHomeworkScore(
         ai_score: aiScoreNormalized,
         submitted_at: sub.submitted_at,
         status: sub.status,
-        file_url: sub.file_url,
-        feedback: parsedFeedback,
+        attachment_urls: sub.attachment_urls,
+        file_url: sub.attachment_urls?.[0] || null,
+        ai_feedback: parsedFeedback,
       },
     };
   } catch (error) {
@@ -1486,4 +1490,64 @@ export async function getStudentTimetable(
     };
   });
 }
+
+export interface SubscriptionStatus {
+  plan_tier: 'FREE' | 'STANDARD' | 'PRO';
+  tier_expires_at: string | null;
+  is_active: boolean;
+  daily_limit: number;
+  used_today: number;
+  remaining_today: number;
+}
+
+export interface EvaluationResult {
+  success: boolean;
+  submission_id: string;
+  ai_score: number;
+  ai_feedback: {
+    completeness: number;
+    concept_clarity: number;
+    presentation: number;
+    insights?: string[];
+    wrong_answers?: Array<{ question_number: number; description: string }>;
+    partial_answers?: Array<{ question_number: number; description: string }>;
+  };
+  plan_tier: 'FREE' | 'STANDARD' | 'PRO';
+  used_today: number;
+  remaining_today: number;
+  scored_at: string;
+}
+
+export async function getSubscriptionStatus(studentId: string): Promise<SubscriptionStatus> {
+  const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  const response = await fetch(`${serverUrl}/api/student/subscription?student_id=${studentId}`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || `Subscription fetch failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function submitHomeworkForEvaluation(params: {
+  studentId: string;
+  assignmentId: string;
+  base64Image: string;
+}): Promise<EvaluationResult> {
+  const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  const response = await fetch(`${serverUrl}/api/homework/submit-evaluate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      student_id: params.studentId,
+      assignment_id: params.assignmentId,
+      base64_image: params.base64Image,
+    }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || `Evaluation failed: ${response.status}`);
+  }
+  return response.json();
+}
+
 

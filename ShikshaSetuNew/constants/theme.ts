@@ -35,6 +35,12 @@ export const Colors = {
   navyBlue: '#0D1B2A',
   text: '#0D1B2A',
   pageBackground: '#F7F3EB',
+  red: '#DC2626',
+  badgeRedBg: '#FEF2F2',
+  textRed: '#991B1B',
+  green: '#16A34A',
+  badgeGreenBg: '#ECFDF5',
+  textGreen: '#15803D',
 };
 
 export const Fonts = Platform.select({

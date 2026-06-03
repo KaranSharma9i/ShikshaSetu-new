@@ -10,17 +10,25 @@ import {
   Platform,
   StatusBar,
   RefreshControl,
+  Image,
+  StyleSheet,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '@/src/hooks/useAuth';
 import {
   getStudentProfileByUserId,
   getHomeworkById,
   submitHomework,
+  getSubscriptionStatus,
+  submitHomeworkForEvaluation,
+  SubscriptionStatus,
 } from '@/src/repositories/studentRepository';
 import { HomeworkItem } from '@/src/types/homework';
 import BottomNavBar from '../../components/student/BottomNavBar';
+import { Colors } from '@/constants/theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,6 +71,16 @@ function getFilenameFromUrl(url: string): string {
   const parts = url.split('/');
   const last = parts[parts.length - 1];
   return last.split('?')[0] || 'Question_Paper.pdf';
+}
+
+async function compressImageToBase64(uri: string): Promise<string> {
+  const manipulated = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 800 } }],  // resize longest edge to 800px
+    { compress: 0.35, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+  );
+  if (!manipulated.base64) throw new Error('Image processing failed');
+  return manipulated.base64; // returns WITHOUT the data:image prefix
 }
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
@@ -116,6 +134,38 @@ export default function HomeworkDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [fileSelected, setFileSelected] = useState<string | null>(null);
 
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      setSelectedImageUri(null);
+      setSubmitError(null);
+    }, [])
+  );
+
+  useEffect(() => {
+    async function loadSubscription() {
+      if (!studentId) return;
+      try {
+        const status = await getSubscriptionStatus(studentId);
+        setSubscriptionStatus(status);
+      } catch (err) {
+        // On error assume FREE plan — safe default
+        setSubscriptionStatus({ 
+          plan_tier: 'FREE', tier_expires_at: null, is_active: false, 
+          daily_limit: 0, used_today: 0, remaining_today: 0 
+        });
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    }
+    loadSubscription();
+  }, [studentId]);
+
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0;
 
   const fetchData = useCallback(
@@ -168,6 +218,70 @@ export default function HomeworkDetailScreen() {
     const picked = sampleFiles[Math.floor(Math.random() * sampleFiles.length)];
     setFileSelected(picked);
   };
+
+  // ── Image picker and submit handlers for AI evaluation ──
+  async function handleCameraCapture() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Camera permission is needed to take a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImageUri(result.assets[0].uri);
+      setSubmitError(null);
+    }
+  }
+
+  async function handleGalleryPick() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Photo library permission is needed.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImageUri(result.assets[0].uri);
+      setSubmitError(null);
+    }
+  }
+
+  async function handleSubmitForScoring() {
+    if (!selectedImageUri || !studentId || !homework) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const base64Image = await compressImageToBase64(selectedImageUri);
+      const result = await submitHomeworkForEvaluation({
+        studentId,
+        assignmentId: homework.id,
+        base64Image,
+      });
+      // Navigate to score screen
+      router.push({
+        pathname: '/homework/score/[id]',
+        params: {
+          id: result.submission_id,
+          ai_score: String(result.ai_score),
+          ai_feedback: JSON.stringify(result.ai_feedback),
+          plan_tier: result.plan_tier,
+          scored_at: result.scored_at,
+          homework_title: homework.title,
+          remaining_today: String(result.remaining_today),
+        },
+      });
+    } catch (err: any) {
+      setSubmitError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   // ── Submit ────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -307,11 +421,14 @@ export default function HomeworkDetailScreen() {
             {/* ── f) Submission card ─── */}
             <SubmissionCard
               homework={homework}
-              fileSelected={fileSelected}
-              submitting={submitting}
-              onSelectFile={handleSelectFile}
-              onClearFile={() => setFileSelected(null)}
-              onSubmit={handleSubmit}
+              subscriptionStatus={subscriptionStatus}
+              subscriptionLoading={subscriptionLoading}
+              selectedImageUri={selectedImageUri}
+              isSubmitting={isSubmitting}
+              submitError={submitError}
+              handleCameraCapture={handleCameraCapture}
+              handleGalleryPick={handleGalleryPick}
+              handleSubmitForScoring={handleSubmitForScoring}
               onReviewFeedback={() => router.push(`/homework/score/${homework.id}` as any)}
             />
 
@@ -584,26 +701,32 @@ function DeadlineBanner({ homework }: { homework: HomeworkItem }) {
 
 function SubmissionCard({
   homework,
-  fileSelected,
-  submitting,
-  onSelectFile,
-  onClearFile,
-  onSubmit,
+  subscriptionStatus,
+  subscriptionLoading,
+  selectedImageUri,
+  isSubmitting,
+  submitError,
+  handleCameraCapture,
+  handleGalleryPick,
+  handleSubmitForScoring,
   onReviewFeedback,
 }: {
   homework: HomeworkItem;
-  fileSelected: string | null;
-  submitting: boolean;
-  onSelectFile: () => void;
-  onClearFile: () => void;
-  onSubmit: () => void;
+  subscriptionStatus: SubscriptionStatus | null;
+  subscriptionLoading: boolean;
+  selectedImageUri: string | null;
+  isSubmitting: boolean;
+  submitError: string | null;
+  handleCameraCapture: () => void;
+  handleGalleryPick: () => void;
+  handleSubmitForScoring: () => void;
   onReviewFeedback: () => void;
 }) {
   const sub = homework.submission;
 
   const statusConfig = sub
     ? sub.status === 'scored'
-      ? { label: 'SCORED', bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' }
+      ? { label: 'SCORED', bg: Colors.badgeGoldBg, text: Colors.textGold, border: Colors.borderGold }
       : { label: 'SUBMITTED', bg: '#ECFDF5', text: '#15803D', border: '#BBF7D0' }
     : { label: 'NOT SUBMITTED', bg: '#F9FAFB', text: '#6B7280', border: '#E5E7EB' };
 
@@ -611,12 +734,12 @@ function SubmissionCard({
     <View
       style={{
         marginTop: 20,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#E4E2E1',
-        shadowColor: '#0D1B2A',
+        borderColor: Colors.border,
+        shadowColor: Colors.navyBlue,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 16,
@@ -635,7 +758,7 @@ function SubmissionCard({
           borderBottomColor: '#F0EDED',
         }}
       >
-        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: '#0D1B2A' }}>
+        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.navyBlue }}>
           Your Submission
         </Text>
         <View
@@ -658,11 +781,14 @@ function SubmissionCard({
         {/* ── Pending state ─── */}
         {!sub && (
           <PendingSubmissionBody
-            fileSelected={fileSelected}
-            submitting={submitting}
-            onSelectFile={onSelectFile}
-            onClearFile={onClearFile}
-            onSubmit={onSubmit}
+            subscriptionLoading={subscriptionLoading}
+            subscriptionStatus={subscriptionStatus}
+            selectedImageUri={selectedImageUri}
+            isSubmitting={isSubmitting}
+            submitError={submitError}
+            handleCameraCapture={handleCameraCapture}
+            handleGalleryPick={handleGalleryPick}
+            handleSubmitForScoring={handleSubmitForScoring}
           />
         )}
 
@@ -681,110 +807,153 @@ function SubmissionCard({
 }
 
 function PendingSubmissionBody({
-  fileSelected,
-  submitting,
-  onSelectFile,
-  onClearFile,
-  onSubmit,
+  subscriptionLoading,
+  subscriptionStatus,
+  selectedImageUri,
+  isSubmitting,
+  submitError,
+  handleCameraCapture,
+  handleGalleryPick,
+  handleSubmitForScoring,
 }: {
-  fileSelected: string | null;
-  submitting: boolean;
-  onSelectFile: () => void;
-  onClearFile: () => void;
-  onSubmit: () => void;
+  subscriptionLoading: boolean;
+  subscriptionStatus: SubscriptionStatus | null;
+  selectedImageUri: string | null;
+  isSubmitting: boolean;
+  submitError: string | null;
+  handleCameraCapture: () => void;
+  handleGalleryPick: () => void;
+  handleSubmitForScoring: () => void;
 }) {
-  return (
-    <View>
-      {/* Upload / drop area */}
-      {fileSelected ? (
-        <View
-          style={{
-            backgroundColor: '#F6F3F2',
-            borderRadius: 12,
-            padding: 14,
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: 14,
-            borderWidth: 1,
-            borderColor: '#E4E2E1',
-          }}
-        >
-          <Ionicons name="document-attach-outline" size={20} color="#0D1B2A" />
-          <Text
-            style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: '#0D1B2A', flex: 1, marginLeft: 10 }}
-            numberOfLines={1}
-          >
-            {fileSelected}
+  // Show loading while fetching subscription
+  if (subscriptionLoading) {
+    return (
+      <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color={Colors.navyBlue} />
+      </View>
+    );
+  }
+
+  // Case 1: FREE plan or expired — show upgrade banner, no upload
+  if (!subscriptionStatus?.is_active) {
+    return (
+      <View style={styles.upgradeBanner}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+          <Ionicons name="lock-closed" size={18} color={Colors.textGold} style={{ marginRight: 8 }} />
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.textGold }}>
+            AI scoring requires Standard or Pro plan
           </Text>
-          <TouchableOpacity onPress={onClearFile} style={{ padding: 4 }} activeOpacity={0.7}>
-            <Ionicons name="close-circle" size={18} color="#DC2626" />
-          </TouchableOpacity>
         </View>
-      ) : (
-        <TouchableOpacity
-          onPress={onSelectFile}
-          activeOpacity={0.8}
-          style={{
-            borderWidth: 2,
-            borderColor: '#C4C6CC',
-            borderStyle: 'dashed',
-            borderRadius: 14,
-            paddingVertical: 32,
-            paddingHorizontal: 20,
-            alignItems: 'center',
-            marginBottom: 14,
-            backgroundColor: '#FBFAFB',
-          }}
-        >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              backgroundColor: '#F0EDED',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginBottom: 10,
-            }}
-          >
-            <Ionicons name="cloud-upload-outline" size={26} color="#74777D" />
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.textGold }}>
+          Contact your institution to upgrade
+        </Text>
+      </View>
+    );
+  }
+
+  // Case 2: Daily limit reached — show limit banner, no upload
+  if (subscriptionStatus.remaining_today <= 0) {
+    return (
+      <View style={styles.limitBanner}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+          <Ionicons name="alert-circle" size={18} color={Colors.textGold} style={{ marginRight: 8 }} />
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.textGold }}>
+            Daily AI limit reached ({subscriptionStatus.used_today}/{subscriptionStatus.daily_limit})
+          </Text>
+        </View>
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.textGold }}>
+          Try again tomorrow
+        </Text>
+      </View>
+    );
+  }
+
+  // Case 3: Plan expiring within 7 days — show warning banner ABOVE upload UI
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const expiresAt = subscriptionStatus.tier_expires_at ? new Date(subscriptionStatus.tier_expires_at) : null;
+  const showExpiryWarning = expiresAt && expiresAt < sevenDaysFromNow;
+  const expiryDateStr = expiresAt ? expiresAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  // Case 4: Normal — show upload UI
+  return (
+    <>
+      {showExpiryWarning && (
+        <View style={styles.expiryWarning}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="warning-outline" size={16} color={Colors.textRed} style={{ marginRight: 6 }} />
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.textRed }}>
+              Plan expires on {expiryDateStr}. Renew to keep AI scoring.
+            </Text>
           </View>
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: '#0D1B2A', marginBottom: 4 }}>
-            Tap to upload or drag & drop
-          </Text>
-          <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: '#74777D', textAlign: 'center' }}>
-            Supported files: PDF, JPG, PNG (Max 10MB)
-          </Text>
+        </View>
+      )}
+
+      {/* Remaining evaluations badge: "{remaining_today} of {daily_limit} evaluations left today" */}
+      <View style={{
+        backgroundColor: Colors.badgeNavyBg,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        alignSelf: 'flex-start',
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}>
+        <Ionicons name="flash" size={12} color={Colors.navyBlue} style={{ marginRight: 6 }} />
+        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: Colors.navyBlue }}>
+          {subscriptionStatus.remaining_today} of {subscriptionStatus.daily_limit} evaluations left today
+        </Text>
+      </View>
+
+      {/* Two buttons side by side */}
+      <View style={styles.pickerRow}>
+        <TouchableOpacity onPress={handleCameraCapture} style={styles.pickerButton} activeOpacity={0.7}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="camera-outline" size={20} color={Colors.navyBlue} />
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.navyBlue }}>Camera</Text>
+          </View>
         </TouchableOpacity>
+        <TouchableOpacity onPress={handleGalleryPick} style={styles.pickerButton} activeOpacity={0.7}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="image-outline" size={20} color={Colors.navyBlue} />
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.navyBlue }}>Gallery</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Image preview if selected */}
+      {selectedImageUri && (
+        <Image 
+          source={{ uri: selectedImageUri }} 
+          style={styles.imagePreview}  // width: 100%, height: 200, borderRadius: 8
+          resizeMode="cover" 
+        />
       )}
 
       {/* Submit button */}
-      <TouchableOpacity
-        onPress={fileSelected ? onSubmit : onSelectFile}
-        disabled={submitting}
-        activeOpacity={0.85}
-        style={{
-          backgroundColor: submitting ? '#44474C' : '#0D1B2A',
-          borderRadius: 12,
-          paddingVertical: 16,
-          flexDirection: 'row',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 8,
-        }}
+      <TouchableOpacity 
+        onPress={handleSubmitForScoring}
+        disabled={!selectedImageUri || isSubmitting}
+        style={[styles.submitButton, (!selectedImageUri || isSubmitting) && styles.submitButtonDisabled]}
+        activeOpacity={0.8}
       >
-        {submitting ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <>
-            <Ionicons name="send-outline" size={16} color="#FFFFFF" />
-            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: '#FFFFFF' }}>
-              Submit Assignment →
+        {isSubmitting ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ActivityIndicator color={Colors.surface} size="small" />
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.surface }}>
+              Analyzing...
             </Text>
-          </>
+          </View>
+        ) : (
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.surface }}>
+            Submit for AI Scoring →
+          </Text>
         )}
       </TouchableOpacity>
-    </View>
+
+      {/* Error message */}
+      {submitError && <Text style={styles.errorText}>{submitError}</Text>}
+    </>
   );
 }
 
@@ -944,3 +1113,59 @@ function ScoredBody({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  upgradeBanner: {
+    backgroundColor: Colors.badgeGoldBg,
+    padding: 16,
+    borderRadius: 12,
+  },
+  limitBanner: {
+    backgroundColor: Colors.badgeGoldBg,
+    padding: 16,
+    borderRadius: 12,
+  },
+  expiryWarning: {
+    backgroundColor: Colors.badgeGoldBg,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  pickerButton: {
+    flex: 1,
+    borderRadius: 10,
+    padding: 14,
+    backgroundColor: Colors.badgeNavyBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  submitButton: {
+    backgroundColor: Colors.navyBlue,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  errorText: {
+    color: Colors.red,
+    textAlign: 'center',
+    marginTop: 8,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+  },
+});
+

@@ -558,24 +558,24 @@ export default function HomeworkScreen() {
                           </View>
 
                           {/* Render JSON feedback if present */}
-                          {selectedHw.submission.feedback ? (
+                          {selectedHw.submission.ai_feedback ? (
                             <View>
                               {/* Overall Feedback text */}
-                              {selectedHw.submission.feedback.overallFeedback && (
+                              {selectedHw.submission.ai_feedback.overallFeedback && (
                                 <View className="bg-gray-50 p-3 rounded-xl mb-3 border border-gray-50">
                                   <Text className="font-inter text-[#0D1B2A] text-xs leading-relaxed">
-                                    "{selectedHw.submission.feedback.overallFeedback}"
+                                    "{selectedHw.submission.ai_feedback.overallFeedback}"
                                   </Text>
                                 </View>
                               )}
 
                               {/* Detailed Criteria Scores if present */}
-                              {selectedHw.submission.feedback.criteriaScores && (
+                              {selectedHw.submission.ai_feedback.criteriaScores && (
                                 <View className="space-y-2 mt-2">
                                   <Text className="font-poppins-semibold text-[10px] text-gray-400 uppercase tracking-wider mb-1">
                                     Criteria Breakdown
                                   </Text>
-                                  {Object.entries(selectedHw.submission.feedback.criteriaScores).map(([criteria, score]: any) => (
+                                  {Object.entries(selectedHw.submission.ai_feedback.criteriaScores).map(([criteria, score]: any) => (
                                     <View key={criteria} className="flex-row items-center justify-between">
                                       <Text className="font-inter text-xs text-gray-500 capitalize">
                                         {criteria}
