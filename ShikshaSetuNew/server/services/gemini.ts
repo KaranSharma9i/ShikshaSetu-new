@@ -119,20 +119,7 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
         throw new Error("No response text returned from Gemini");
       }
 
-      // Cleanup markdown if it gets through anyway
-      let cleanText = text.trim();
-      if (cleanText.startsWith("```json")) {
-        cleanText = cleanText.substring(7);
-      }
-      if (cleanText.startsWith("```")) {
-        cleanText = cleanText.substring(3);
-      }
-      if (cleanText.endsWith("```")) {
-        cleanText = cleanText.substring(0, cleanText.length - 3);
-      }
-      cleanText = cleanText.trim();
-
-      const parsed = JSON.parse(cleanText);
+      const parsed = this.parseGeminiJson(text);
 
       if (!parsed.questions || !Array.isArray(parsed.questions)) {
         throw new Error("Invalid output format: questions field must be an array");
@@ -163,6 +150,68 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
       }
       throw new Error(`Gemini Service Error: ${error.message}`);
     }
+  }
+
+  /**
+   * Robustly parse JSON text from Gemini, handling common issues:
+   * - Markdown code fences
+   * - Invalid escape sequences (e.g. \', \a, bare backslashes)
+   * - Control characters inside strings
+   */
+  private parseGeminiJson(rawText: string): any {
+    let text = rawText.trim();
+
+    // Strip markdown code fences
+    if (text.startsWith("```json")) {
+      text = text.substring(7);
+    } else if (text.startsWith("```")) {
+      text = text.substring(3);
+    }
+    if (text.endsWith("```")) {
+      text = text.substring(0, text.length - 3);
+    }
+    text = text.trim();
+
+    // First attempt: try parsing as-is
+    try {
+      return JSON.parse(text);
+    } catch (_firstError) {
+      // Continue to sanitization
+    }
+
+    // Sanitize invalid escape sequences.
+    // Valid JSON escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+    // Replace any backslash NOT followed by a valid escape char with \\
+    let sanitized = text.replace(
+      /\\(?!["\\/bfnrtu])/g,
+      "\\\\"
+    );
+
+    // Remove control characters (U+0000–U+001F) except those inside valid \n, \r, \t escapes
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+
+    // Second attempt: parse sanitized text
+    try {
+      return JSON.parse(sanitized);
+    } catch (_secondError) {
+      // Continue to more aggressive cleanup
+    }
+
+    // Third attempt: try to extract the JSON object with a regex
+    const jsonMatch = sanitized.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (_thirdError) {
+        // Fall through
+      }
+    }
+
+    // All attempts failed – throw with useful context
+    const preview = text.substring(0, 200);
+    throw new Error(
+      `Failed to parse Gemini response as JSON after sanitization. Preview: ${preview}...`
+    );
   }
 
   private generateMockHomework(
