@@ -81,9 +81,10 @@ export default function UpdatePasswordScreen() {
         return;
       }
 
-      // 2. Update to new password
+      // 3. Update to new password
       const { error: updateErr } = await supabase.auth.updateUser({
         password: newPassword,
+        current_password: currentPassword,
       });
 
       if (updateErr) {
