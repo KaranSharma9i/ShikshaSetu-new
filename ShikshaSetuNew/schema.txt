@@ -40,6 +40,9 @@ Table: circulars
   - created_at (timestamp with time zone)
   - updated_at (timestamp with time zone)
   - deleted_at (timestamp with time zone)
+  - target_roles (ARRAY)
+  - target_class_id (uuid)
+  - category (text)
 
 Table: class_subjects
   - id (uuid)
@@ -102,7 +105,6 @@ Table: exams
   - updated_at (timestamp with time zone)
   - deleted_at (timestamp with time zone)
   - syllabus_file_url (text)
-  - exam_time (time without time zone)
   - venue (text)
 
 Table: fee_payments
@@ -140,6 +142,10 @@ Table: holidays
   - created_at (timestamp with time zone)
   - updated_at (timestamp with time zone)
   - deleted_at (timestamp with time zone)
+  - event_type (text)
+  - status (text)
+  - location (text)
+  - category (text)
 
 Table: homework
   - id (uuid)
@@ -265,17 +271,6 @@ Table: sections
   - name (character varying)
   - capacity (smallint)
   - class_teacher_id (uuid)
-  - created_at (timestamp with time zone)
-  - updated_at (timestamp with time zone)
-  - deleted_at (timestamp with time zone)
-
-Table: sessions
-  - id (uuid)
-  - user_id (uuid)
-  - token_hash (text)
-  - ip_address (inet)
-  - user_agent (text)
-  - expires_at (timestamp with time zone)
   - created_at (timestamp with time zone)
   - updated_at (timestamp with time zone)
   - deleted_at (timestamp with time zone)
@@ -448,7 +443,6 @@ Table: users
   - institution_id (uuid)
   - role (USER-DEFINED)
   - login_id (text)
-  - password_hash (text)
   - full_name (text)
   - email (text)
   - phone (text)

@@ -16,18 +16,26 @@ import { schoolData, Circular } from "../../constants/schoolData";
 import { useAuth } from "../../src/hooks/useAuth";
 import { useQuery } from "../../src/hooks/useQuery";
 import { getCirculars, createCircular } from "../../src/repositories/circularRepository";
+import { getClasses } from "../../src/repositories/studentRepository";
 import { handleError } from "../../src/utils/error";
 
 export default function CircularsHub() {
   const { institutionId, userId } = useAuth();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [category, setCategory] = useState<"Announcement" | "Urgent" | "Event" | "Holiday">("Announcement");
+  const [category, setCategory] = useState<"Announcement" | "Urgent">("Announcement");
   const [audience, setAudience] = useState<"All" | "Students" | "Teachers" | "Parents">("All");
+  const [targetClassId, setTargetClassId] = useState<string | null>(null);
+  const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: dbCirculars, isLoading, refetch } = useQuery(
     () => getCirculars(institutionId || ""),
+    [institutionId]
+  );
+
+  const { data: classesData } = useQuery(
+    () => getClasses(institutionId || ""),
     [institutionId]
   );
   
@@ -47,16 +55,29 @@ export default function CircularsHub() {
 
     setIsSubmitting(true);
     try {
+      let targetRoles: string[] = ['institution_admin', 'teacher', 'student', 'driver'];
+      if (audience === "Students") {
+        targetRoles = ["student"];
+      } else if (audience === "Teachers") {
+        targetRoles = ["teacher"];
+      } else if (audience === "Parents") {
+        targetRoles = ["parent"];
+      }
+
       const newCircular = await createCircular(
         institutionId || "",
         title.trim(),
         body.trim(),
-        userId
+        userId,
+        category,
+        targetRoles,
+        audience === "Students" ? targetClassId : null
       );
 
       setCirculars([newCircular, ...circulars]);
       setTitle("");
       setBody("");
+      setTargetClassId(null);
       
       Alert.alert(
         "Notice Broadcasted",
@@ -114,7 +135,7 @@ export default function CircularsHub() {
               Category Tag
             </Text>
             <View className="flex-row flex-wrap gap-2 mb-4">
-              {(["Announcement", "Urgent", "Event", "Holiday"] as const).map((cat) => (
+              {(["Announcement", "Urgent"] as const).map((cat) => (
                 <TouchableOpacity
                   key={cat}
                   onPress={() => setCategory(cat)}
@@ -143,7 +164,13 @@ export default function CircularsHub() {
               {(["All", "Students", "Teachers"] as const).map((aud) => (
                 <TouchableOpacity
                   key={aud}
-                  onPress={() => setAudience(aud)}
+                  onPress={() => {
+                    setAudience(aud);
+                    if (aud !== "Students") {
+                      setTargetClassId(null);
+                      setClassPickerOpen(false);
+                    }
+                  }}
                   className={`flex-1 py-2 rounded-lg border items-center ${
                     audience === aud
                       ? "bg-[#0F1C2C] border-[#0F1C2C]"
@@ -160,6 +187,62 @@ export default function CircularsHub() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Target Class Dropdown (only when Students is selected) */}
+            {audience === "Students" && (
+              <View className="mb-4">
+                <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
+                  Target Class
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setClassPickerOpen(!classPickerOpen)}
+                  className="flex-row items-center justify-between px-4 py-3 bg-[#FCFAFA] border border-gray-200 rounded-xl"
+                >
+                  <Text className="font-inter text-xs text-[#0F1C2C]">
+                    {targetClassId && classesData
+                      ? (classesData.find(c => c.id === targetClassId)?.name || "All Classes")
+                      : "All Classes"}
+                  </Text>
+                  <Ionicons name={classPickerOpen ? "chevron-up" : "chevron-down"} size={14} color="#0F1C2C" />
+                </TouchableOpacity>
+
+                {classPickerOpen && (
+                  <View className="max-h-[160px] border border-gray-200 bg-white rounded-xl mt-1.5 overflow-hidden shadow-sm">
+                    <ScrollView nestedScrollEnabled>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setTargetClassId(null);
+                          setClassPickerOpen(false);
+                        }}
+                        className={`py-2.5 px-4 border-b border-gray-100 last:border-b-0 ${
+                          targetClassId === null ? "bg-[#FFFCEE]" : ""
+                        }`}
+                      >
+                        <Text className="font-inter text-xs text-[#0F1C2C]">
+                          All Classes
+                        </Text>
+                      </TouchableOpacity>
+                      {classesData?.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => {
+                            setTargetClassId(item.id);
+                            setClassPickerOpen(false);
+                          }}
+                          className={`py-2.5 px-4 border-b border-gray-100 last:border-b-0 ${
+                            targetClassId === item.id ? "bg-[#FFFCEE]" : ""
+                          }`}
+                        >
+                          <Text className="font-inter text-xs text-[#0F1C2C]">
+                            {item.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Input - Body Details */}
             <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">

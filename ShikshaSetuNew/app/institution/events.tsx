@@ -9,14 +9,16 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { CalendarEvent } from "../../constants/schoolData";
 import { useAuth } from "../../src/hooks/useAuth";
 import { useQuery } from "../../src/hooks/useQuery";
-import { getEvents, createEvent } from "../../src/repositories/eventRepository";
+import { getEvents, createEvent, updateEventStatus } from "../../src/repositories/eventRepository";
 import { handleError } from "../../src/utils/error";
 
 interface CustomEvent extends CalendarEvent {
@@ -38,20 +40,55 @@ export default function EventsHub() {
 
   // Form states
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [eventDate, setEventDate] = useState<Date>(new Date());
+  const [eventTime, setEventTime] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState<"Achievement" | "Leadership" | "Excellence" | "Social">("Achievement");
 
+  const formatDisplayDate = (d: Date) => {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`; // DD-MM-YYYY
+  };
+
+  const formatDisplayTime = (t: Date) => {
+    let hours = t.getHours();
+    const minutes = String(t.getMinutes()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    const hoursStr = String(hours).padStart(2, "0");
+    return `${hoursStr}:${minutes} ${ampm}`; // HH:MM AM/PM
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate) {
+      setEventDate(selectedDate);
+    }
+  };
+
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(Platform.OS === "ios");
+    if (selectedTime) {
+      setEventTime(selectedTime);
+    }
+  };
+
   useEffect(() => {
     if (dbEvents) {
-      const now = new Date();
       setEvents(
-        dbEvents.map((ev) => {
-          const evDate = new Date(ev.date);
+        dbEvents.map((ev: any) => {
           let status: "Upcoming" | "Draft" | "Published" = "Upcoming";
-          if (!isNaN(evDate.getTime())) {
-            status = evDate < now ? "Published" : "Upcoming";
+          if (ev.status === "published") {
+            status = "Published";
+          } else if (ev.status === "draft") {
+            status = "Draft";
+          } else {
+            status = "Upcoming";
           }
           return {
             ...ev,
@@ -64,12 +101,21 @@ export default function EventsHub() {
 
   const filteredEvents = events.filter((ev) => ev.status === activeFilter);
 
-  const handlePublishNow = (event: CustomEvent) => {
-    const updatedEvents = events.map((ev) =>
-      ev.id === event.id ? { ...ev, status: "Published" as const } : ev
-    );
-    setEvents(updatedEvents);
-    Alert.alert("Event Published", `"${event.title}" is now visible to all students and parents.`);
+  const handlePublishNow = async (event: CustomEvent) => {
+    try {
+      const success = await updateEventStatus(event.id, "published");
+      if (success) {
+        const updatedEvents = events.map((ev) =>
+          ev.id === event.id ? { ...ev, status: "Published" as const } : ev
+        );
+        setEvents(updatedEvents);
+        Alert.alert("Event Published", `"${event.title}" is now visible to all students and parents.`);
+      } else {
+        Alert.alert("Error", "Failed to update status on server.");
+      }
+    } catch (err: any) {
+      handleError(err, "Publishing Event Failed");
+    }
   };
 
   const handleScheduleNotifications = (event: CustomEvent) => {
@@ -80,8 +126,8 @@ export default function EventsHub() {
   };
 
   const handleAddEventSubmit = async () => {
-    if (!title.trim() || !date.trim() || !location.trim()) {
-      Alert.alert("Input Required", "Please enter Event Title, Date, and Location.");
+    if (!title.trim() || !location.trim()) {
+      Alert.alert("Input Required", "Please enter Event Title and Location.");
       return;
     }
 
@@ -90,8 +136,8 @@ export default function EventsHub() {
       const newEv = await createEvent(
         institutionId || "",
         title.trim(),
-        date.trim(),
-        time.trim() || "09:00 AM",
+        formatDisplayDate(eventDate),
+        formatDisplayTime(eventTime),
         location.trim(),
         category
       );
@@ -103,8 +149,8 @@ export default function EventsHub() {
 
       setEvents([customNewEv, ...events]);
       setTitle("");
-      setDate("");
-      setTime("");
+      setEventDate(new Date());
+      setEventTime(new Date());
       setLocation("");
       setCategory("Achievement");
       setModalVisible(false);
@@ -308,25 +354,44 @@ export default function EventsHub() {
                 <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5">
                   Date
                 </Text>
-                <TextInput
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="e.g. Oct 24, 2026"
-                  placeholderTextColor="#9CA3AF"
-                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs text-[#0F1C2C]"
-                />
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs text-[#0F1C2C] h-[44px] justify-center"
+                >
+                  <Text className="font-inter text-xs text-[#0F1C2C]">
+                    {formatDisplayDate(eventDate)}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={eventDate}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateChange}
+                  />
+                )}
               </View>
               <View className="flex-1">
                 <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5">
                   Time
                 </Text>
-                <TextInput
-                  value={time}
-                  onChangeText={setTime}
-                  placeholder="e.g. 08:00 AM"
-                  placeholderTextColor="#9CA3AF"
-                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs text-[#0F1C2C]"
-                />
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs text-[#0F1C2C] h-[44px] justify-center"
+                >
+                  <Text className="font-inter text-xs text-[#0F1C2C]">
+                    {formatDisplayTime(eventTime)}
+                  </Text>
+                </TouchableOpacity>
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={eventTime}
+                    mode="time"
+                    display="default"
+                    is24Hour={false}
+                    onChange={handleTimeChange}
+                  />
+                )}
               </View>
             </View>
 

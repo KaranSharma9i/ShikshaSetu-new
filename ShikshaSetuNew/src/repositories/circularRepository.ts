@@ -19,12 +19,21 @@ function resolveAudience(title: string, content: string): "All" | "Students" | "
   return "All";
 }
 
+function resolveAudienceFromRoles(roles: string[] | null): "All" | "Students" | "Teachers" | "Parents" {
+  if (!roles || roles.length === 0) return "All";
+  if (roles.includes("student") && roles.includes("teacher")) return "All";
+  if (roles.includes("student")) return "Students";
+  if (roles.includes("teacher")) return "Teachers";
+  return "All";
+}
+
 export async function getCirculars(institutionId: string): Promise<Circular[]> {
   try {
     const { data, error } = await supabase
       .from("circulars")
-      .select("id, title, content, publish_date")
+      .select("id, title, content, publish_date, category, target_roles, target_class_id")
       .eq("institution_id", institutionId)
+      .is("deleted_at", null)
       .order("publish_date", { ascending: false });
 
     if (error) throw error;
@@ -45,8 +54,8 @@ export async function getCirculars(institutionId: string): Promise<Circular[]> {
         title: c.title,
         body: c.content,
         date: formattedDate,
-        category: resolveCategory(c.title, c.content),
-        audience: resolveAudience(c.title, c.content)
+        category: c.category || resolveCategory(c.title, c.content),
+        audience: resolveAudienceFromRoles(c.target_roles)
       };
     });
   } catch (error) {
@@ -59,7 +68,10 @@ export async function createCircular(
   institutionId: string,
   title: string,
   content: string,
-  createdBy: string | null
+  createdBy: string | null,
+  category?: "Announcement" | "Urgent",
+  targetRoles?: string[],
+  targetClassId?: string | null
 ): Promise<Circular> {
   const publishDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
@@ -70,9 +82,12 @@ export async function createCircular(
       title,
       content,
       publish_date: publishDate,
-      created_by: createdBy
+      created_by: createdBy,
+      category: category || "Announcement",
+      target_roles: targetRoles || ['institution_admin', 'teacher', 'student', 'driver'],
+      target_class_id: targetClassId || null
     })
-    .select("id, title, content, publish_date")
+    .select("id, title, content, publish_date, category, target_roles, target_class_id")
     .single();
 
   if (error) throw error;
@@ -88,7 +103,53 @@ export async function createCircular(
     title: data.title,
     body: data.content,
     date: formattedDate,
-    category: resolveCategory(data.title, data.content),
-    audience: resolveAudience(data.title, data.content)
+    category: data.category || resolveCategory(data.title, data.content),
+    audience: resolveAudienceFromRoles(data.target_roles)
   };
 }
+
+export async function getStudentCirculars(
+  institutionId: string,
+  classId: string | null
+): Promise<Circular[]> {
+  try {
+    let query = supabase
+      .from("circulars")
+      .select("id, title, content, publish_date, category, target_roles, target_class_id")
+      .eq("institution_id", institutionId)
+      .is("deleted_at", null)
+      .contains("target_roles", ["student"]);
+
+    if (classId) {
+      query = query.or(`target_class_id.is.null,target_class_id.eq.${classId}`);
+    } else {
+      query = query.is("target_class_id", null);
+    }
+
+    const { data, error } = await query.order("publish_date", { ascending: false });
+
+    if (error) throw error;
+    if (!data) return [];
+
+    return data.map(c => {
+      const formattedDate = new Date(c.publish_date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+      return {
+        id: c.id,
+        title: c.title,
+        body: c.content,
+        date: formattedDate,
+        category: c.category || resolveCategory(c.title, c.content),
+        audience: resolveAudienceFromRoles(c.target_roles)
+      };
+    });
+  } catch (error) {
+    console.error("Error in getStudentCirculars:", error);
+    return [];
+  }
+}
+

@@ -1222,9 +1222,11 @@ export async function getStudentScheduleData(
       .select("id, date, name, description")
       .eq("institution_id", institutionId)
       .eq("academic_year_id", academicYearId)
+      .eq("event_type", "holiday")
       .gte("date", startDate)
       .lte("date", endDate)
       .is("deleted_at", null);
+
 
     if (holidaysError) throw holidaysError;
 

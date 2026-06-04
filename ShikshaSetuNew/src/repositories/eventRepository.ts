@@ -14,8 +14,10 @@ export async function getEvents(institutionId: string): Promise<CalendarEvent[]>
   try {
     const { data, error } = await supabase
       .from("holidays")
-      .select("id, name, date")
+      .select("id, name, date, location, category, event_type, status")
       .eq("institution_id", institutionId)
+      .eq("event_type", "event")
+      .is("deleted_at", null)
       .order("date", { ascending: true });
 
     if (error) throw error;
@@ -36,9 +38,9 @@ export async function getEvents(institutionId: string): Promise<CalendarEvent[]>
         id: h.id,
         title: h.name,
         date: formattedDate,
-        time: "All Day",
-        location: "School Campus",
-        category: resolveCategory(h.name)
+        time: "All Day", // Mocked or default
+        location: h.location || "School Campus",
+        category: (h.category as any) || resolveCategory(h.name)
       };
     });
   } catch (error) {
@@ -47,10 +49,48 @@ export async function getEvents(institutionId: string): Promise<CalendarEvent[]>
   }
 }
 
+export async function getHolidays(institutionId: string): Promise<CalendarEvent[]> {
+  try {
+    const { data, error } = await supabase
+      .from("holidays")
+      .select("id, name, date, location, category, event_type, status")
+      .eq("institution_id", institutionId)
+      .eq("event_type", "holiday")
+      .is("deleted_at", null)
+      .order("date", { ascending: true });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    return data.map(h => {
+      const formattedDate = new Date(h.date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+      return {
+        id: h.id,
+        title: h.name,
+        date: formattedDate,
+        time: "All Day",
+        location: h.location || "School Campus",
+        category: "Social"
+      };
+    });
+  } catch (error) {
+    console.error("Error in getHolidays:", error);
+    return [];
+  }
+}
+
 export async function createEvent(
   institutionId: string,
   title: string,
-  dateStr: string, // format e.g. "Oct 24, 2026" or YYYY-MM-DD
+  dateStr: string, // format e.g. "Oct 24, 2026" or YYYY-MM-DD or DD-MM-YYYY
   time: string,
   location: string,
   category: "Achievement" | "Leadership" | "Excellence" | "Social"
@@ -58,9 +98,15 @@ export async function createEvent(
   // 1. Resolve date format to YYYY-MM-DD
   let dbDate = dateStr;
   try {
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-      dbDate = d.toISOString().slice(0, 10);
+    const dmyRegex = /^(\d{2})-(\d{2})-(\d{4})$/;
+    const match = dateStr.match(dmyRegex);
+    if (match) {
+      dbDate = `${match[3]}-${match[2]}-${match[1]}`;
+    } else {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        dbDate = d.toISOString().slice(0, 10);
+      }
     }
   } catch (e) {
     // ignore
@@ -92,16 +138,20 @@ export async function createEvent(
     throw new Error("No active academic year found for this institution.");
   }
 
-  // 3. Insert into holidays table
+  // 3. Insert into holidays table as event
   const { data, error } = await supabase
     .from("holidays")
     .insert({
       institution_id: institutionId,
       academic_year_id: academicYearId,
       date: dbDate,
-      name: title
+      name: title,
+      event_type: "event",
+      status: "upcoming",
+      location: location,
+      category: category
     })
-    .select("id, name, date")
+    .select("id, name, date, location, category, event_type, status")
     .single();
 
   if (error) throw error;
@@ -117,7 +167,62 @@ export async function createEvent(
     title: data.name,
     date: formattedDate,
     time: time || "All Day",
-    location: location || "School Campus",
-    category: category
+    location: data.location || "School Campus",
+    category: (data.category as any) || category
   };
 }
+
+export async function getStudentEvents(institutionId: string): Promise<CalendarEvent[]> {
+  try {
+    const { data, error } = await supabase
+      .from("holidays")
+      .select("id, name, date, location, category, event_type, status")
+      .eq("institution_id", institutionId)
+      .eq("event_type", "event")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("date", { ascending: false });
+
+    if (error) throw error;
+    if (!data) return [];
+
+    return data.map(h => {
+      const formattedDate = new Date(h.date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+      return {
+        id: h.id,
+        title: h.name,
+        date: formattedDate,
+        time: "All Day",
+        location: h.location || "School Campus",
+        category: (h.category as any) || "Social"
+      };
+    });
+  } catch (error) {
+    console.error("Error in getStudentEvents:", error);
+    return [];
+  }
+}
+
+export async function updateEventStatus(
+  eventId: string,
+  status: "upcoming" | "draft" | "published"
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from("holidays")
+      .update({ status })
+      .eq("id", eventId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error in updateEventStatus:", error);
+    return false;
+  }
+}
+

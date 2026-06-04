@@ -294,6 +294,7 @@ export async function getStudentAttendanceSummary(
       .select("date")
       .eq("institution_id", institutionId)
       .eq("academic_year_id", academicYearId)
+      .eq("event_type", "holiday")
       .gte("date", startDate)
       .lte("date", endDate)
       .is("deleted_at", null);
@@ -562,6 +563,7 @@ export async function getStaffAttendanceSummary(
       .select("date")
       .eq("institution_id", institutionId)
       .eq("academic_year_id", academicYearId)
+      .eq("event_type", "holiday")
       .gte("date", startDate)
       .lte("date", endDate)
       .is("deleted_at", null);
