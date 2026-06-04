@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import Constants from "expo-constants";
 import {
   ClassItem,
   SectionItem,
@@ -1520,8 +1521,22 @@ export interface EvaluationResult {
   scored_at: string;
 }
 
+function getServerUrl(): string {
+  let serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      serverUrl = `http://${host}:3001`;
+    } else {
+      serverUrl = 'http://localhost:3001';
+    }
+  }
+  return serverUrl || 'http://localhost:3001';
+}
+
 export async function getSubscriptionStatus(studentId: string): Promise<SubscriptionStatus> {
-  const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  const serverUrl = getServerUrl();
   const response = await fetch(`${serverUrl}/api/student/subscription?student_id=${studentId}`);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -1535,7 +1550,7 @@ export async function submitHomeworkForEvaluation(params: {
   assignmentId: string;
   base64Image: string;
 }): Promise<EvaluationResult> {
-  const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  const serverUrl = getServerUrl();
   const response = await fetch(`${serverUrl}/api/homework/submit-evaluate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

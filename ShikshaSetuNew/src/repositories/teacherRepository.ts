@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import Constants from "expo-constants";
 import {
   TeacherListItem,
   TeacherProfile,
@@ -923,6 +924,20 @@ export async function getClassPerformanceCardData(
   }
 }
 
+function getServerUrl(): string {
+  let serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      serverUrl = `http://${host}:3001`;
+    } else {
+      serverUrl = 'http://localhost:3001';
+    }
+  }
+  return serverUrl || 'http://localhost:3001';
+}
+
 export async function generateHomework(payload: {
   grade: string;
   subject: string;
@@ -951,7 +966,7 @@ export async function generateHomework(payload: {
   pdf_url: string | null;
   generation_status: string;
 }> {
-  const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL ?? 'http://localhost:3001';
+  const SERVER_URL = getServerUrl();
 
   const response = await fetch(`${SERVER_URL}/api/teacher/homework/generate`, {
     method: 'POST',

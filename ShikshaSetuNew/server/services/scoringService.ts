@@ -17,6 +17,7 @@ export interface ScoringParams {
   title: string;
   topicDescription: string;
   planTier: 'STANDARD' | 'PRO';
+  questions?: any[];
 }
 
 export async function scoreHomework(params: ScoringParams): Promise<ScoringResult> {
@@ -34,7 +35,19 @@ Homework Details:
 - Grade/Class: ${params.grade}
 - Assignment Title: ${params.title}
 - Topic Description: ${params.topicDescription}
+`;
 
+  if (params.questions && params.questions.length > 0) {
+    prompt += `\nHere are the exact questions that the student had to answer:\n`;
+    params.questions.forEach((q: any) => {
+      prompt += `Question ${q.question_number} (${q.type}): ${q.question}\n`;
+      if (q.options && q.options.length > 0) {
+        prompt += `Options:\n` + q.options.map((opt: string) => `  - ${opt}`).join('\n') + `\n`;
+      }
+    });
+  }
+
+  prompt += `
 Analyze the handwritten or typed text inside the image. Check for accuracy, completeness, understanding of concepts, and presentation.
 
 Be strict and conservative in scoring. Do NOT give benefit of the doubt.

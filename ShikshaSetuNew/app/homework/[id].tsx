@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from '@/src/hooks/useAuth';
 import {
   getStudentProfileByUserId,
@@ -153,8 +154,27 @@ export default function HomeworkDetailScreen() {
       try {
         const status = await getSubscriptionStatus(studentId);
         setSubscriptionStatus(status);
+        const cacheData = {
+          status,
+          timestamp: Date.now(),
+        };
+        await AsyncStorage.setItem(`subscription_status_${studentId}`, JSON.stringify(cacheData));
       } catch (err) {
-        // On error assume FREE plan — safe default
+        console.error('Error loading subscription, checking cache:', err);
+        try {
+          const cachedJson = await AsyncStorage.getItem(`subscription_status_${studentId}`);
+          if (cachedJson) {
+            const cacheData = JSON.parse(cachedJson);
+            const TTL = 24 * 60 * 60 * 1000;
+            const isFresh = Date.now() - cacheData.timestamp < TTL;
+            if (isFresh && cacheData.status) {
+              setSubscriptionStatus(cacheData.status);
+              return;
+            }
+          }
+        } catch (cacheErr) {
+          console.error('Error reading subscription cache:', cacheErr);
+        }
         setSubscriptionStatus({ 
           plan_tier: 'FREE', tier_expires_at: null, is_active: false, 
           daily_limit: 0, used_today: 0, remaining_today: 0 
