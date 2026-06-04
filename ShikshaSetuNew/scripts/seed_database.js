@@ -1,7 +1,26 @@
+// WARNING: This script TRUNCATES all data. 
+// Only run on empty databases.
+// Never run in production or when real data exists.
+
 const { Client } = require('pg');
 require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 
 const DATABASE_URL = process.env.DATABASE_URL;
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing Supabase environment variables');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+  realtime: { transport: ws }
+});
 
 // --- CONSTANTS FROM SPEC ---
 const SURNAMES = ['Sharma','Gupta','Singh','Yadav','Verma','Mishra','Tiwari','Pandey','Dubey','Shukla','Srivastava','Patel','Bajpai','Tripathi','Saxena','Dwivedi','Dixit','Kushwaha','Chauhan','Agarwal'];
@@ -26,10 +45,28 @@ function getClassCode(className) {
 }
 
 async function seed() {
+  console.log('Running safety checks...');
+  const { count: studentCount } = await supabase
+    .from('students')
+    .select('*', { count: 'exact', head: true });
+
+  const { data: authData } = await supabase.auth.admin.listUsers();
+  const authCount = authData?.users?.length ?? 0;
+
+  if (studentCount > 0 || authCount > 0) {
+    console.error('SAFETY: Database has real data. Aborting seed to prevent data loss.');
+    console.error(`Students: ${studentCount}, Auth users: ${authCount}`);
+    process.exit(1);
+  }
+
   const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
 
   try {
+    // Clean auth.users first
+    console.log('Cleaning auth.users...');
+    await client.query('DELETE FROM auth.users;');
+
     await client.query('BEGIN');
     console.log('Transaction started...');
 
@@ -113,11 +150,10 @@ async function seed() {
         const surname = SURNAMES[sr % 20];
         fullName = `${first} ${surname}`;
       }
-// NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
 await client.query(`
-  INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
-  VALUES ($1, $2, $3, $4, 'institution_admin', 'active', $5, $6)
-`, [`GS-ADM-${String(sr).padStart(3, '0')}`, fullName, `adm${sr}@gurukulsiksha.edu.in`, `+91-98970-${String(sr).padStart(5, '0')}`, institutionId, '$2b$10$defaultHashedPassword123456789012345678901234']);
+  INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
+  VALUES ($1, $2, $3, $4, 'institution_admin', 'active', $5)
+`, [`GS-ADM-${String(sr).padStart(3, '0')}`, fullName, `adm${sr}@gurukulsiksha.edu.in`, `+91-98970-${String(sr).padStart(5, '0')}`, institutionId]);
     }
     console.log('Non-teaching staff seeded.');
 
@@ -168,12 +204,11 @@ await client.query(`
       baseDate.setMonth(baseDate.getMonth() + (sr - 1) * 4);
       const doj = baseDate.toISOString().slice(0, 10);
 
-      // NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
       const uRes = await client.query(`
-        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
-VALUES ($1, $2, $3, $4, 'teacher', 'active', $5, $6)
+        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
+VALUES ($1, $2, $3, $4, 'teacher', 'active', $5)
 RETURNING id;
-`, [loginId, name, `tch${sr}@gurukulsiksha.edu.in`, `+91-94150-${String(sr).padStart(5, '0')}`, institutionId, '$2b$10$defaultHashedPassword123456789012345678901234']);
+`, [loginId, name, `tch${sr}@gurukulsiksha.edu.in`, `+91-94150-${String(sr).padStart(5, '0')}`, institutionId]);
       const userId = uRes.rows[0].id;
 
       await client.query(`
@@ -351,18 +386,16 @@ RETURNING id;
           const guardianFirst = GUARDIAN_FIRST[(sr - 1) % 30];
           const village = VILLAGES[(sr - 1) % 8];
 
-          // NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
           const uRes = await client.query(`
-            INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
-VALUES ($1, $2, $3, $4, 'student', 'active', $5, $6)
+            INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
+VALUES ($1, $2, $3, $4, 'student', 'active', $5)
             RETURNING id;
           `, [
             `GS-STU-${String(sr).padStart(4, '0')}`,
             `${first} ${surname}`,
             `stu${sr}@gurukulsiksha.edu.in`,
             `+91-9795${String(sr).padStart(6, '0')}`,
-            institutionId,
-            '$2b$10$defaultHashedPassword123456789012345678901234'
+            institutionId
           ]);
           const userId = uRes.rows[0].id;
 
@@ -459,18 +492,16 @@ VALUES ($1, $2, $3, $4, 'student', 'active', $5, $6)
     for (let i = 0; i < driversData.length; i++) {
       const [name, phone] = driversData[i];
       const sr = i + 1;
-      // NOTE: password_hash column still exists as NOT NULL in live DB (migration 0024 was NOT applied to production)
       const uRes = await client.query(`
-        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id, password_hash)
-VALUES ($1, $2, $3, $4, 'driver', 'active', $5, $6)
+        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
+VALUES ($1, $2, $3, $4, 'driver', 'active', $5)
         RETURNING id;
       `, [
         `GS-DRV-${String(sr).padStart(3, '0')}`,
         name,
         `drv${sr}@gurukulsiksha.edu.in`,
         phone,
-        institutionId,
-        '$2b$10$defaultHashedPassword123456789012345678901234'
+        institutionId
       ]);
       driverUserIds.push(uRes.rows[0].id);
     }
@@ -693,7 +724,29 @@ VALUES ($1, $2, $3, $4, 'driver', 'active', $5, $6)
     console.log('Circulars seeded.');
 
     await client.query('COMMIT');
-    console.log('\n✅ Database successfully seeded!');
+    console.log('\n✅ Database successfully seeded! (Postgres tables)');
+
+    // Now, create auth users in Supabase Auth
+    console.log('Fetching seeded users to register in Supabase Auth...');
+    const usersRes = await client.query('SELECT email FROM public.users WHERE email IS NOT NULL');
+    const users = usersRes.rows;
+    console.log(`Found ${users.length} users to register.`);
+
+    for (let i = 0; i < users.length; i += 10) {
+      const batch = users.slice(i, i + 10);
+      await Promise.all(batch.map(user => 
+        supabase.auth.admin.createUser({
+          email: user.email,
+          password: 'password123',
+          email_confirm: true,
+          user_metadata: { is_admin_registered: true }
+        })
+      ));
+      await new Promise(r => setTimeout(r, 500));
+      console.log(`Auth users created: ${Math.min(i + 10, users.length)}/${users.length}`);
+    }
+
+    console.log('All auth users successfully registered and synced!');
 
   } catch (err) {
     await client.query('ROLLBACK');
