@@ -397,3 +397,133 @@ export async function getDashboardMetrics(institutionId: string): Promise<Dashbo
     };
   }
 }
+
+export interface InstitutionDashboardMetrics {
+  totalStudents: number;
+  totalTeachers: number;
+  attendanceRate: string;
+  totalFeesCollected: number;
+  totalFeesExpected: number;
+  feeCollectionRate: string;
+}
+
+export async function getInstitutionDashboardMetrics(
+  institutionId: string
+): Promise<InstitutionDashboardMetrics> {
+  try {
+    // 1. Total Students Count
+    const { count: studentsCount, error: studentsError } = await supabase
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .eq("institution_id", institutionId);
+
+    if (studentsError) throw studentsError;
+
+    // 2. Total Teachers Count
+    const { count: teachersCount, error: teachersError } = await supabase
+      .from("teachers")
+      .select("*", { count: "exact", head: true })
+      .eq("institution_id", institutionId);
+
+    if (teachersError) throw teachersError;
+
+    // 3. Fee Collection Metrics
+    const { data: structuresData, error: structError } = await supabase
+      .from("fee_structures")
+      .select("amount, class_id")
+      .eq("institution_id", institutionId)
+      .is("deleted_at", null);
+
+    if (structError) throw structError;
+
+    const { data: paymentsData, error: paymentsError } = await supabase
+      .from("fee_payments")
+      .select(`
+        amount_paid,
+        student:students!inner (
+          institution_id
+        )
+      `)
+      .eq("student.institution_id", institutionId)
+      .is("deleted_at", null);
+
+    if (paymentsError) throw paymentsError;
+    const totalFeesCollected = paymentsData?.reduce((acc, curr) => acc + Number(curr.amount_paid), 0) || 0;
+
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from("enrollments")
+      .select(`
+        student_id,
+        section:sections (
+          class_id
+        ),
+        student:students!inner (
+          institution_id
+        )
+      `)
+      .eq("student.institution_id", institutionId)
+      .eq("is_active", true)
+      .is("deleted_at", null);
+
+    if (enrollmentsError) throw enrollmentsError;
+
+    const classStudentCounts: Record<string, number> = {};
+    enrollments?.forEach(enroll => {
+      const sectionObj = Array.isArray(enroll.section) ? enroll.section[0] : enroll.section;
+      const classId = (sectionObj as any)?.class_id;
+      if (classId) {
+        classStudentCounts[classId] = (classStudentCounts[classId] || 0) + 1;
+      }
+    });
+
+    let totalFeesExpected = 0;
+    structuresData?.forEach(struct => {
+      const countOfStudents = classStudentCounts[struct.class_id] || 0;
+      totalFeesExpected += Number(struct.amount) * countOfStudents;
+    });
+
+    const feeCollectionRate = totalFeesExpected > 0 
+      ? `${((totalFeesCollected / totalFeesExpected) * 100).toFixed(1)}%` 
+      : "0.0%";
+
+    // 4. Attendance Rate calculation
+    let attendanceRate = "0.0%";
+    const { data: attendanceData, error: attErr } = await supabase
+      .from("student_attendance")
+      .select(`
+        status,
+        student:students!inner (
+          institution_id
+        )
+      `)
+      .eq("student.institution_id", institutionId)
+      .is("deleted_at", null);
+
+    if (attErr) throw attErr;
+
+    if (attendanceData && attendanceData.length > 0) {
+      const presentCount = attendanceData.filter(a => a.status === "present" || a.status === "late").length;
+      attendanceRate = `${((presentCount / attendanceData.length) * 100).toFixed(1)}%`;
+    }
+
+    return {
+      totalStudents: studentsCount || 0,
+      totalTeachers: teachersCount || 0,
+      attendanceRate,
+      totalFeesCollected,
+      totalFeesExpected,
+      feeCollectionRate,
+    };
+  } catch (error) {
+    console.error("Error in getInstitutionDashboardMetrics:", error);
+    return {
+      totalStudents: 0,
+      totalTeachers: 0,
+      attendanceRate: "0.0%",
+      totalFeesCollected: 0,
+      totalFeesExpected: 0,
+      feeCollectionRate: "0.0%",
+    };
+  }
+}
+

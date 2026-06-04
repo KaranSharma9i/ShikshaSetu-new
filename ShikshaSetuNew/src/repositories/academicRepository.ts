@@ -30,23 +30,19 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
       .select(`
         id,
         name,
-        class:classes (
+        class:classes!inner (
           id,
           name,
-          grade_number
+          grade_number,
+          institution_id
         )
       `)
+      .eq("class.institution_id", institutionId)
       .order("name", { ascending: true });
 
     if (sectionsError) throw sectionsError;
 
-    // Filter by institutionId
-    const filteredSections = sectionsData?.filter(
-      (s: any) => {
-        const classObj = Array.isArray(s.class) ? s.class[0] : s.class;
-        return classObj && classObj.id;
-      }
-    ) || [];
+    const filteredSections = sectionsData || [];
 
     // Let's compute average marks per class from exam_results
     // We can query exams and results in bulk
@@ -292,3 +288,110 @@ function activeMetricTabScoreValue(subject: string): number {
     default: return 4.0;
   }
 }
+
+export interface StudentReportCardSubject {
+  subject_id: string;
+  subject_name: string;
+  exam_name: string;
+  marks_obtained: number;
+  max_marks: number;
+  percentage: number;
+  grade: string;
+  remarks: string;
+}
+
+export interface StudentReportCardData {
+  subjects: StudentReportCardSubject[];
+  overallAvg: number;
+  overallGrade: string;
+  academicYearLabel: string;
+}
+
+export async function getStudentReportCard(
+  studentId: string,
+  academicYearId: string
+): Promise<StudentReportCardData | null> {
+  try {
+    // 1. Fetch academic year label
+    const { data: ay, error: ayErr } = await supabase
+      .from("academic_years")
+      .select("label")
+      .eq("id", academicYearId)
+      .maybeSingle();
+      
+    if (ayErr) throw ayErr;
+    const academicYearLabel = ay?.label || "2026-27";
+
+    // 2. Fetch exam results for this student and academic year
+    const { data: results, error: resultsErr } = await supabase
+      .from("exam_results")
+      .select(`
+        marks_obtained,
+        grade,
+        remarks,
+        exam:exams!inner (
+          id,
+          exam_name,
+          total_marks,
+          subject:subjects!inner (
+            id,
+            name
+          )
+        )
+      `)
+      .eq("student_id", studentId)
+      .eq("exam.academic_year_id", academicYearId);
+
+    if (resultsErr) throw resultsErr;
+
+    const subjects: StudentReportCardSubject[] = [];
+    let totalObtained = 0;
+    let totalMax = 0;
+
+    if (results && results.length > 0) {
+      results.forEach((r: any) => {
+        const exam = Array.isArray(r.exam) ? r.exam[0] : r.exam;
+        if (!exam) return;
+        const subject = Array.isArray(exam.subject) ? exam.subject[0] : exam.subject;
+        if (!subject) return;
+
+        const max_marks = Number(exam.total_marks) || 100;
+        const marks_obtained = Number(r.marks_obtained) || 0;
+        const percentage = Math.round((marks_obtained / max_marks) * 100);
+
+        totalObtained += marks_obtained;
+        totalMax += max_marks;
+
+        subjects.push({
+          subject_id: subject.id,
+          subject_name: subject.name,
+          exam_name: exam.exam_name || "Unknown Exam",
+          marks_obtained,
+          max_marks,
+          percentage,
+          grade: r.grade || (percentage >= 90 ? "A+" : percentage >= 80 ? "A" : percentage >= 70 ? "B" : percentage >= 60 ? "C" : percentage >= 40 ? "D" : "F"),
+          remarks: r.remarks || "",
+        });
+      });
+    }
+
+    const overallAvg = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
+    let overallGrade = "F";
+    if (overallAvg >= 90) overallGrade = "A+";
+    else if (overallAvg >= 80) overallGrade = "A";
+    else if (overallAvg >= 70) overallGrade = "B";
+    else if (overallAvg >= 60) overallGrade = "C";
+    else if (overallAvg >= 40) overallGrade = "D";
+
+    return {
+      subjects,
+      overallAvg,
+      overallGrade,
+      academicYearLabel,
+    };
+  } catch (error) {
+    console.error("Error in getStudentReportCard repository:", error);
+    return null;
+  }
+}
+

@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/hooks/useAuth";
+import { useInstitutionAttendance } from "@/hooks/useInstitutionAttendance";
 import { supabase } from "@/src/lib/supabase";
 import {
   getStudentAttendanceSummary,
@@ -28,11 +29,67 @@ import {
   resolveStaffAcademicYear,
 } from "@/src/repositories/attendanceRepository";
 
-type TabName = "student" | "staff";
+type TabName = "student" | "staff" | "daily";
 
 export default function AttendanceAnalysisScreen() {
   const router = useRouter();
   const { isLoaded, isSignedIn, role, userId, institutionId, fullName } = useAuth();
+  
+  const {
+    breakdown: dailyBreakdown,
+    isLoading: isDailyLoading,
+    error: dailyError,
+    selectedDate: dailySelectedDate,
+    setDate: setDailyDate,
+    refetch: refetchDaily,
+  } = useInstitutionAttendance("2026-05-25");
+
+  // Helper to format YYYY-MM-DD to "Weekday, Month DD, YYYY"
+  const formatDailyDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return dateStr;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const dateObj = new Date(year, month, day);
+    
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    
+    const weekday = weekdays[dateObj.getDay()];
+    const monthName = months[dateObj.getMonth()];
+    return `${weekday}, ${monthName} ${day}, ${year}`;
+  };
+
+  // Helper to adjust the selected daily date by +/- days
+  const adjustDailyDate = (days: number) => {
+    if (!dailySelectedDate) return;
+    const parts = dailySelectedDate.split("-");
+    if (parts.length !== 3) return;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const dateObj = new Date(year, month, day);
+    dateObj.setDate(dateObj.getDate() + days);
+    
+    const newYear = dateObj.getFullYear();
+    const newMonth = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const newDay = String(dateObj.getDate()).padStart(2, "0");
+    setDailyDate(`${newYear}-${newMonth}-${newDay}`);
+  };
+
+  const filteredDailyBreakdown = (dailyBreakdown || []).filter((item) => {
+    const searchLower = searchVal.trim().toLowerCase();
+    if (!searchLower) return true;
+    return (
+      item.className.toLowerCase().includes(searchLower) ||
+      item.sectionName.toLowerCase().includes(searchLower)
+    );
+  });
 
   // Navigation and Selection States
   const [activeTab, setActiveTab] = useState<TabName>("student");
@@ -452,7 +509,7 @@ export default function AttendanceAnalysisScreen() {
           }}
           className={`flex-1 py-3 rounded-full items-center ${activeTab === "staff" ? "bg-[#0D1B2A]" : "bg-transparent"}`}
         >
-          <Text className={`font-poppins-bold text-[11px] uppercase tracking-widest ${activeTab === "staff" ? "text-white" : "text-[#75777D]"}`}>
+          <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "staff" ? "text-white" : "text-[#75777D]"}`}>
             Staff
           </Text>
         </TouchableOpacity>
@@ -463,8 +520,19 @@ export default function AttendanceAnalysisScreen() {
           }}
           className={`flex-1 py-3 rounded-full items-center ${activeTab === "student" ? "bg-[#0D1B2A]" : "bg-transparent"}`}
         >
-          <Text className={`font-poppins-bold text-[11px] uppercase tracking-widest ${activeTab === "student" ? "text-white" : "text-[#75777D]"}`}>
+          <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "student" ? "text-white" : "text-[#75777D]"}`}>
             Student
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            setActiveTab("daily");
+            setSearchVal("");
+          }}
+          className={`flex-1 py-3 rounded-full items-center ${activeTab === "daily" ? "bg-[#0D1B2A]" : "bg-transparent"}`}
+        >
+          <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "daily" ? "text-white" : "text-[#75777D]"}`}>
+            Daily
           </Text>
         </TouchableOpacity>
       </View>
@@ -923,6 +991,184 @@ export default function AttendanceAnalysisScreen() {
                     </View>
                   </View>
                 )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* DAILY TAB CONTENT */}
+        {activeTab === "daily" && (
+          <View>
+            {/* Date Navigation Header */}
+            <View style={[styles.cardShadow, { borderRadius: 24, marginBottom: 16 }]}>
+              <View className="bg-white rounded-3xl p-5 border border-gray-100 flex-row justify-between items-center">
+                <TouchableOpacity onPress={() => adjustDailyDate(-1)} className="p-2 bg-slate-50 border border-slate-200 rounded-full">
+                  <Ionicons name="chevron-back" size={18} color="#0D1B2A" />
+                </TouchableOpacity>
+                
+                <View className="items-center flex-1">
+                  <Text className="font-poppins-bold text-xs text-[#75777D] uppercase tracking-widest">
+                    Selected Date
+                  </Text>
+                  <Text className="font-poppins-bold text-sm text-[#0D1B2A] mt-1 text-center">
+                    {formatDailyDate(dailySelectedDate)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity onPress={() => adjustDailyDate(1)} className="p-2 bg-slate-50 border border-slate-200 rounded-full">
+                  <Ionicons name="chevron-forward" size={18} color="#0D1B2A" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Search Bar */}
+            <View style={{ backgroundColor: "white", borderRadius: 9999, marginBottom: 16 }}>
+              <View style={styles.searchBarShadow} className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
+                <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
+                <TextInput
+                  className="flex-grow font-inter text-xs text-[#0D1B2A] py-0 outline-none"
+                  placeholder="Search classes or sections..."
+                  placeholderTextColor="#75777D"
+                  value={searchVal}
+                  onChangeText={setSearchVal}
+                />
+                {searchVal.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchVal("")}>
+                    <Ionicons name="close-circle" size={16} color="#75777D" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {isDailyLoading ? (
+              renderSkeletons()
+            ) : dailyError ? (
+              <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
+                <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
+                  <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
+                  <Text className="font-poppins-semibold text-sm text-[#0D1B2A] mt-2 text-center">{dailyError}</Text>
+                  <TouchableOpacity onPress={() => refetchDaily()} className="mt-4 px-6 py-2 bg-[#0D1B2A] rounded-xl">
+                    <Text className="text-white font-poppins-semibold text-xs">Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View>
+                {/* Stats Row */}
+                {(() => {
+                  const totalPresent = dailyBreakdown.reduce((sum, item) => sum + item.presentCount, 0);
+                  const totalStudents = dailyBreakdown.reduce((sum, item) => sum + item.totalCount, 0);
+                  const totalAbsent = dailyBreakdown.reduce((sum, item) => sum + item.absentCount, 0);
+                  const overallPercent = totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : 0;
+                  
+                  return (
+                    <View className="flex-row space-x-3 mb-4">
+                      {/* Card 1: Attendance Rate */}
+                      <View style={[styles.cardShadow, { flex: 1, backgroundColor: "#0D1B2A", borderRadius: 24 }]}>
+                        <View className="bg-[#0D1B2A] p-4 rounded-3xl border border-slate-800 flex-1">
+                          <Text
+                            className="font-poppins-bold text-[9px] uppercase tracking-widest"
+                            style={{ color: "rgba(255, 255, 255, 0.7)" }}
+                          >
+                            Institution Rate
+                          </Text>
+                          <Text className="font-poppins-bold text-2xl text-[#C9A84C] mt-2">
+                            {overallPercent}%
+                          </Text>
+                          <Text className="font-inter text-[9px] text-[#4CAF50] mt-1 font-semibold">
+                            Active Students
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Card 2: Student Counts */}
+                      <View style={[styles.cardShadow, { flex: 1, backgroundColor: "white", borderRadius: 24 }]}>
+                        <View className="bg-white p-4 rounded-3xl border border-gray-100 flex-1">
+                          <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
+                            Present / Absent
+                          </Text>
+                          <Text className="font-poppins-bold text-lg text-[#0D1B2A] mt-2">
+                            {totalPresent} / {totalStudents}
+                          </Text>
+                          <Text className="font-inter text-[9px] text-red-500 mt-1 font-semibold">
+                            {totalAbsent} Absent Today
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })()}
+
+                {/* Class Breakdown List */}
+                <View className="mt-4">
+                  <Text className="font-poppins-bold text-sm text-[#0D1B2A] mb-3">
+                    Class Breakdown
+                  </Text>
+
+                  {filteredDailyBreakdown.length === 0 ? (
+                    <Text className="text-center py-6 text-xs text-[#75777D] font-inter italic">
+                      No matching classes found.
+                    </Text>
+                  ) : (
+                    filteredDailyBreakdown.map((item) => {
+                      const percent = item.totalCount > 0 ? Math.round((item.presentCount / item.totalCount) * 100) : 0;
+                      
+                      // Status check based on attendance percent
+                      let status = "critical";
+                      let badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
+                      let badgeTextClass = "text-red-500";
+                      
+                      if (percent >= 90) {
+                        status = "excellent";
+                        badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
+                        badgeTextClass = "text-[#4CAF50]";
+                      } else if (percent >= 80) {
+                        status = "warning";
+                        badgeStyle = { borderColor: "rgba(201, 168, 76, 0.3)", backgroundColor: "rgba(201, 168, 76, 0.05)" };
+                        badgeTextClass = "text-[#C9A84C]";
+                      }
+                      
+                      return (
+                        <View 
+                          key={`${item.classId}-${item.sectionId}`} 
+                          style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} 
+                          className="bg-white p-4 rounded-3xl border border-gray-100"
+                        >
+                          <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center space-x-3 flex-1">
+                              <View className="w-10 h-10 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
+                                <Ionicons name="school-outline" size={18} color="#75777D" />
+                              </View>
+                              <View className="flex-1">
+                                <Text className="font-poppins-bold text-xs text-[#0D1B2A] leading-tight">
+                                  {item.className} - {item.sectionName}
+                                </Text>
+                                <Text className="text-[10px] font-inter text-[#75777D] mt-0.5">
+                                  Present: {item.presentCount}/{item.totalCount} | Absent: {item.absentCount}
+                                </Text>
+                              </View>
+                            </View>
+
+                            <View className="px-2.5 py-1 rounded-lg border" style={badgeStyle}>
+                              <Text className={`font-poppins-bold text-[8.5px] uppercase tracking-wider ${badgeTextClass}`}>
+                                {status}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View className="flex-row items-center space-x-2 mt-3">
+                            <View className="flex-grow h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <View className="h-full bg-[#C9A84C] rounded-full" style={{ width: `${percent}%` }} />
+                            </View>
+                            <Text className="font-poppins-bold text-[10px] text-[#0D1B2A]">
+                              {percent}%
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
               </View>
             )}
           </View>

@@ -19,6 +19,16 @@ import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/hooks/useAuth";
 import dayjs from "dayjs";
+import {
+  getTeacherProfileByUserId,
+  getTeacherStudentProfile,
+  getStudentRankInClass,
+  getStudentAverageAiScore,
+  getStudentAiEngagementScores,
+  getStudentExamMarksForTeacher,
+  getStudentHomeworkSubmissions,
+  getTeacherClasses,
+} from "@/src/repositories/teacherRepository";
 
 // Screen Width
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -166,6 +176,13 @@ export default function StudentDetailScreen() {
   const [homeworkTotal, setHomeworkTotal] = useState(0);
   const [homeworkSubmitted, setHomeworkSubmitted] = useState(0);
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+
+  // AI Engagement states
+  const [aiEngagement, setAiEngagement] = useState<{
+    conceptClarity: string;
+    completeness: string;
+    presentation: string;
+  }>({ conceptClarity: "8.4", completeness: "7.2", presentation: "9.1" });
 
   // Individual marks editing modal state
   const [modalVisible, setModalVisible] = useState(false);
@@ -350,90 +367,39 @@ export default function StudentDetailScreen() {
       setProfileError(null);
 
       // Fetch teacher info
-      const { data: teacherData, error: teacherErr } = await supabase
-        .from("teachers")
-        .select("id, user_id")
-        .eq("user_id", userId)
-        .single();
-
-      if (teacherErr || !teacherData) {
-        console.error("Error loading teacher:", teacherErr);
+      if (!userId) {
+        setProfileError("Could not verify teacher profile");
+        setProfileLoading(false);
+        return;
+      }
+      const teacherData = await getTeacherProfileByUserId(userId);
+      if (!teacherData) {
         setProfileError("Could not verify teacher profile");
         setProfileLoading(false);
         return;
       }
 
       // Fetch student profile, enrollment info, and user account details
-      const { data: profile, error: profileErr } = await supabase
-        .from("students")
-        .select(`
-          id,
-          student_code,
-          guardian_name,
-          date_of_birth,
-          gender,
-          blood_group,
-          address,
-          admission_date,
-          guardian_phone,
-          enrollments!inner (
-            roll_number,
-            is_active,
-            section_id,
-            section:sections!inner (
-              id,
-              name,
-              class:classes!inner (
-                id,
-                name
-              )
-            )
-          ),
-          user:users!inner (
-            full_name,
-            profile_photo_url,
-            email,
-            phone
-          )
-        `)
-        .eq("id", id)
-        .maybeSingle();
-
-      if (profileErr || !profile) {
-        console.error("Error fetching student profile:", profileErr);
+      const profile = await getTeacherStudentProfile(id as string);
+      if (!profile) {
         setProfileError("Could not load student profile");
         setProfileLoading(false);
         return;
       }
 
-      const userDetails = Array.isArray(profile.user) ? profile.user[0] : profile.user;
-      const enrollment = Array.isArray(profile.enrollments)
-        ? profile.enrollments[0]
-        : profile.enrollments;
-      const section = enrollment ? (Array.isArray(enrollment.section) ? enrollment.section[0] : enrollment.section) : null;
-      const classObj = section ? (Array.isArray(section.class) ? section.class[0] : section.class) : null;
-
       const profileObj = {
-        id: profile.id,
-        student_code: profile.student_code,
-        full_name: userDetails?.full_name || "Student",
-        avatar_url: userDetails?.profile_photo_url || null,
-        email: userDetails?.email || "",
-        phone: userDetails?.phone || "",
-        roll_number: enrollment?.roll_number || "",
-        section_id: section?.id || "",
-        section_name: section?.name || "",
-        class_id: classObj?.id || "",
-        class_name: classObj?.name || "",
+        ...profile,
+        teacher_id: teacherData.id,
       };
 
       setStudent(profileObj);
 
       // Compute rank in section & avg AI score in parallel
-      computeCohortRank(profile.id, profileObj.section_id, profileObj.class_id);
+      computeCohortRank(profile.id, profile.class_id);
       loadAIScoreAvg(profile.id);
-      loadHomeworkStats(profile.id, profileObj.class_id, teacherData.id);
-      loadSubjectDropdownAndExams(profile.id, profileObj.section_id, teacherData.user_id);
+      loadHomeworkStats(profile.id, profile.class_id, teacherData.id);
+      loadSubjectDropdownAndExams(profile.id, teacherData.id, profile.section_id);
+      loadAiEngagement(profile.id);
     } catch (err) {
       console.error("Failed to load profile:", err);
       setProfileError("Could not load profile");
@@ -442,170 +408,71 @@ export default function StudentDetailScreen() {
   };
 
   // Compute Rank in class section
-  const computeCohortRank = async (studentId: string, sectionId: string, classId: string) => {
+  const computeCohortRank = async (studentId: string, classId: string) => {
     try {
-      // Fetch enrolled active students in the section
-      const { data: cohort } = await supabase
-        .from("enrollments")
-        .select("student_id")
-        .eq("section_id", sectionId)
-        .eq("is_active", true);
-
-      const studentIds = cohort?.map((e) => e.student_id) || [];
-      setTotalStudents(studentIds.length);
-
-      // Fetch exams for class
-      const { data: examsData } = await supabase
-        .from("exams")
-        .select("id, total_marks")
-        .eq("class_id", classId);
-
-      const examIds = examsData?.map((e) => e.id) || [];
-
-      let examResultsData: any[] = [];
-      if (examIds.length > 0 && studentIds.length > 0) {
-        const { data: res } = await supabase
-          .from("exam_results")
-          .select("student_id, marks_obtained, exam_id")
-          .in("student_id", studentIds)
-          .in("exam_id", examIds);
-        examResultsData = res || [];
-      }
-
-      // Compute average percentage for all students in section
-      const ranks = studentIds.map((sid) => {
-        const sRes = examResultsData.filter(
-          (r) => r.student_id === sid && r.marks_obtained !== null
-        );
-        let obtained = 0;
-        let maxMarks = 0;
-        sRes.forEach((r) => {
-          const ex = examsData?.find((e) => e.id === r.exam_id);
-          obtained += Number(r.marks_obtained);
-          maxMarks += Number(ex?.total_marks || 100);
-        });
-        const score = maxMarks > 0 ? (obtained / maxMarks) * 100 : 0;
-        return { student_id: sid, score };
-      });
-
-      // Sort desc
-      ranks.sort((a, b) => b.score - a.score);
-
-      const studentRankIndex = ranks.findIndex((x) => x.student_id === studentId);
-      const studentRank = studentRankIndex !== -1 ? studentRankIndex + 1 : 1;
-
-      // format as 2 digit e.g. "04"
-      const rankStr = studentRank < 10 ? `0${studentRank}` : `${studentRank}`;
-      setRank(rankStr);
-      setProfileLoading(false);
+      const res = await getStudentRankInClass(studentId, classId);
+      setRank(res.rank);
+      setTotalStudents(res.total);
     } catch (err) {
       console.error("Failed to compute cohort rank:", err);
       setRank("—");
-      setProfileLoading(false);
+      setTotalStudents(0);
     }
   };
 
-  // Load average AI score from ai_scores table
+  // Load average AI score from homework_submissions table
   const loadAIScoreAvg = async (studentId: string) => {
     try {
-      const { data: aiScores } = await supabase
-        .from("ai_scores")
-        .select("score")
-        .eq("student_id", studentId);
-
-      if (aiScores && aiScores.length > 0) {
-        let sum = 0;
-        aiScores.forEach((s) => {
-          const val = Number(s.score);
-          sum += val > 10 ? val / 10 : val;
-        });
-        setAvgAiScore((sum / aiScores.length).toFixed(2));
-      } else {
-        setAvgAiScore("—");
-      }
+      const avg = await getStudentAverageAiScore(studentId);
+      setAvgAiScore(avg);
     } catch (err) {
       console.error("Failed to load AI scores:", err);
       setAvgAiScore("—");
     }
   };
 
+  // Load AI Engagement scores
+  const loadAiEngagement = async (studentId: string) => {
+    try {
+      const scores = await getStudentAiEngagementScores(studentId);
+      setAiEngagement(scores);
+    } catch (err) {
+      console.error("Failed to load AI engagement scores:", err);
+    }
+  };
+
   // Load subject dropdown and exam results
   const loadSubjectDropdownAndExams = async (
     studentId: string,
-    sectionId: string,
-    teacherUserId: string
+    teacherId: string,
+    sectionId: string
   ) => {
     try {
       setChartLoading(true);
       setChartError(null);
 
-      // Fetch teacher's subjects for this section from timetable
-      const { data: timetableData, error: timetableErr } = await supabase
-        .from("timetable")
-        .select(`
-          class_subjects!inner (
-            teacher_id,
-            subject:subjects!inner (
-              id,
-              name
-            )
-          )
-        `)
-        .eq("section_id", sectionId);
+      // Fetch teacher's subjects for this section using the getTeacherClasses repository function
+      const teacherClasses = await getTeacherClasses(teacherId);
+      const sectionSubjects = teacherClasses
+        .filter((c) => c.section_id === sectionId)
+        .map((c) => ({ id: c.subject_id, name: c.subject_name }));
 
-      if (timetableErr) {
-        console.error("Error fetching timetable:", timetableErr);
-        setChartError("Could not load subjects");
-        setChartLoading(false);
-        return;
-      }
-
-      // Filter rows taught by this teacher in JS
-      const subjectsMap = new Map<string, string>();
-      timetableData?.forEach((row: any) => {
-        const cs = Array.isArray(row.class_subjects)
-          ? row.class_subjects[0]
-          : row.class_subjects;
-        if (cs && cs.teacher_id === teacherUserId) {
-          const sub = Array.isArray(cs.subject) ? cs.subject[0] : cs.subject;
-          if (sub) {
-            subjectsMap.set(sub.id, sub.name);
-          }
-        }
+      // Unique subjects
+      const seen = new Set();
+      const uniqueSectionSubjects = sectionSubjects.filter((s) => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
       });
 
-      const teacherSubjects = Array.from(subjectsMap.entries()).map(([id, name]) => ({
-        id,
-        name,
-      }));
+      setSubjects(uniqueSectionSubjects);
 
-      setSubjects(teacherSubjects);
+      // Fetch exam results scoped to this teacher's subjects
+      const results = await getStudentExamMarksForTeacher(studentId, teacherId);
+      setExamResults(results);
 
-      // Fetch all exam results for the student
-      const { data: examData, error: erErr } = await supabase
-        .from("exam_results")
-        .select(`
-          marks_obtained,
-          exam:exams!inner (
-            id,
-            exam_date,
-            total_marks,
-            subject_id
-          )
-        `)
-        .eq("student_id", studentId);
-
-      if (erErr) {
-        console.error("Error fetching exam results:", erErr);
-        setChartError("Could not load exam data");
-        setChartLoading(false);
-        return;
-      }
-
-      setExamResults(examData || []);
-
-      if (teacherSubjects.length > 0) {
-        setSelectedSubjectId(teacherSubjects[0].id);
+      if (uniqueSectionSubjects.length > 0) {
+        setSelectedSubjectId(uniqueSectionSubjects[0].id);
       }
       setChartLoading(false);
     } catch (err) {
@@ -621,54 +488,11 @@ export default function StudentDetailScreen() {
       setHomeworkLoading(true);
       setHomeworkError(null);
 
-      // Fetch homework assigned by this teacher to student's class
-      const { data: homeworks, error: hwErr } = await supabase
-        .from("homework")
-        .select("id")
-        .eq("class_id", classId)
-        .eq("teacher_id", teacherId);
+      const res = await getStudentHomeworkSubmissions(studentId, classId, teacherId);
 
-      if (hwErr) {
-        console.error("Error fetching homeworks:", hwErr);
-        setHomeworkError("Could not load assignments");
-        setHomeworkLoading(false);
-        return;
-      }
-
-      const hwIds = homeworks?.map((h) => h.id) || [];
-      setHomeworkTotal(hwIds.length);
-
-      if (hwIds.length > 0) {
-        // Fetch submissions for this student corresponding to these homework assignments
-        const { data: submissions, error: subErr } = await supabase
-          .from("homework_submissions")
-          .select(`
-            id,
-            homework_id,
-            submitted_at,
-            marks_obtained,
-            homework:homework (
-              title,
-              total_marks
-            )
-          `)
-          .eq("student_id", studentId)
-          .in("homework_id", hwIds)
-          .order("submitted_at", { ascending: false });
-
-        if (subErr) {
-          console.error("Error fetching submissions:", subErr);
-          setHomeworkError("Could not load submissions");
-          setHomeworkLoading(false);
-          return;
-        }
-
-        setHomeworkSubmitted(submissions?.length || 0);
-        setRecentSubmissions(submissions || []);
-      } else {
-        setHomeworkSubmitted(0);
-        setRecentSubmissions([]);
-      }
+      setHomeworkTotal(res.total);
+      setHomeworkSubmitted(res.submitted);
+      setRecentSubmissions(res.submissions);
       setHomeworkLoading(false);
     } catch (err) {
       console.error("Failed to load homework details:", err);
@@ -1147,8 +971,8 @@ export default function StudentDetailScreen() {
                       onPress={() =>
                         loadSubjectDropdownAndExams(
                           student.id,
-                          student.section_id,
-                          student.teacher_user_id
+                          student.teacher_id,
+                          student.section_id
                         )
                       }
                       className="bg-[#D4AF37] px-4 py-2 rounded-lg items-center"
@@ -1313,10 +1137,19 @@ export default function StudentDetailScreen() {
                       <Text className="font-inter-medium text-[13px] text-white">
                         Concept clarity
                       </Text>
-                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">8.4/10</Text>
+                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">
+                        {aiEngagement.conceptClarity !== "—" ? `${aiEngagement.conceptClarity}/10` : "—"}
+                      </Text>
                     </View>
                     <View className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                      <View style={{ width: "84%" }} className="h-full bg-[#D4AF37] rounded-full" />
+                      <View
+                        style={{
+                          width: aiEngagement.conceptClarity !== "—"
+                            ? `${parseFloat(aiEngagement.conceptClarity) * 10}%`
+                            : "0%"
+                        }}
+                        className="h-full bg-[#D4AF37] rounded-full"
+                      />
                     </View>
                   </View>
 
@@ -1326,10 +1159,19 @@ export default function StudentDetailScreen() {
                       <Text className="font-inter-medium text-[13px] text-white">
                         Completeness
                       </Text>
-                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">7.2/10</Text>
+                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">
+                        {aiEngagement.completeness !== "—" ? `${aiEngagement.completeness}/10` : "—"}
+                      </Text>
                     </View>
                     <View className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                      <View style={{ width: "72%" }} className="h-full bg-[#D4AF37] rounded-full" />
+                      <View
+                        style={{
+                          width: aiEngagement.completeness !== "—"
+                            ? `${parseFloat(aiEngagement.completeness) * 10}%`
+                            : "0%"
+                        }}
+                        className="h-full bg-[#D4AF37] rounded-full"
+                      />
                     </View>
                   </View>
 
@@ -1337,19 +1179,23 @@ export default function StudentDetailScreen() {
                   <View className="mt-3">
                     <View className="flex-row justify-between mb-1.5">
                       <Text className="font-inter-medium text-[13px] text-white">
-                        Participation
+                        presentation
                       </Text>
-                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">9.1/10</Text>
+                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">
+                        {aiEngagement.presentation !== "—" ? `${aiEngagement.presentation}/10` : "—"}
+                      </Text>
                     </View>
                     <View className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                      <View style={{ width: "91%" }} className="h-full bg-[#D4AF37] rounded-full" />
+                      <View
+                        style={{
+                          width: aiEngagement.presentation !== "—"
+                            ? `${parseFloat(aiEngagement.presentation) * 10}%`
+                            : "0%"
+                        }}
+                        className="h-full bg-[#D4AF37] rounded-full"
+                      />
                     </View>
                   </View>
-
-                  {/* // TODO: Replace mock values with:
-                      // SELECT criteria_scores FROM ai_scores
-                      // WHERE student_id = [id]
-                      // Average per criteria key */}
                 </View>
               </View>
 

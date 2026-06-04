@@ -167,6 +167,15 @@ Your first goal should be:
 
 Not:
 * Build the most advanced ERP in India.
+
+Critical :
+## RLS Policy Rules
+- Do NOT add RLS policies during feature development
+- RLS is applied only before pilot/deployment
+- Every RLS policy must be tested in Supabase SQL Editor 
+  before being added as a migration file
+- Never combine RLS migrations with data migrations
+- Test each table's RLS independently before moving to the next
 ---
 
 

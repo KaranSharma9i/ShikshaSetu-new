@@ -326,3 +326,113 @@ export async function getOutstandingDefaulters(institutionId: string): Promise<F
     ];
   }
 }
+
+export interface StudentFeeItem {
+  id: string;
+  fee_name: string;
+  amount: number;
+  amount_paid: number;
+  due_date: string | null;
+  payment_date: string | null;
+  status: "paid" | "pending" | "overdue";
+}
+
+export interface StudentFeesData {
+  fees: StudentFeeItem[];
+  totalDue: number;
+  totalPaid: number;
+  totalPending: number;
+}
+
+export async function getStudentFees(studentId: string): Promise<StudentFeesData> {
+  try {
+    // 1. Fetch student's class_id from active enrollment
+    const { data: enrollment, error: enrollError } = await supabase
+      .from("enrollments")
+      .select("section:sections!inner (class_id)")
+      .eq("student_id", studentId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (enrollError) throw enrollError;
+    if (!enrollment) {
+      return { fees: [], totalDue: 0, totalPaid: 0, totalPending: 0 };
+    }
+
+    const section = Array.isArray(enrollment.section) ? enrollment.section[0] : enrollment.section;
+    const classId = (section as any)?.class_id;
+    if (!classId) {
+      return { fees: [], totalDue: 0, totalPaid: 0, totalPending: 0 };
+    }
+
+    // 2. Fetch fee structures for this class
+    const { data: structures, error: structError } = await supabase
+      .from("fee_structures")
+      .select("id, fee_name, amount, due_date")
+      .eq("class_id", classId)
+      .is("deleted_at", null);
+
+    if (structError) throw structError;
+    if (!structures || structures.length === 0) {
+      return { fees: [], totalDue: 0, totalPaid: 0, totalPending: 0 };
+    }
+
+    // 3. Fetch fee payments for this student
+    const { data: payments, error: payError } = await supabase
+      .from("fee_payments")
+      .select("id, fee_structure_id, amount_paid, payment_date")
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    if (payError) throw payError;
+
+    // 4. Map fee structures and calculate totals
+    const fees: StudentFeeItem[] = [];
+    let totalDue = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+
+    structures.forEach((struct) => {
+      const matchingPayments = payments?.filter((p) => p.fee_structure_id === struct.id) || [];
+      const amountPaid = matchingPayments.reduce((acc, curr) => acc + Number(curr.amount_paid), 0);
+      const amount = Number(struct.amount) || 0;
+      
+      const lastPayment = matchingPayments.length > 0 
+        ? matchingPayments.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())[0]
+        : null;
+
+      const paymentDate = lastPayment ? lastPayment.payment_date : null;
+      const status = deriveStatus(amountPaid, amount, struct.due_date);
+
+      totalDue += amount;
+      totalPaid += amountPaid;
+      totalPending += Math.max(0, amount - amountPaid);
+
+      fees.push({
+        id: struct.id,
+        fee_name: struct.fee_name,
+        amount,
+        amount_paid: amountPaid,
+        due_date: struct.due_date,
+        payment_date: paymentDate,
+        status,
+      });
+    });
+
+    return {
+      fees,
+      totalDue,
+      totalPaid,
+      totalPending,
+    };
+  } catch (error) {
+    console.error("Error in getStudentFees repository:", error);
+    return {
+      fees: [],
+      totalDue: 0,
+      totalPaid: 0,
+      totalPending: 0,
+    };
+  }
+}
+
