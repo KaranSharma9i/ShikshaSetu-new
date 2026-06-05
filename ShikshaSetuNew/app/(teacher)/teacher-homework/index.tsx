@@ -160,6 +160,7 @@ export default function HomeworkDashboard() {
           )
         `)
         .eq("teacher_id", teacherId)
+        .neq("status", "draft")
         .order("created_at", { ascending: false });
 
       if (homeworksErr) {

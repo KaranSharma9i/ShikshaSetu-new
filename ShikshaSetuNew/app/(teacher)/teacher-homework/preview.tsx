@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { supabase } from "@/src/lib/supabase";
 import Header from "@/components/teacher/Header";
+import { generateHomework, publishHomework } from "@/src/repositories/teacherRepository";
 import { Colors, Spacing, Radius, Shadow, FontSize, ButtonTokens } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -54,6 +55,7 @@ export default function HomeworkPreview() {
   const {
     homework_id,
     generated_content,
+    pdf_url,
     grade,
     subject,
     title,
@@ -61,31 +63,32 @@ export default function HomeworkPreview() {
   } = params;
 
   // State management inside the component
-  const [questions, setQuestions] = useState<GeneratedQuestion[]>([]);
-  const [metadata, setMetadata] = useState<any>(null);
+  const [questions, setQuestions] = useState<GeneratedQuestion[]>(() => {
+    if (!generated_content) return [];
+    try {
+      const parsed = JSON.parse(generated_content as string);
+      return Array.isArray(parsed?.questions) ? parsed.questions : [];
+    } catch {
+      return [];
+    }
+  });
+  const [metadata, setMetadata] = useState<any>(() => {
+    if (!generated_content) return null;
+    try {
+      const parsed = JSON.parse(generated_content as string);
+      return parsed?.metadata ?? null;
+    } catch {
+      return null;
+    }
+  });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState<string>('');
   const [editOptions, setEditOptions] = useState<string[]>([]);
   const [bannerVisible, setBannerVisible] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
-
-  // Parse generated_content on mount
-  useEffect(() => {
-    if (generated_content) {
-      try {
-        const parsed = JSON.parse(generated_content) as GeneratedContent;
-        if (parsed && Array.isArray(parsed.questions)) {
-          setQuestions(parsed.questions);
-        }
-        if (parsed && parsed.metadata) {
-          setMetadata(parsed.metadata);
-        }
-      } catch (err) {
-        console.error("Failed to parse generated_content:", err);
-        Alert.alert("Error", "Failed to parse homework content.");
-      }
-    }
-  }, [generated_content]);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [currentHomeworkId, setCurrentHomeworkId] = useState(homework_id);
+  const [currentPdfUrl, setCurrentPdfUrl] = useState(pdf_url);
 
   // Clean option prefix labels when displaying in text inputs
   const cleanOption = (opt: string, idx: number): string => {
@@ -143,11 +146,91 @@ export default function HomeworkPreview() {
 
   const handleRegenerate = () => {
     Alert.alert(
-      "Discard Edits",
-      "This will discard all edits. Continue?",
+      "Regenerate Questions",
+      "This will discard all edits and generate new questions. Continue?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Continue", onPress: () => router.back() }
+        {
+          text: "Continue",
+          onPress: async () => {
+            if (isRegenerating) return;
+            setIsRegenerating(true);
+            try {
+              // Fetch the current homework details to get the generation parameters
+              const { data, error: fetchError } = await supabase
+                .from("homework")
+                .select(`
+                  institution_id,
+                  academic_year_id,
+                  class_id,
+                  section_id,
+                  subject_id,
+                  teacher_id,
+                  title,
+                  description,
+                  due_date,
+                  difficulty,
+                  question_config,
+                  class:classes ( name ),
+                  section:sections ( name ),
+                  subject:subjects ( name )
+                `)
+                .eq("id", currentHomeworkId)
+                .single();
+
+              if (fetchError || !data) {
+                throw new Error(fetchError?.message || "Failed to fetch original homework details.");
+              }
+
+              const classObj = Array.isArray(data.class) ? data.class[0] : data.class;
+              const sectionObj = Array.isArray(data.section) ? data.section[0] : data.section;
+              const subjectObj = Array.isArray(data.subject) ? data.subject[0] : data.subject;
+
+              const gradeName = classObj?.name || "";
+              const sectionName = sectionObj?.name || "";
+              const subjectName = subjectObj?.name || "";
+
+              const payload = {
+                grade: gradeName,
+                subject: subjectName,
+                title: data.title,
+                topic_description: data.description || "",
+                question_config: data.question_config,
+                teacher_id: data.teacher_id,
+                class_id: data.class_id,
+                section_id: data.section_id,
+                section_name: sectionName,
+                subject_id: data.subject_id,
+                institution_id: data.institution_id,
+                academic_year_id: data.academic_year_id,
+                due_date: data.due_date,
+                difficulty: data.difficulty as 'Easy' | 'Medium' | 'Hard',
+              };
+
+              const result = await generateHomework(payload);
+
+              if (result && result.generated_content) {
+                const content = result.generated_content;
+                if (content.questions && Array.isArray(content.questions)) {
+                  setQuestions(content.questions);
+                }
+                if (content.metadata) {
+                  setMetadata(content.metadata);
+                }
+                setCurrentHomeworkId(result.homework_id);
+                setCurrentPdfUrl(result.pdf_url ?? "");
+                Alert.alert("Success", "Questions regenerated successfully!");
+              } else {
+                throw new Error("Invalid response received from regeneration service.");
+              }
+            } catch (err: any) {
+              console.error("Regeneration failed:", err);
+              Alert.alert("Regeneration Failed", err.message || "An unexpected error occurred.");
+            } finally {
+              setIsRegenerating(false);
+            }
+          }
+        }
       ]
     );
   };
@@ -179,35 +262,28 @@ export default function HomeworkPreview() {
         metadata: updatedMetadata,
       };
 
-      // Step 2 - Call Supabase directly to update the homework row
-      const { error } = await supabase
-        .from('homework')
-        .update({
-          generated_content: updatedGeneratedContent,
-          generation_status: 'published',
-          status: 'active',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', homework_id);
+      // Call backend to save edits and regenerate PDF
+      const result = await publishHomework({
+        homework_id: currentHomeworkId || '',
+        generated_content: updatedGeneratedContent,
+      });
 
-      // Step 3 - On success: navigate to published.tsx
-      if (!error) {
-        router.push({
-          pathname: "/(teacher)/teacher-homework/published" as any,
-          params: {
-            subject: subject || '',
-            grade: grade || '',
-            chapter: title || '',
-            questionCount: questions.length.toString(),
-            studentCount: "42",
-            dueDate: due_date || '',
-          },
-        });
-      } else {
-        // Step 4 - On error
-        console.error("Publish error:", error);
-        Alert.alert("Publish Failed", error.message);
+      if (!result || !result.success) {
+        throw new Error("Failed to publish homework.");
       }
+
+      // Step 2 - On success: navigate to published.tsx
+      router.push({
+        pathname: "/(teacher)/teacher-homework/published" as any,
+        params: {
+          subject: subject || '',
+          grade: grade || '',
+          chapter: title || '',
+          questionCount: questions.length.toString(),
+          studentCount: "42",
+          dueDate: due_date || '',
+        },
+      });
     } catch (err: any) {
       console.error("Publish exception:", err);
       Alert.alert("Publish Failed", err.message || "An unexpected error occurred.");
@@ -402,14 +478,19 @@ export default function HomeworkPreview() {
         <TouchableOpacity
           onPress={handleRegenerate}
           style={styles.regenerateButton}
+          disabled={isRegenerating || isPublishing}
           activeOpacity={0.7}
         >
-          <Text style={styles.regenerateButtonText}>Regenerate</Text>
+          {isRegenerating ? (
+            <ActivityIndicator size="small" color={ButtonTokens.secondary.textColor} />
+          ) : (
+            <Text style={styles.regenerateButtonText}>Regenerate</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handlePublish}
           style={styles.publishButton}
-          disabled={isPublishing}
+          disabled={isPublishing || isRegenerating}
           activeOpacity={0.8}
         >
           {isPublishing ? (

@@ -981,6 +981,29 @@ export async function generateHomework(payload: {
   return response.json();
 }
 
+export async function publishHomework(payload: {
+  homework_id: string;
+  generated_content: {
+    questions: any[];
+    metadata: any;
+  };
+}): Promise<{ success: boolean }> {
+  const SERVER_URL = getServerUrl();
+
+  const response = await fetch(`${SERVER_URL}/api/teacher/homework/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Server error' }));
+    throw new Error(error.error ?? `Server responded with ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export interface TeacherDashboardStats {
   teacher: {
     id: string;
