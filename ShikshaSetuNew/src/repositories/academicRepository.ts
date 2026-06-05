@@ -156,13 +156,9 @@ export async function getSubjectAnalytics(
   selectedGradeName: string // e.g. "Grade 10-B"
 ): Promise<SubjectAnalyticData[]> {
   try {
-    // 1. Resolve class name and section name from display string robustly
     let normalizedName = selectedGradeName;
-    if (selectedGradeName.startsWith("Grade ")) {
-      normalizedName = selectedGradeName.replace("Grade ", "Class ");
-    }
     const nameParts = normalizedName.split("-");
-    const className = nameParts[0].trim();
+    const className = nameParts[0].trim().replace(/^(Grade|Class)\s+/i, "").trim();
     const sectionLetter = (nameParts[1] || "A").trim();
 
     // 2. Fetch section ID

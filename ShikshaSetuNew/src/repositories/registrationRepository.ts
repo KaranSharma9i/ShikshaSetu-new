@@ -197,8 +197,7 @@ export async function registerStudent(
         full_name: params.name,
         email: params.studentEmail,
         phone: params.guardianPhone,
-        status: "active",
-        password_hash: "$2b$10$defaultHashedPassword123456789012345678901234"
+        status: "active"
       })
       .select("id")
       .single();
@@ -237,7 +236,7 @@ export async function registerStudent(
     if (ayErr) throw ayErr;
 
     // 5. Query matching class
-    const gradeClass = params.grade.replace("Grade ", "Class ");
+    const gradeClass = params.grade.replace(/^(Grade|Class)\s+/i, "").trim();
     const { data: classData, error: clsErr } = await supabase
       .from("classes")
       .select("id")
@@ -448,8 +447,7 @@ export async function appointTeacher(
         full_name: params.name,
         email: params.email,
         phone: params.contactNumber,
-        status: "active",
-        password_hash: passwordHash
+        status: "active"
       })
       .select("id")
       .single();
@@ -497,7 +495,7 @@ export async function appointTeacher(
 
 export async function getSectionsForClass(institutionId: string, gradeName: string): Promise<string[]> {
   try {
-    const gradeClass = gradeName.replace("Grade ", "Class ");
+    const gradeClass = gradeName.replace(/^(Grade|Class)\s+/i, "").trim();
     
     // 1. Get class_id
     const { data: classData, error: clsErr } = await supabase
