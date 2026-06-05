@@ -1,6 +1,20 @@
-import PDFDocument from "pdfkit";
+import puppeteer, { Browser } from "puppeteer";
+import fs from "fs";
+import path from "path";
 import { supabase } from "../config";
 import { GeneratedContent, GenerateHomeworkRequest } from "../types/generation";
+
+let browserInstance: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (!browserInstance) {
+    browserInstance = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
+  return browserInstance;
+}
 
 export class PdfService {
   async generateAndUpload(
@@ -47,104 +61,280 @@ export class PdfService {
     return data.publicUrl;
   }
 
-  private generatePdf(content: GeneratedContent, req: GenerateHomeworkRequest): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument({ size: "A4", margin: 50, bufferPages: true });
-        const chunks: Buffer[] = [];
+  private async generatePdf(content: GeneratedContent, req: GenerateHomeworkRequest): Promise<Buffer> {
+    const logoPath = path.resolve(__dirname, "../../assets/gurukul.png");
+    let logoDataUri = "";
+    try {
+      const logoBase64 = fs.readFileSync(logoPath).toString("base64");
+      logoDataUri = `data:image/png;base64,${logoBase64}`;
+    } catch (err) {
+      console.error(`Failed to read logo watermark from ${logoPath}:`, err);
+    }
 
-        doc.on("data", (chunk) => chunks.push(chunk));
-        doc.on("end", () => resolve(Buffer.concat(chunks)));
-        doc.on("error", (err) => reject(err));
+    const browser = await getBrowser();
+    const page = await browser.newPage();
 
-        const ensureSpace = (needed: number) => {
-          if (doc.y + needed > doc.page.height - 50) {
-            doc.addPage();
+    try {
+      const html = this.buildHtmlTemplate(content, req, logoDataUri);
+
+      await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 });
+
+      await page.evaluate(() => {
+        return new Promise<void>((resolve) => {
+          // @ts-ignore
+          if (window.renderMathInElement) {
+            // @ts-ignore
+            window.renderMathInElement(document.body, {
+              delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "$", right: "$", display: false },
+                { left: "\\(", right: "\\)", display: false },
+              ],
+            });
           }
-        };
-
-        // Header Section
-        doc.fontSize(10).fillColor("#1a1a2e").font("Helvetica").text("Institution: ____________________", 50, 50);
-        doc.fontSize(10).fillColor("#1a1a2e").text(`Due Date: ${req.due_date}`, 50, 50, {
-          align: "right",
-          width: doc.page.width - 100,
+          resolve();
         });
+      });
 
-        doc.moveDown(1.5);
-        doc.fontSize(18).font("Helvetica-Bold").fillColor("#1a1a2e").text("HOMEWORK ASSIGNMENT", { align: "center" });
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: {
+          top: "20mm",
+          bottom: "20mm",
+          left: "20mm",
+          right: "20mm",
+        },
+        displayHeaderFooter: true,
+        headerTemplate: "<span></span>",
+        footerTemplate: `
+          <div style="font-family: 'Poppins', sans-serif; font-size: 9px; width: 100%; text-align: center; color: #a0aec0;">
+            Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+          </div>
+        `,
+      });
 
-        doc.moveDown(0.5);
-        const gradeSectionText = req.section_name ? `${req.grade} - ${req.section_name}` : req.grade;
-        doc.fontSize(12).font("Helvetica").fillColor("#4a5568").text(`${gradeSectionText}  |  Subject: ${req.subject}  |  Title: ${req.title}`, {
-          align: "center",
-        });
+      return pdfBuffer;
+    } finally {
+      await page.close();
+    }
+  }
 
-        doc.moveDown(0.5);
-        doc.fontSize(11).font("Helvetica-Bold").fillColor("#1a1a2e").text(`Topic: ${content.metadata.topic || req.topic_description}`, {
-          align: "left",
-        });
+  private buildHtmlTemplate(
+    content: GeneratedContent,
+    req: GenerateHomeworkRequest,
+    logoDataUri: string
+  ): string {
+    const gradeSectionText = req.section_name ? `${req.grade} - ${req.section_name}` : req.grade;
+    const topicText = content.metadata.topic || req.topic_description;
 
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke("#cbd5e0");
-        doc.moveDown(1.5);
+    let questionsHtml = "";
 
-        // Sections configuration
-        const sectionConfig = [
-          { type: "MCQ", title: "Section A — Multiple Choice Questions (MCQ)" },
-          { type: "VERY_SHORT", title: "Section B — Very Short Answer Questions" },
-          { type: "SHORT", title: "Section C — Short Answer Questions" },
-          { type: "LONG", title: "Section D — Long Answer Questions" },
-          { type: "CASE_STUDY", title: "Section E — Case Study Based Questions" },
-          { type: "ASSERTION_REASON", title: "Section F — Assertion-Reason Questions" },
-        ];
+    const sectionConfig = [
+      { type: "MCQ", title: "Section A — Multiple Choice Questions (MCQ)" },
+      { type: "VERY_SHORT", title: "Section B — Very Short Answer Questions" },
+      { type: "SHORT", title: "Section C — Short Answer Questions" },
+      { type: "LONG", title: "Section D — Long Answer Questions" },
+      { type: "CASE_STUDY", title: "Section E — Case Study Based Questions" },
+      { type: "ASSERTION_REASON", title: "Section F — Assertion-Reason Questions" },
+    ];
 
-        for (const section of sectionConfig) {
-          const sectionQuestions = content.questions.filter((q) => q.type === section.type);
-          if (sectionQuestions.length === 0) continue;
+    for (const section of sectionConfig) {
+      const sectionQuestions = content.questions.filter((q) => q.type === section.type);
+      if (sectionQuestions.length === 0) continue;
 
-          ensureSpace(60);
-          doc.moveDown(1);
-          doc.fontSize(12).font("Helvetica-Bold").fillColor("#1a1a2e").text(section.title);
-          doc.moveDown(0.5);
+      questionsHtml += `<div class="section-title">${section.title}</div>`;
 
-          for (const q of sectionQuestions) {
-            // Rough estimation of space needed
-            const questionLines = Math.ceil(q.question.length / 80) + 1;
-            const optionsHeight = q.options ? q.options.length * 18 : 0;
-            const estimatedHeight = questionLines * 15 + optionsHeight + 25;
+      for (const q of sectionQuestions) {
+        questionsHtml += `
+          <div class="question-block">
+            <div class="question-text">
+              <strong>${q.question_number}.</strong> ${q.question}
+            </div>
+        `;
 
-            ensureSpace(estimatedHeight);
-
-            doc.fontSize(10).font("Helvetica").fillColor("#2d3748");
-            doc.text(`${q.question_number}. ${q.question}`);
-
-            if (q.options && q.options.length > 0) {
-              doc.moveDown(0.3);
-              q.options.forEach((opt) => {
-                doc.fontSize(10).font("Helvetica").fillColor("#4a5568").text(`   ${opt}`, { indent: 15 });
-              });
-            }
-            doc.moveDown(0.8);
-          }
+        if (q.options && q.options.length > 0) {
+          questionsHtml += `<div class="options-grid">`;
+          q.options.forEach((opt) => {
+            questionsHtml += `<div class="option-item">${opt}</div>`;
+          });
+          questionsHtml += `</div>`;
         }
 
-        // Draw page numbers on all pages
-        const range = doc.bufferedPageRange();
-        for (let i = range.start; i < range.start + range.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).font("Helvetica").fillColor("#a0aec0").text(
-            `Page ${i + 1} of ${range.count}`,
-            50,
-            doc.page.height - 40,
-            { align: "center", width: doc.page.width - 100 }
-          );
-        }
-
-        doc.end();
-      } catch (err) {
-        reject(err);
+        questionsHtml += `</div>`;
       }
-    });
+    }
+
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${req.title}</title>
+  
+  <!-- Google Fonts for Poppins and Noto Sans Devanagari -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- KaTeX CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  
+  <style>
+    body {
+      font-family: 'Poppins', 'Noto Sans Devanagari', sans-serif;
+      color: #2d3748;
+      background-color: #ffffff;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Fixed watermark so it repeats on every PDF page */
+    .watermark-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      opacity: 0.07;
+      z-index: 0;
+      pointer-events: none;
+      width: 420px;
+      height: 420px;
+    }
+    .watermark-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Content wrapper rendered above watermark */
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header Styling */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .header-cell-left {
+      font-size: 11px;
+      color: #1a1a2e;
+      text-align: left;
+    }
+    .header-cell-right {
+      font-size: 11px;
+      color: #1a1a2e;
+      text-align: right;
+    }
+    .title-banner {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .title-banner h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #4a5568;
+      margin: 0;
+    }
+    .topic-desc {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 12px 0;
+    }
+    .divider {
+      border: 0;
+      border-top: 1px solid #cbd5e0;
+      margin: 10px 0 20px 0;
+    }
+
+    /* Section Styling */
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-top: 25px;
+      margin-bottom: 12px;
+      border-bottom: 1px dashed #cbd5e0;
+      padding-bottom: 4px;
+      page-break-after: avoid;
+    }
+    .question-block {
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+    .question-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: #2d3748;
+      margin-bottom: 6px;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-left: 20px;
+      margin-top: 4px;
+    }
+    .option-item {
+      font-size: 10.5px;
+      color: #4a5568;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      page-break-after: avoid;
+    }
+  </style>
+</head>
+<body>
+  <!-- Watermark -->
+  <div class="watermark-container">
+    <img class="watermark-img" src="${logoDataUri}" />
+  </div>
+
+  <div class="content-wrapper">
+    <!-- Header Block -->
+    <table class="header-table">
+      <tr>
+        <td class="header-cell-left"><strong>Institution:</strong> Gurukul Shikshalaya</td>
+        <td class="header-cell-right"><strong>Due Date:</strong> ${req.due_date}</td>
+      </tr>
+    </table>
+
+    <div class="title-banner">
+      <h1>HOMEWORK ASSIGNMENT</h1>
+      <p class="subtitle">
+        ${gradeSectionText} &nbsp;|&nbsp; <strong>Subject:</strong> ${req.subject} &nbsp;|&nbsp; <strong>Title:</strong> ${req.title}
+      </p>
+    </div>
+
+    <div class="topic-desc">
+      <strong>Topic:</strong> ${topicText}
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Content Sections -->
+    ${questionsHtml}
+  </div>
+  
+  <!-- KaTeX JavaScript dependencies -->
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+</body>
+</html>
+    `;
   }
 }
 
