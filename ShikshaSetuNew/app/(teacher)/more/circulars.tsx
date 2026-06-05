@@ -108,11 +108,12 @@ export default function CircularsScreen() {
         return;
       }
 
-      // 2. Fetch circulars for teacher's institution_id
+      // 2. Fetch circulars for teacher's institution_id targeted at teachers
       const { data: rawCirculars, error: circularsErr } = await supabase
         .from("circulars")
         .select("*")
         .eq("institution_id", teacherData.institution_id)
+        .contains("target_roles", ["teacher"])
         .order("created_at", { ascending: false });
 
       if (circularsErr) {

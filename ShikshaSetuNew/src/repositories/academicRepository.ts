@@ -14,7 +14,7 @@ export interface SubjectAnalyticData {
   subject: string;
   topic: string;
   avgMarks: number;
-  avgScore: number;
+  avgScore: number | null;
   difficulty: "High" | "Medium" | "Low";
   topPerformer: string;
   needsSupportCount: number;
@@ -63,17 +63,38 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
       examResults = resultsData || [];
     }
 
+    // Fetch all homework and their submissions in bulk for AI score computation
+    const { data: homeworksData, error: hwError } = await supabase
+      .from("homework")
+      .select("id, section_id")
+      .eq("institution_id", institutionId);
+
+    const secAiScoreMap: Record<string, number[]> = {};
+    if (!hwError && homeworksData && homeworksData.length > 0) {
+      const hwIds = homeworksData.map(h => h.id);
+      const { data: submissionsData, error: subError } = await supabase
+        .from("homework_submissions")
+        .select("homework_id, ai_score")
+        .in("homework_id", hwIds);
+      
+      if (!subError && submissionsData && submissionsData.length > 0) {
+        submissionsData.forEach(s => {
+          const score = Number(s.ai_score);
+          if (s.ai_score !== null && s.ai_score !== undefined && !isNaN(score)) {
+            const hw = homeworksData.find(h => h.id === s.homework_id);
+            if (hw && hw.section_id) {
+              if (!secAiScoreMap[hw.section_id]) {
+                secAiScoreMap[hw.section_id] = [];
+              }
+              secAiScoreMap[hw.section_id].push(score);
+            }
+          }
+        });
+      }
+    }
+
     // Build the list of ClassPerformanceData
     const result: ClassPerformanceData[] = [];
-
-    // Fallback static metrics mapped to section names if database results are empty
-    const fallbacks: Record<string, Partial<ClassPerformanceData>> = {
-      "Grade 9-A": { avgMarks: "88.1%", avgAiScore: "4.2/5.0", growth: "+2.1%", isPositive: true },
-      "Grade 10-B": { avgMarks: "92.4%", avgAiScore: "4.8/5.0", growth: "+5.2%", isPositive: true },
-      "Grade 11-A": { avgMarks: "90.2%", avgAiScore: "4.5/5.0", growth: "+3.8%", isPositive: true },
-      "Grade 12-A": { avgMarks: "94.0%", avgAiScore: "4.9/5.0", growth: "+1.5%", isPositive: true },
-      "Grade 8-C": { avgMarks: "85.6%", avgAiScore: "3.9/5.0", growth: "-1.4%", isPositive: false },
-    };
 
     const addedClasses = new Set<string>();
 
@@ -93,7 +114,7 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
       
       const classResults = examResults.filter(r => classExamIds.includes(r.exam_id) && r.marks_obtained !== null);
       
-      let avgMarksStr = "85.0%";
+      let avgMarksStr = "N/A";
       if (classResults.length > 0) {
         let totalPct = 0;
         classResults.forEach(r => {
@@ -102,15 +123,14 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
           totalPct += (Number(r.marks_obtained) / maxMarks) * 100;
         });
         avgMarksStr = `${(totalPct / classResults.length).toFixed(1)}%`;
-      } else if (fallbacks[displayName]) {
-        avgMarksStr = fallbacks[displayName].avgMarks || "85.0%";
       }
 
       // Compute average AI score (from homework_submissions)
-      // For demo, query average score or use fallback
-      let avgScoreStr = "4.2/5.0";
-      if (fallbacks[displayName]) {
-        avgScoreStr = fallbacks[displayName].avgAiScore || "4.2/5.0";
+      let avgScoreStr = "N/A";
+      const secScores = secAiScoreMap[sec.id];
+      if (secScores && secScores.length > 0) {
+        const sum = secScores.reduce((a, b) => a + b, 0);
+        avgScoreStr = `${(sum / secScores.length).toFixed(1)}/10.0`;
       }
 
       result.push({
@@ -118,8 +138,8 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
         name: displayName,
         avgMarks: avgMarksStr,
         avgAiScore: avgScoreStr,
-        growth: fallbacks[displayName]?.growth || "+1.0%",
-        isPositive: fallbacks[displayName]?.isPositive ?? true
+        growth: "0.0%",
+        isPositive: true
       });
     }
 
@@ -127,13 +147,7 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
     return result.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Error in getClassesPerformance:", error);
-    return [
-      { id: "1", name: "Grade 10-B", avgMarks: "92.4%", avgAiScore: "4.8/5.0", growth: "+5.2%", isPositive: true },
-      { id: "2", name: "Grade 9-A", avgMarks: "88.1%", avgAiScore: "4.2/5.0", growth: "+2.1%", isPositive: true },
-      { id: "3", name: "Grade 8-C", avgMarks: "85.6%", avgAiScore: "3.9/5.0", growth: "-1.4%", isPositive: false },
-      { id: "4", name: "Grade 11-A", avgMarks: "90.2%", avgAiScore: "4.5/5.0", growth: "+3.8%", isPositive: true },
-      { id: "5", name: "Grade 12-A", avgMarks: "94.0%", avgAiScore: "4.9/5.0", growth: "+1.5%", isPositive: true },
-    ];
+    return [];
   }
 }
 
@@ -142,11 +156,10 @@ export async function getSubjectAnalytics(
   selectedGradeName: string // e.g. "Grade 10-B"
 ): Promise<SubjectAnalyticData[]> {
   try {
-    // 1. Resolve class name and section name from display string
-    const normalizedName = selectedGradeName.replace("Grade ", "Class "); // "Class 10-B"
+    let normalizedName = selectedGradeName;
     const nameParts = normalizedName.split("-");
-    const className = nameParts[0];
-    const sectionLetter = nameParts[1] || "A";
+    const className = nameParts[0].trim().replace(/^(Grade|Class)\s+/i, "").trim();
+    const sectionLetter = (nameParts[1] || "A").trim();
 
     // 2. Fetch section ID
     const { data: sectionData, error: secErr } = await supabase
@@ -166,7 +179,10 @@ export async function getSubjectAnalytics(
     if (secErr) throw secErr;
 
     const sectionId = sectionData?.id;
-    if (!sectionId) throw new Error("Section not found");
+    if (!sectionId) {
+      console.log(`Section not found for className: "${className}" and sectionLetter: "${sectionLetter}"`);
+      return [];
+    }
 
     // 3. Fetch subjects associated with this section
     const { data: classSubs, error: subsErr } = await supabase
@@ -186,26 +202,40 @@ export async function getSubjectAnalytics(
     // Filter and map subjects
     const subjectsList = classSubs?.map((cs: any) => cs.subject).filter(Boolean) || [];
 
-    // Fallbacks for demo analytics
-    const mockSubjects: Record<string, Partial<SubjectAnalyticData>> = {
-      "Mathematics": { topic: "Advanced Calculus & Statistics", difficulty: "High", topPerformer: "R. Malhotra", needsSupportCount: 12, improvementPercent: "+8% vs Last Term", icon: "calculator-outline" },
-      "Physics": { topic: "Mechanics & Optics", difficulty: "Medium", topPerformer: "A. Sterling", needsSupportCount: 8, improvementPercent: "+12% vs Last Term", icon: "flask-outline" },
-      "English": { topic: "Literature & Composition", difficulty: "Low", topPerformer: "S. Sen", needsSupportCount: 2, improvementPercent: "+3% vs Last Term", icon: "book-outline" },
-      "Chemistry": { topic: "Organic & Inorganic", difficulty: "High", topPerformer: "M. Verma", needsSupportCount: 18, improvementPercent: "-2% vs Last Term", icon: "color-filter-outline" },
-    };
+    // Fetch all homework and their submissions in bulk for AI score computation for this section
+    const { data: sectionHomeworks, error: hwErr } = await supabase
+      .from("homework")
+      .select("id, subject_id")
+      .eq("section_id", sectionId);
+
+    const submissionMap: Record<string, number[]> = {};
+    if (!hwErr && sectionHomeworks && sectionHomeworks.length > 0) {
+      const hwIds = sectionHomeworks.map(h => h.id);
+      const { data: submissions, error: subErr } = await supabase
+        .from("homework_submissions")
+        .select("homework_id, ai_score")
+        .in("homework_id", hwIds);
+
+      if (!subErr && submissions && submissions.length > 0) {
+        submissions.forEach(s => {
+          const score = Number(s.ai_score);
+          if (s.ai_score !== null && s.ai_score !== undefined && !isNaN(score)) {
+            const hw = sectionHomeworks.find(h => h.id === s.homework_id);
+            if (hw && hw.subject_id) {
+              if (!submissionMap[hw.subject_id]) {
+                submissionMap[hw.subject_id] = [];
+              }
+              submissionMap[hw.subject_id].push(score);
+            }
+          }
+        });
+      }
+    }
 
     const result: SubjectAnalyticData[] = [];
 
     for (const sub of subjectsList) {
       const name = sub.name;
-      const meta = mockSubjects[name] || {
-        topic: "Core Syllabus Elements",
-        difficulty: "Medium",
-        topPerformer: "A. Student",
-        needsSupportCount: 3,
-        improvementPercent: "+4% vs Last Term",
-        icon: "book-outline"
-      };
 
       // In a live system, query average exams and homework scores for this subject and section
       const { data: exams, error: exErr } = await supabase
@@ -214,8 +244,8 @@ export async function getSubjectAnalytics(
         .eq("class_id", Array.isArray(sectionData.class) ? sectionData.class[0]?.id : (sectionData.class as any)?.id)
         .eq("subject_id", sub.id);
 
-      let avgMarks = 75; // Default fallback
-      let needsSupport = meta.needsSupportCount || 0;
+      let avgMarks = 0;
+      let needsSupport = 0;
 
       if (!exErr && exams && exams.length > 0) {
         const examIds = exams.map(e => e.id);
@@ -253,29 +283,31 @@ export async function getSubjectAnalytics(
         }
       }
 
+      let avgScore: number | null = null;
+      const scores = submissionMap[sub.id];
+      if (scores && scores.length > 0) {
+        const sum = scores.reduce((a, b) => a + b, 0);
+        avgScore = Number((sum / scores.length).toFixed(1));
+      }
+
       result.push({
         id: sub.id,
         subject: name,
-        topic: meta.topic || "Syllabus Core",
+        topic: "Core Syllabus Elements",
         avgMarks: avgMarks,
-        avgScore: activeMetricTabScoreValue(name), // Mock GPA mapping
-        difficulty: meta.difficulty || "Medium",
-        topPerformer: meta.topPerformer || "Top Scorer",
+        avgScore: avgScore,
+        difficulty: "Medium",
+        topPerformer: "N/A",
         needsSupportCount: needsSupport,
-        improvementPercent: meta.improvementPercent || "+5%",
-        icon: meta.icon || "book-outline"
+        improvementPercent: "0%",
+        icon: "book-outline"
       });
     }
 
     return result;
   } catch (error) {
     console.error("Error in getSubjectAnalytics:", error);
-    return [
-      { id: "1", subject: "Mathematics", topic: "Advanced Calculus & Statistics", avgMarks: 84, avgScore: 3.8, difficulty: "High", topPerformer: "R. Malhotra", needsSupportCount: 12, improvementPercent: "+8% vs Last Term", icon: "calculator-outline" },
-      { id: "2", subject: "Physics", topic: "Mechanics & Optics", avgMarks: 76, avgScore: 3.5, difficulty: "Medium", topPerformer: "A. Sterling", needsSupportCount: 8, improvementPercent: "+12% vs Last Term", icon: "flask-outline" },
-      { id: "3", subject: "English", topic: "Literature & Composition", avgMarks: 92, avgScore: 4.2, difficulty: "Low", topPerformer: "S. Sen", needsSupportCount: 2, improvementPercent: "+3% vs Last Term", icon: "book-outline" },
-      { id: "4", subject: "Chemistry", topic: "Organic & Inorganic", avgMarks: 68, avgScore: 2.9, difficulty: "High", topPerformer: "M. Verma", needsSupportCount: 18, improvementPercent: "-2% vs Last Term", icon: "color-filter-outline" },
-    ];
+    return [];
   }
 }
 

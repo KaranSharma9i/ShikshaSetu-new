@@ -1,26 +1,101 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  FlatList,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
-import { schoolData } from "../../constants/schoolData";
 import { useAuth } from "../../src/hooks/useAuth";
 import { useQuery } from "../../src/hooks/useQuery";
 import { getClassesPerformance, getSubjectAnalytics } from "../../src/repositories/academicRepository";
 
+const colors = {
+  // Primary
+  navyBlue: '#0D1B2A',
+  royalBlue: '#162A56',
+  gold: '#D4AF37',
+  lightGold: '#F2C14E',
+
+  // Neutrals
+  charcoal: '#333333',
+  steelGray: '#6B7280',
+  lightGray: '#E5E7EB',
+  cream: '#F7F3EB',
+  white: '#FFFFFF',
+
+  // Semantic
+  success: '#15803d',
+  successBg: '#dcfce7',
+  warning: '#854d0e',
+  warningBg: '#fef9c3',
+  danger: '#991b1b',
+  dangerBg: '#fee2e2',
+};
+
+const typography = {
+  h1: { fontFamily: 'Poppins_700Bold', fontSize: 32, lineHeight: 38 },
+  h2: { fontFamily: 'Poppins_600SemiBold', fontSize: 22, lineHeight: 29 },
+  h3: { fontFamily: 'Poppins_600SemiBold', fontSize: 18, lineHeight: 23 },
+  h4: { fontFamily: 'Poppins_500Medium', fontSize: 15, lineHeight: 21 },
+  bodyLg: { fontFamily: 'Inter_400Regular', fontSize: 16, lineHeight: 26 },
+  bodyMd: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 22 },
+  bodySm: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 21 },
+  caption: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, letterSpacing: 0.24 },
+};
+
+const cardShadow = {
+  shadowColor: colors.navyBlue,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 8,
+  elevation: 2,
+};
+
+const getSubjectEmoji = (name: string): string => {
+  const lower = name.toLowerCase();
+  if (lower.includes("english")) return "📚";
+  if (lower.includes("hindi")) return "📖";
+  if (lower.includes("math")) return "➕";
+  if (lower.includes("physics")) return "⚡";
+  if (lower.includes("chemistry")) return "🧪";
+  if (lower.includes("biology")) return "🧬";
+  if (lower.includes("history")) return "🏛️";
+  if (lower.includes("geography")) return "🌍";
+  if (lower.includes("computer")) return "💻";
+  return "📝";
+};
+
+const getSubjectAbbreviation = (name: string): string => {
+  const lower = name.toLowerCase();
+  if (lower.includes("mathematics")) return "MATH";
+  if (lower.includes("physics")) return "PHYS";
+  if (lower.includes("english")) return "ENGL";
+  if (lower.includes("chemistry")) return "CHEM";
+  if (lower.includes("biology")) return "BIOL";
+  if (lower.includes("history")) return "HIST";
+  if (lower.includes("geography")) return "GEOG";
+  if (lower.includes("hindi")) return "HIND";
+  if (lower.includes("computer")) return "COMP";
+  return name.slice(0, 4).toUpperCase();
+};
+
+const getDifficulty = (avgMarks: number): "LOW" | "MEDIUM" | "HIGH" => {
+  if (avgMarks >= 80) return "LOW";
+  if (avgMarks >= 65) return "MEDIUM";
+  return "HIGH";
+};
+
 export default function AcademicsPortal() {
-  const [selectedGrade, setSelectedGrade] = useState<string>("Grade 10-B");
-  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-  const [activeMetricTab, setActiveMetricTab] = useState<"marks" | "score">("marks");
+  const [selectedClass, setSelectedClass] = useState<string>("Grade 10-B");
+  const [showAllClasses, setShowAllClasses] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"marks" | "score">("marks");
   const [tooltipSubject, setTooltipSubject] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
   const { institutionId } = useAuth();
 
@@ -30,345 +105,664 @@ export default function AcademicsPortal() {
   );
 
   const { data: subjectAnalytics, isLoading: loadingAnalytics } = useQuery(
-    () => getSubjectAnalytics(institutionId || "", selectedGrade),
-    [institutionId, selectedGrade]
+    () => getSubjectAnalytics(institutionId || "", selectedClass),
+    [institutionId, selectedClass]
   );
 
-  const gradeNames = classesPerformance?.map(c => c.name) || ["Grade 9-A", "Grade 10-B", "Grade 11-A", "Grade 12-A"];
+  // Synchronize selectedClass default when data completes loading
+  useEffect(() => {
+    if (classesPerformance && classesPerformance.length > 0) {
+      const exists = classesPerformance.some(c => c.name === selectedClass);
+      if (!exists) {
+        setSelectedClass(classesPerformance[0].name);
+      }
+    }
+  }, [classesPerformance]);
 
-  // Filter subjects mock data based on active tab
-  const getChartData = () => {
+  const gradeNames = useMemo(() => {
+    return classesPerformance?.map(c => c.name) || ["Grade 9-A", "Grade 10-B", "Grade 11-A", "Grade 12-A"];
+  }, [classesPerformance]);
+
+  // Derive strip summary values
+  const summaryStripStats = useMemo(() => {
+    if (!classesPerformance || classesPerformance.length === 0) {
+      return { avgMarks: "0.0%", avgScore: "N/A", totalClasses: "0" };
+    }
+    const totalMarks = classesPerformance.reduce((sum, cls) => {
+      const val = parseFloat(cls.avgMarks.replace("%", ""));
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+
+    let validScoreCount = 0;
+    const totalScore = classesPerformance.reduce((sum, cls) => {
+      if (cls.avgAiScore && cls.avgAiScore !== "N/A") {
+        const val = parseFloat(cls.avgAiScore.split("/")[0]);
+        if (!isNaN(val)) {
+          validScoreCount++;
+          return sum + val;
+        }
+      }
+      return sum;
+    }, 0);
+
+    return {
+      avgMarks: `${(totalMarks / classesPerformance.length).toFixed(1)}%`,
+      avgScore: validScoreCount > 0 ? `${(totalScore / validScoreCount).toFixed(1)}/10.0` : "N/A",
+      totalClasses: classesPerformance.length.toString(),
+    };
+  }, [classesPerformance]);
+
+  // Filter or list class performance based on view state
+  const displayedClasses = useMemo(() => {
+    if (!classesPerformance) return [];
+    if (showAllClasses) return classesPerformance;
+    return classesPerformance.filter(c => c.name === selectedClass);
+  }, [classesPerformance, selectedClass, showAllClasses]);
+
+  // Chart data setup
+  const chartData = useMemo(() => {
     if (!subjectAnalytics || subjectAnalytics.length === 0) {
       return [
-        { id: "math", label: "MATH", value: 84, labelFull: "Mathematics" },
-        { id: "phys", label: "PHYS", value: 76, labelFull: "Physics" },
-        { id: "engl", label: "ENGL", value: 92, labelFull: "English" },
-        { id: "chem", label: "CHEM", value: 68, labelFull: "Chemistry" },
+        { id: "math", subject: "Mathematics", avgMarks: 84, avgScore: 3.8 },
+        { id: "phys", subject: "Physics", avgMarks: 76, avgScore: 3.5 },
+        { id: "engl", subject: "English", avgMarks: 92, avgScore: 4.2 },
+        { id: "chem", subject: "Chemistry", avgMarks: 68, avgScore: 2.9 },
       ];
     }
-    return subjectAnalytics.map((sub) => {
-      const label = sub.subject.slice(0, 4).toUpperCase();
-      return {
-        id: sub.id,
-        label,
-        value: activeMetricTab === "marks" ? sub.avgMarks : Math.round(sub.avgScore * 20),
-        labelFull: sub.subject
-      };
-    });
-  };
+    return subjectAnalytics;
+  }, [subjectAnalytics]);
 
+  const hasAiScores = useMemo(() => {
+    if (!subjectAnalytics || subjectAnalytics.length === 0) return false;
+    return subjectAnalytics.some(sub => sub.avgScore !== null && sub.avgScore !== undefined && sub.avgScore > 0);
+  }, [subjectAnalytics]);
 
-  const chartData = getChartData();
+  useEffect(() => {
+    if (!hasAiScores) {
+      setActiveTab("marks");
+    }
+  }, [hasAiScores]);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
-      <Header title="Academics" />
+    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+      <Header title="ACADEMICS" showBackButton={true} />
 
-      <ScrollView
-        className="flex-grow"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
-      >
-        {/* Header Block */}
-        <View className="px-5 pt-6 pb-2">
-          <Text className="text-[11px] font-poppins-semibold text-[#735c00] tracking-widest uppercase mb-1">
-            Department Performance
-          </Text>
-          <Text className="text-2xl font-poppins-bold text-[#0F1C2C] leading-tight">
-            Academic Performance
-          </Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        
+        {/* B. Summary Strip */}
+        <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 16 }}>
+          {/* Card 1: Avg Marks */}
+          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: 8, padding: 12, ...cardShadow }}>
+            <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
+              📊 Avg Marks
+            </Text>
+            <Text style={[typography.h3, { color: colors.navyBlue, fontWeight: "bold" }]}>
+              {summaryStripStats.avgMarks}
+            </Text>
+          </View>
+
+          {/* Card 2: Avg Score */}
+          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: 8, padding: 12, ...cardShadow }}>
+            <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
+              ⭐ Avg Score
+            </Text>
+            <Text style={[typography.h3, { color: colors.gold, fontWeight: "bold" }]}>
+              {summaryStripStats.avgScore}
+            </Text>
+          </View>
+
+          {/* Card 3: Classes */}
+          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: 8, padding: 12, ...cardShadow }}>
+            <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
+              🏫 Classes
+            </Text>
+            <Text style={[typography.h3, { color: colors.navyBlue, fontWeight: "bold" }]}>
+              {summaryStripStats.totalClasses}
+            </Text>
+          </View>
         </View>
 
-        {/* Grade Selector Dropdown Simulation */}
-        <View className="px-5 mb-5 flex-row justify-between items-center z-50" style={{ zIndex: 50 }}>
-          <Text className="text-xs font-inter text-neutral-steel">
-            Viewing records for class:
+        {/* Custom Dropdown Trigger (Bug 4) */}
+        <View style={{ marginHorizontal: 16, marginTop: 16 }}>
+          <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 6 }]}>
+            SELECT CLASS & SECTION
           </Text>
-          <View className="relative">
-            <TouchableOpacity
-              onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex-row items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-sm min-w-[140px]"
-            >
-              <Text className="text-xs font-poppins-semibold text-[#0F1C2C] mr-2">
-                {selectedGrade}
+          <TouchableOpacity
+            onPress={() => setIsDropdownOpen(true)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              backgroundColor: colors.white,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.lightGray,
+              ...cardShadow,
+            }}
+          >
+            <Text style={[typography.bodyLg, { color: colors.navyBlue, fontWeight: "600" }]}>
+              {selectedClass}
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.gold }}>▼</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* D. Class Performance */}
+        <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <Text style={[typography.h2, { color: colors.navyBlue }]}>
+              Class Performance
+            </Text>
+            <TouchableOpacity onPress={() => setShowAllClasses(!showAllClasses)}>
+              <Text style={[typography.bodyMd, { color: colors.gold }]}>
+                {showAllClasses ? "Show Selected" : "View All →"}
               </Text>
-              <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#0F1C2C" />
             </TouchableOpacity>
-
-            {isDropdownOpen && (
-              <View className="absolute right-0 top-11 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-50 min-w-[140px]">
-                {gradeNames.map((grade) => (
-                  <TouchableOpacity
-                    key={grade}
-                    onPress={() => {
-                      setSelectedGrade(grade);
-                      setIsDropdownOpen(false);
-                      setTooltipSubject(null);
-                    }}
-                    className={`px-4 py-2 ${
-                      selectedGrade === grade ? "bg-[#FDF9F1]" : "bg-transparent"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs ${
-                        selectedGrade === grade
-                          ? "font-poppins-bold text-[#735c00]"
-                          : "font-poppins-medium text-[#0F1C2C]"
-                      }`}
-                    >
-                      {grade}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
-        </View>
 
-        {/* Class-wise Performance Table Section */}
-        <View className="px-5 mb-6">
-          <View className="bg-white rounded-2xl p-5 border border-gray-200/60 shadow-sm">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-[#0F1C2C] font-poppins-bold text-base">
-                Class-wise Performance
-              </Text>
-              <Ionicons name="trending-up-outline" size={20} color="#735c00" />
-            </View>
-
-            {/* Table Header */}
-            <View className="flex-row border-b border-gray-100 pb-2 mb-2">
-              <Text className="flex-[2] text-[10px] font-poppins-semibold text-[#778598] uppercase">
-                Class
-              </Text>
-              <Text className="flex-1 text-right text-[10px] font-poppins-semibold text-[#778598] uppercase">
-                Avg. Marks
-              </Text>
-              <Text className="flex-1.5 text-right text-[10px] font-poppins-semibold text-[#778598] uppercase">
-                Avg. Score
-              </Text>
-              <Text className="flex-1 text-right text-[10px] font-poppins-semibold text-[#778598] uppercase">
-                Growth
-              </Text>
-            </View>
-
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
             {loadingClasses ? (
-              <ActivityIndicator size="small" color="#FF5E00" className="my-6" />
+              <ActivityIndicator size="small" color={colors.navyBlue} style={{ flex: 1, marginVertical: 20 }} />
+            ) : displayedClasses.length === 0 ? (
+              <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic", flex: 1, marginVertical: 10 }]}>
+                No class records found.
+              </Text>
             ) : (
-              (classesPerformance || []).map((cls) => (
-                <View
-                  key={cls.id}
-                  className="flex-row items-center py-3 border-b border-gray-50 last:border-0"
-                >
-                  <Text className="flex-[2] font-poppins-semibold text-xs text-[#0F1C2C]">
-                    {cls.name}
-                  </Text>
-                  <Text className="flex-1 text-right font-inter text-xs text-neutral-steel font-medium">
-                    {cls.avgMarks}
-                  </Text>
-                  <Text className="flex-1.5 text-right font-inter text-xs text-neutral-steel font-medium">
-                    {cls.avgAiScore}
-                  </Text>
-                  <Text
-                    className={`flex-1 text-right font-poppins-bold text-xs ${
-                      cls.isPositive ? "text-emerald-600" : "text-rose-600"
-                    }`}
+              displayedClasses.map((cls) => {
+                const marksPct = parseFloat(cls.avgMarks.replace("%", ""));
+                let marksColor = colors.danger;
+                if (marksPct >= 75) {
+                  marksColor = colors.success;
+                } else if (marksPct >= 60) {
+                  marksColor = colors.gold;
+                }
+
+                return (
+                  <View
+                    key={cls.id}
+                    style={{
+                      width: "48%",
+                      backgroundColor: colors.white,
+                      borderRadius: 8,
+                      padding: 16,
+                      ...cardShadow,
+                    }}
                   >
-                    {cls.growth}
-                  </Text>
-                </View>
-              ))
+                    {/* Row 1 */}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <Text style={[typography.h4, { color: colors.navyBlue, fontWeight: "bold" }]}>
+                        {cls.name}
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: cls.isPositive ? colors.successBg : colors.dangerBg,
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 16,
+                        }}
+                      >
+                        <Text style={[typography.caption, { color: cls.isPositive ? colors.success : colors.danger, fontWeight: "bold" }]}>
+                          {cls.isPositive ? "▲" : "▼"} {cls.growth.replace(/[+-]/g, "")}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Row 2 */}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                      <Text style={[typography.caption, { color: colors.steelGray }]}>
+                        Marks
+                      </Text>
+                      <Text style={[typography.h4, { color: marksColor, fontWeight: "bold" }]}>
+                        {cls.avgMarks}
+                      </Text>
+                    </View>
+
+                    {/* Row 3 */}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                      <Text style={[typography.caption, { color: colors.steelGray }]}>
+                        Score
+                      </Text>
+                      <Text style={[typography.h4, { color: colors.royalBlue, fontWeight: "bold" }]}>
+                        {cls.avgAiScore}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
             )}
           </View>
         </View>
 
-        {/* Subject wise Marks Analysis */}
-        <View className="px-5 mb-6">
-          <View className="bg-white rounded-2xl p-5 border border-gray-200/60 shadow-sm">
-            <View className="mb-4">
-              <Text className="text-[#0F1C2C] font-poppins-bold text-base">
-                Subject Analytics
-              </Text>
-              <Text className="text-neutral-steel font-inter text-[11px]">
-                Comparative analysis per curriculum pillar.
-              </Text>
-            </View>
+        {/* E. Subject Analytics Card */}
+        <View
+          style={{
+            marginTop: 24,
+            marginHorizontal: 16,
+            backgroundColor: colors.white,
+            borderRadius: 8,
+            padding: 16,
+            ...cardShadow,
+          }}
+        >
+          <Text style={[typography.h2, { color: colors.navyBlue }]}>
+            Subject Analytics
+          </Text>
+          <Text style={[typography.caption, { color: colors.steelGray, marginTop: 4 }]}>
+            Performance metrics across curriculum pillars
+          </Text>
 
-            {/* Selector Tab (Marks vs AI Scores) */}
-            <View className="flex-row bg-[#FDF9F1] p-1 rounded-xl mb-6">
+          {/* Toggle pill */}
+          {hasAiScores && (
+            <View
+              style={{
+                flexDirection: "row",
+                backgroundColor: colors.cream,
+                borderRadius: 16,
+                padding: 4,
+                alignSelf: "flex-start",
+                marginTop: 12,
+              }}
+            >
               <TouchableOpacity
                 onPress={() => {
-                  setActiveMetricTab("marks");
+                  setActiveTab("marks");
                   setTooltipSubject(null);
                 }}
-                className={`flex-1 py-2.5 rounded-lg items-center ${
-                  activeMetricTab === "marks" ? "bg-[#0F1C2C]" : "bg-transparent"
-                }`}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 6,
+                  backgroundColor: activeTab === "marks" ? colors.navyBlue : "transparent",
+                  borderRadius: 12,
+                }}
               >
                 <Text
-                  className={`text-xs font-poppins-bold ${
-                    activeMetricTab === "marks" ? "text-[#ffe088]" : "text-neutral-steel"
-                  }`}
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 12,
+                    fontWeight: "bold",
+                    color: activeTab === "marks" ? colors.white : colors.steelGray,
+                  }}
                 >
                   Exam Marks
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => {
-                  setActiveMetricTab("score");
+                  setActiveTab("score");
                   setTooltipSubject(null);
                 }}
-                className={`flex-1 py-2.5 rounded-lg items-center ${
-                  activeMetricTab === "score" ? "bg-[#0F1C2C]" : "bg-transparent"
-                }`}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 6,
+                  backgroundColor: activeTab === "score" ? colors.navyBlue : "transparent",
+                  borderRadius: 12,
+                }}
               >
                 <Text
-                  className={`text-xs font-poppins-bold ${
-                    activeMetricTab === "score" ? "text-[#ffe088]" : "text-neutral-steel"
-                  }`}
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 12,
+                    fontWeight: "bold",
+                    color: activeTab === "score" ? colors.white : colors.steelGray,
+                  }}
                 >
-                  AI Homework Score
+                  AI Score
                 </Text>
               </TouchableOpacity>
             </View>
+          )}
 
-            {/* Custom Bar Chart Drawing */}
-            <View className="h-56 flex-row items-end justify-around px-2 pt-6 pb-2 border-b border-gray-100 relative">
-              {/* Grid Lines background */}
-              <View className="absolute inset-x-0 bottom-0 h-full flex justify-between pointer-events-none opacity-[0.03]">
-                <View className="border-t border-[#0F1C2C] w-full" />
-                <View className="border-t border-[#0F1C2C] w-full" />
-                <View className="border-t border-[#0F1C2C] w-full" />
-                <View className="border-t border-[#0F1C2C] w-full" />
-              </View>
+          {/* Bar Chart (Bug 2) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 16 }}
+            contentContainerStyle={{
+              paddingTop: 36, // leave room for tooltip overlay
+              paddingBottom: 8,
+              alignItems: "flex-end",
+            }}
+          >
+            {loadingAnalytics ? (
+              <ActivityIndicator size="small" color={colors.navyBlue} style={{ flex: 1, alignSelf: "center", width: 100 }} />
+            ) : chartData.length === 0 ? (
+              <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic", flex: 1, textAlign: "center", alignSelf: "center" }]}>
+                No analytics data available.
+              </Text>
+            ) : (
+              chartData.map((sub, index) => {
+                const isSelected = tooltipSubject === sub.id;
+                const value = activeTab === "marks" ? sub.avgMarks : (sub.avgScore ?? 0);
+                const maxValue = activeTab === "marks" ? 100 : 10;
+                const barHeight = Math.max(8, Math.min(120, (value / maxValue) * 120));
 
-              {chartData.map((item, index) => {
-                const isSelected = tooltipSubject === item.id;
                 return (
-                  <View key={`${item.id}-${item.label}-${index}`} className="items-center flex-1 mx-2">
+                  <View key={`${sub.id}-${index}`} style={{ width: 40, marginHorizontal: 6, alignItems: "center", position: "relative" }}>
                     {/* Tooltip Overlay */}
                     {isSelected && (
-                      <View className="absolute -top-12 bg-[#0F1C2C] px-2 py-1.5 rounded shadow-md z-40 border border-gray-800">
-                        <Text className="text-white text-[9px] font-poppins font-bold whitespace-nowrap">
-                          {item.value}% Avg
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: -36,
+                          backgroundColor: colors.navyBlue,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 4,
+                          zIndex: 50,
+                        }}
+                      >
+                        <Text style={{ color: colors.white, fontSize: 10, fontWeight: "bold" }}>
+                          {activeTab === "marks" ? `${value}%` : `${value}/10.0`}
                         </Text>
                       </View>
                     )}
 
                     <TouchableOpacity
                       activeOpacity={0.8}
-                      onPress={() => setTooltipSubject(isSelected ? null : item.id)}
-                      className="w-full max-w-[32px] justify-end"
-                      style={{ height: 160 }}
+                      onPress={() => setTooltipSubject(isSelected ? null : sub.id)}
+                      style={{
+                        width: 40,
+                        height: 120,
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                      }}
                     >
                       <View
-                        className={`w-full rounded-t-lg transition-all duration-300 ${
-                          isSelected ? "bg-[#735c00]" : "bg-[#0F1C2C]"
-                        }`}
-                        style={{ height: `${item.value}%` }}
+                        style={{
+                          width: 40,
+                          height: barHeight,
+                          backgroundColor: activeTab === "marks" ? colors.navyBlue : colors.gold,
+                          borderRadius: 4,
+                        }}
                       />
                     </TouchableOpacity>
-                    <Text className="text-[10px] font-poppins-bold text-[#778598] mt-2">
-                      {item.label}
+
+                    <Text 
+                      numberOfLines={1}
+                      style={[
+                        typography.caption, 
+                        { 
+                          color: colors.steelGray, 
+                          marginTop: 4, 
+                          textAlign: "center",
+                          width: 40,
+                        }
+                      ]}
+                    >
+                      {getSubjectAbbreviation(sub.subject)}
                     </Text>
                   </View>
                 );
-              })}
-            </View>
-            <Text className="text-center font-inter text-[10px] text-neutral-steel mt-2 italic">
-              Tap any bar to inspect average performance
-            </Text>
-          </View>
+              })
+            )}
+          </ScrollView>
+
+          {/* Footer Caption */}
+          <Text
+            style={[
+              typography.caption,
+              {
+                color: colors.steelGray,
+                textAlign: "center",
+                marginTop: 12,
+                letterSpacing: 1,
+              },
+            ]}
+          >
+            TAP BARS FOR DETAILED MODULE ANALYSIS
+          </Text>
         </View>
 
-        {/* Subjects Details Bento Lists */}
-        <View className="px-5">
-          <Text className="text-[#0F1C2C] font-poppins-bold text-base mb-3 px-1">
-            Departmental Breakdown ({selectedGrade})
+        {/* F. Departmental Breakdown */}
+        <View style={{ marginTop: 24, paddingHorizontal: 16, paddingBottom: 16 }}>
+          <Text style={[typography.h2, { color: colors.navyBlue, marginBottom: 12 }]}>
+            {`Departmental Breakdown (${selectedClass})`}
           </Text>
 
           {loadingAnalytics ? (
-            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+            <ActivityIndicator size="small" color={colors.navyBlue} style={{ marginVertical: 30 }} />
           ) : !subjectAnalytics || subjectAnalytics.length === 0 ? (
-            <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">No subjects found.</Text>
+            <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic", marginVertical: 20 }]}>
+              No subjects found for this class.
+            </Text>
           ) : (
-            subjectAnalytics.map((sub, index) => (
-              <View
-                key={`${sub.id}-${sub.subject}-${index}`}
-                className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
-              >
-                <View className="flex-row justify-between items-start mb-3">
-                  <View className="flex-row items-center space-x-2">
-                    <View className="w-9 h-9 rounded-lg bg-[#0F1C2C]/5 items-center justify-center">
-                      <Ionicons name={sub.icon as any} size={18} color="#0F1C2C" />
-                    </View>
-                    <View>
-                      <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
-                        {sub.subject}
-                      </Text>
-                      <Text className="text-[10px] text-neutral-steel">
-                        {sub.topic}
-                      </Text>
-                    </View>
-                  </View>
+            subjectAnalytics.map((sub, index) => {
+              const difficulty = getDifficulty(sub.avgMarks);
+              const diffColors = {
+                LOW: { bg: colors.successBg, text: colors.success },
+                MEDIUM: { bg: colors.warningBg, text: colors.warning },
+                HIGH: { bg: colors.dangerBg, text: colors.danger },
+              }[difficulty];
 
-                  <View
-                    className={`px-2 py-0.5 rounded-full ${
-                      sub.difficulty === "High"
-                        ? "bg-rose-50 border border-rose-100"
-                        : sub.difficulty === "Medium"
-                        ? "bg-amber-50 border border-amber-100"
-                        : "bg-emerald-50 border border-emerald-100"
-                    }`}
-                  >
-                    <Text
-                      className={`font-poppins-semibold text-[8px] uppercase tracking-wide ${
-                        sub.difficulty === "High"
-                          ? "text-rose-600"
-                          : sub.difficulty === "Medium"
-                          ? "text-amber-600"
-                          : "text-emerald-600"
-                      }`}
+              const isImprovPositive = !sub.improvementPercent.startsWith("-");
+              const improvBg = isImprovPositive ? colors.successBg : colors.dangerBg;
+              const improvColor = isImprovPositive ? colors.success : colors.danger;
+              const improvArrow = isImprovPositive ? "▲" : "▼";
+
+              return (
+                <View
+                  key={`${sub.id}-${index}`}
+                  style={{
+                    backgroundColor: colors.white,
+                    borderRadius: 8,
+                    padding: 16,
+                    ...cardShadow,
+                    marginBottom: 12,
+                  }}
+                >
+                  {/* Top row */}
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={{ fontSize: 28 }}>
+                        {getSubjectEmoji(sub.subject)}
+                      </Text>
+                      <View>
+                        <Text style={[typography.h4, { color: colors.navyBlue, fontWeight: "bold" }]}>
+                          {sub.subject}
+                        </Text>
+                        <Text style={[typography.caption, { color: colors.steelGray }]}>
+                          {sub.topic}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Difficulty Badge */}
+                    <View
+                      style={{
+                        backgroundColor: diffColors.bg,
+                        borderRadius: 16,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                      }}
                     >
-                      {sub.difficulty} Difficulty
-                    </Text>
+                      <Text style={[typography.caption, { color: diffColors.text, fontWeight: "bold" }]}>
+                        {difficulty}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                {/* Subject metrics row */}
-                <View className="flex-row justify-between items-center border-t border-gray-100 pt-3">
-                  <View>
-                    <Text className="text-[10px] text-neutral-steel font-inter">Avg Exam Marks</Text>
-                    <Text className="text-[#0f1c2c] font-poppins-bold text-sm">{sub.avgMarks}/100</Text>
-                  </View>
-                  <View>
-                    <Text className="text-[10px] text-neutral-steel font-inter">Avg Homework Score</Text>
-                    <Text className="text-[#735c00] font-poppins-bold text-sm">{sub.avgScore} GPA</Text>
-                  </View>
-                  <View className="items-end">
-                    <Text className="text-[9px] text-[#778598] font-inter">Top Student</Text>
-                    <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">{sub.topPerformer}</Text>
-                  </View>
-                </View>
+                  {/* Divider */}
+                  <View style={{ height: 1, backgroundColor: colors.lightGray, marginVertical: 12 }} />
 
-                {/* Status footer inside card */}
-                <View className="bg-[#FDF9F1] rounded-xl p-3 mt-3 flex-row justify-between items-center border border-gray-200/50">
-                  <View className="flex-row items-center space-x-1.5">
-                    <Ionicons name="arrow-up-circle-outline" size={14} color="#059669" />
-                    <Text className="text-emerald-700 font-inter text-[10px] font-semibold">
-                      {sub.improvementPercent}
-                    </Text>
+                  {/* Metrics row */}
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
+                        Exam Marks
+                      </Text>
+                      <Text style={[typography.h3, { color: colors.navyBlue, fontWeight: "bold" }]}>
+                        {sub.avgMarks}/100
+                      </Text>
+                    </View>
+
+                    <View style={{ width: 1, backgroundColor: colors.lightGray, marginHorizontal: 16, alignSelf: "stretch" }} />
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
+                        AI Homework Score
+                      </Text>
+                      <Text style={[typography.h3, { color: colors.gold, fontWeight: "bold" }]}>
+                        {sub.avgScore !== null && sub.avgScore !== undefined ? `${sub.avgScore}/10` : "N/A"}
+                      </Text>
+                    </View>
                   </View>
-                  <Text className="text-rose-600 font-poppins-semibold text-[10px]">
-                    {sub.needsSupportCount} Students need support
-                  </Text>
+
+                  {/* Footer row */}
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, gap: 8, flexWrap: "wrap" }}>
+                    {/* Improvement chip */}
+                    <View
+                      style={{
+                        backgroundColor: improvBg,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 16,
+                      }}
+                    >
+                      <Text style={[typography.caption, { color: improvColor, fontWeight: "bold" }]}>
+                        {improvArrow} {sub.improvementPercent.replace(/[+-]/g, "")}
+                      </Text>
+                    </View>
+
+                    {/* Top student chip */}
+                    <View
+                      style={{
+                        backgroundColor: colors.cream,
+                        borderRadius: 16,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={[typography.caption, { color: colors.charcoal }]}>
+                        🏆 Top: {sub.topPerformer}
+                      </Text>
+                    </View>
+
+                    {/* Support chip */}
+                    {sub.needsSupportCount > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: colors.dangerBg,
+                          borderRadius: 16,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text style={[typography.caption, { color: colors.danger, fontWeight: "bold" }]}>
+                          ⚠️ {sub.needsSupportCount} need support
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
+
       </ScrollView>
 
       <BottomNavBar activeTab="academics" />
-    </SafeAreaView>
+
+      {/* Dropdown Modal (Bug 4) */}
+      <Modal
+        visible={isDropdownOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsDropdownOpen(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setIsDropdownOpen(false)}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(13, 27, 42, 0.6)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxHeight: "60%",
+              backgroundColor: colors.white,
+              borderRadius: 12,
+              padding: 20,
+              shadowColor: colors.navyBlue,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 5,
+            }}
+          >
+            <Text style={[typography.h3, { color: colors.navyBlue, marginBottom: 16, textAlign: "center" }]}>
+              Select Class & Section
+            </Text>
+            
+            <FlatList
+              data={gradeNames}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => {
+                const isSelected = selectedClass === item;
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedClass(item);
+                      setTooltipSubject(null);
+                      setIsDropdownOpen(false);
+                    }}
+                    style={{
+                      paddingVertical: 14,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      backgroundColor: isSelected ? colors.cream : "transparent",
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        typography.bodyLg,
+                        {
+                          color: isSelected ? colors.navyBlue : colors.charcoal,
+                          fontWeight: isSelected ? "bold" : "normal",
+                        },
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {isSelected && (
+                      <Text style={{ color: colors.gold, fontWeight: "bold", fontSize: 16 }}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <TouchableOpacity
+              onPress={() => setIsDropdownOpen(false)}
+              style={{
+                marginTop: 16,
+                backgroundColor: colors.navyBlue,
+                paddingVertical: 12,
+                borderRadius: 8,
+                alignItems: "center",
+              }}
+            >
+              <Text style={[typography.bodyMd, { color: colors.white, fontWeight: "bold" }]}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
   );
 }
+

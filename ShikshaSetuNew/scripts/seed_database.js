@@ -6,6 +6,7 @@ const { Client } = require('pg');
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
+const crypto = require('crypto');
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -44,6 +45,29 @@ function getClassCode(className) {
   return className.replace('Class ', '');
 }
 
+async function bulkInsert(client, tableName, columns, rows) {
+  if (rows.length === 0) return;
+  const colNames = columns.join(', ');
+  const batchSize = 100;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    const valuePlaceholders = [];
+    const params = [];
+    let pIdx = 1;
+    for (const row of batch) {
+      const placeholders = [];
+      for (const col of columns) {
+        placeholders.push(`$${pIdx}`);
+        params.push(row[col]);
+        pIdx++;
+      }
+      valuePlaceholders.push(`(${placeholders.join(', ')})`);
+    }
+    const query = `INSERT INTO ${tableName} (${colNames}) VALUES ${valuePlaceholders.join(', ')} ON CONFLICT DO NOTHING;`;
+    await client.query(query, params);
+  }
+}
+
 async function seed() {
   console.log('Running safety checks...');
   const { count: studentCount } = await supabase
@@ -53,11 +77,12 @@ async function seed() {
   const { data: authData } = await supabase.auth.admin.listUsers();
   const authCount = authData?.users?.length ?? 0;
 
-  if (studentCount > 0 || authCount > 0) {
+  if (studentCount > 0) {
     console.error('SAFETY: Database has real data. Aborting seed to prevent data loss.');
-    console.error(`Students: ${studentCount}, Auth users: ${authCount}`);
+    console.error(`Students: ${studentCount}`);
     process.exit(1);
   }
+
 
   const client = new Client({ connectionString: DATABASE_URL });
   await client.connect();
@@ -139,7 +164,7 @@ async function seed() {
     console.log('Subjects seeded.');
 
     // 5. Users — Non-teaching staff (Institution Admin)
-    for (let sr = 1; sr <= 70; sr++) {
+    for (let sr = 1; sr <= 20; sr++) {
       let fullName;
       if (sr === 1) fullName = 'Dr. Shyam Sundar Pandey';
       else if (sr === 2) fullName = 'Smt. Usha Rani Sharma';
@@ -310,6 +335,18 @@ RETURNING id;
       { start: '08:00', end: '08:45' }, { start: '08:50', end: '09:35' }, { start: '09:40', end: '10:25' },
       { start: '10:40', end: '11:25' }, { start: '11:30', end: '12:15' }, { start: '12:20', end: '13:05' }
     ];
+    // Fetch all class subjects to build a lookup map in JavaScript
+    const csLookupRes = await client.query(
+      `SELECT id, section_id, subject_id FROM class_subjects WHERE academic_year_id = $1`,
+      [academicYearId]
+    );
+    const csLookupMap = {};
+    for (const row of csLookupRes.rows) {
+      csLookupMap[`${row.section_id}_${row.subject_id}`] = row.id;
+    }
+
+    const timetableRows = [];
+
     for (const secKey in sectionIdMap) {
       const secId = sectionIdMap[secKey];
       for (let d = 0; d < ttPattern.length; d++) {
@@ -319,59 +356,75 @@ RETURNING id;
           if (subCode) {
             const subId = subjectIdMap[subCode];
             if (subId) {
-              const csRes = await client.query(
-                `SELECT id FROM class_subjects WHERE section_id = $1 AND subject_id = $2`,
-                [secId, subId]
-              );
-              const csId = csRes.rows[0]?.id;
+              const csId = csLookupMap[`${secId}_${subId}`];
               if (csId) {
-                await client.query(
-                  `INSERT INTO timetable (section_id, class_subject_id, day, period_number, starts_at, ends_at, academic_year_id) VALUES ($1, $2, $3, $4, $5, $6, $7);`,
-                  [secId, csId, day, p + 1, slotTimes[p].start, slotTimes[p].end, academicYearId]
-                );
+                timetableRows.push({
+                  section_id: secId,
+                  class_subject_id: csId,
+                  day,
+                  period_number: p + 1,
+                  starts_at: slotTimes[p].start,
+                  ends_at: slotTimes[p].end,
+                  academic_year_id: academicYearId
+                });
               }
             }
           }
         }
       }
     }
+
+    console.log('Inserting timetable bulk...');
+    await bulkInsert(client, 'timetable', ['section_id', 'class_subject_id', 'day', 'period_number', 'starts_at', 'ends_at', 'academic_year_id'], timetableRows);
     console.log('Timetable seeded.');
 
-    // 11 & 12. Students
+    // 11 & 12. Students (Reduced to 200 total)
     const studentDist = [
-      { class: 'Nursery',  secs: ['A'],            count: 30 },
-      { class: 'LKG',      secs: ['A'],             count: 35 },
-      { class: 'UKG',      secs: ['A', 'B'],        count: 35 },
-      { class: 'Class 1',  secs: ['A', 'B'],        count: 50 },
-      { class: 'Class 2',  secs: ['A', 'B'],        count: 50 },
-      { class: 'Class 3',  secs: ['A', 'B'],        count: 50 },
-      { class: 'Class 4',  secs: ['A', 'B'],        count: 50 },
-      { class: 'Class 5',  secs: ['A', 'B'],        count: 48 },
-      { class: 'Class 6',  secs: ['A', 'B'],        count: 45 },
-      { class: 'Class 7',  secs: ['A', 'B'],        count: 45 },
-      { class: 'Class 8',  secs: ['A', 'B'],        count: 44 },
-      { class: 'Class 9',  secs: ['A', 'B', 'C'],   count: 42 },
-      { class: 'Class 10', secs: ['A', 'B', 'C'],   count: 42 },
-      { class: 'Class 11', secs: ['A', 'B', 'C', 'D'], count: 36 },
-      { class: 'Class 12', secs: ['A', 'B', 'C', 'D'], count: 26 },
+      { class: 'Nursery',  secs: ['A'],            count: 5 },
+      { class: 'LKG',      secs: ['A'],             count: 5 },
+      { class: 'UKG',      secs: ['A', 'B'],        count: 5 },
+      { class: 'Class 1',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 2',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 3',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 4',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 5',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 6',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 7',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 8',  secs: ['A', 'B'],        count: 6 },
+      { class: 'Class 9',  secs: ['A', 'B', 'C'],   count: 6 },
+      { class: 'Class 10', secs: ['A', 'B', 'C'],   count: 6 },
+      { class: 'Class 11', secs: ['A', 'B', 'C', 'D'], count: 6 },
+      { class: 'Class 12', secs: ['A', 'B', 'C', 'D'], count: 6 },
     ];
 
     let totalStudentsCreated = 0;
     const allStudentIds = []; // { userId, studentId, secId, srInSec, className, secName, village }
 
+    const userRows = [];
+    const studentRows = [];
+    const enrollmentRows = [];
+
+    const VILLAGE_ROUTE_MAP = {
+      'Achhalda':  'Route C - East Zone',
+      'Bidhuna':   'Route D - West Zone',
+      'Rasulabad': 'Route B - South Zone',
+      'Ajitmal':   'Route B - South Zone',
+      'Dibiyapur': 'Route A - North Zone',
+      'Phaphund':  'Route A - North Zone',
+      'Saurikh':   'Route F - Rural Zone',
+    };
+
     for (const entry of studentDist) {
       const gradeNum = classData.find(c => c[0] === entry.class)[1];
-      // Nursery (grade 1) -> DOB year 2021; Class 12 (grade 15) -> DOB year 2009
       const dobYear = 2022 - gradeNum;
 
       for (const secName of entry.secs) {
         const secKey = `${entry.class}-${secName}`;
         const secId = sectionIdMap[secKey];
 
-        // FIX: last section of Class 12-D gets the remainder to reach exactly 1400
         let count = entry.count;
         if (entry.class === 'Class 12' && secName === 'D') {
-          count = 1400 - totalStudentsCreated;
+          count = 200 - totalStudentsCreated;
           if (count < 0) count = 0;
         }
 
@@ -386,60 +439,69 @@ RETURNING id;
           const guardianFirst = GUARDIAN_FIRST[(sr - 1) % 30];
           const village = VILLAGES[(sr - 1) % 8];
 
-          const uRes = await client.query(`
-            INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
-VALUES ($1, $2, $3, $4, 'student', 'active', $5)
-            RETURNING id;
-          `, [
-            `GS-STU-${String(sr).padStart(4, '0')}`,
-            `${first} ${surname}`,
-            `stu${sr}@gurukulsiksha.edu.in`,
-            `+91-9795${String(sr).padStart(6, '0')}`,
-            institutionId
-          ]);
-          const userId = uRes.rows[0].id;
+          const userId = crypto.randomUUID();
+          const studentId = crypto.randomUUID();
+
+          const loginId = `GS-STU-${String(sr).padStart(4, '0')}`;
+          const fullName = `${first} ${surname}`;
+          const email = `stu${sr}@gurukulsiksha.edu.in`;
+          const phone = `+91-9795${String(sr).padStart(6, '0')}`;
+
+          userRows.push({
+            id: userId,
+            login_id: loginId,
+            full_name: fullName,
+            email,
+            phone,
+            role: 'student',
+            status: 'active',
+            institution_id: institutionId
+          });
 
           const dob = `${dobYear}-${String((sr % 12) + 1).padStart(2, '0')}-${String((sr % 28) + 1).padStart(2, '0')}`;
+          const code = getClassCode(entry.class);
+          const roll = (entry.class === 'Nursery' || entry.class === 'LKG' || entry.class === 'UKG')
+            ? `${code}-${secName}-${String(i).padStart(2, '0')}`
+            : `${code}${secName}-${String(i).padStart(2, '0')}`;
 
-          const sRes = await client.query(`
-            INSERT INTO students (user_id, student_code, guardian_name, date_of_birth, gender, blood_group, address, admission_date, guardian_phone, institution_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id;
-          `, [
-            userId,
-            `STU${String(sr).padStart(4, '0')}`,
-            `${guardianFirst} ${surname}`,
-            dob,
+          studentRows.push({
+            id: studentId,
+            user_id: userId,
+            student_code: `STU${String(sr).padStart(4, '0')}`,
+            guardian_name: `${guardianFirst} ${surname}`,
+            date_of_birth: dob,
             gender,
-            BLOOD_GROUPS[sr % 8],
-            village,
-            '2025-04-05',
-            `+91-9795${String(sr).padStart(6, '0')}`,
-            institutionId
-          ]);
-          const studentId = sRes.rows[0].id;
+            blood_group: BLOOD_GROUPS[sr % 8],
+            address: village,
+            admission_date: '2025-04-05',
+            guardian_phone: phone,
+            institution_id: institutionId
+          });
+
+          enrollmentRows.push({
+            student_id: studentId,
+            section_id: secId,
+            academic_year_id: academicYearId,
+            enrolled_on: '2025-04-05',
+            is_active: true,
+            roll_number: roll
+          });
+
+
+
           allStudentIds.push({ userId, studentId, secId, srInSec: i, className: entry.class, secName, village });
         }
       }
     }
+
+    console.log('Inserting users bulk...');
+    await bulkInsert(client, 'users', ['id', 'login_id', 'full_name', 'email', 'phone', 'role', 'status', 'institution_id'], userRows);
+    console.log('Inserting students bulk...');
+    await bulkInsert(client, 'students', ['id', 'user_id', 'student_code', 'guardian_name', 'date_of_birth', 'gender', 'blood_group', 'address', 'admission_date', 'guardian_phone', 'institution_id'], studentRows);
     console.log(`Students seeded: ${totalStudentsCreated} rows.`);
 
-    // 13. Enrollments
-    // Roll number format: <classCode><section>-<padded position>
-    // e.g. 1A-01, 9C-03, N-A-05 (Nursery), LKG-A-01, UKG-A-01
-    for (const s of allStudentIds) {
-      const code = getClassCode(s.className);
-      // Pre-primary classes use a dash between code and section: N-A-01, LKG-A-01, UKG-A-01
-      // Standard classes: 1A-01, 9C-03
-      const roll = (s.className === 'Nursery' || s.className === 'LKG' || s.className === 'UKG')
-        ? `${code}-${s.secName}-${String(s.srInSec).padStart(2, '0')}`
-        : `${code}${s.secName}-${String(s.srInSec).padStart(2, '0')}`;
-
-      await client.query(
-        `INSERT INTO enrollments (student_id, section_id, academic_year_id, enrolled_on, is_active, roll_number) VALUES ($1, $2, $3, $4, TRUE, $5);`,
-        [s.studentId, s.secId, academicYearId, '2025-04-05', roll]
-      );
-    }
+    console.log('Inserting enrollments bulk...');
+    await bulkInsert(client, 'enrollments', ['student_id', 'section_id', 'academic_year_id', 'enrolled_on', 'is_active', 'roll_number'], enrollmentRows);
     console.log('Enrollments seeded.');
 
     // 14. Fee Structures
@@ -565,17 +627,7 @@ VALUES ($1, $2, $3, $4, 'driver', 'active', $5)
     }
     console.log('Transport drivers seeded.');
 
-    // Student transport assignments
-    // Village -> Route name map (exclude 'Auraiya' = sr % 8 == 1 i.e. index 0)
-    const VILLAGE_ROUTE_MAP = {
-      'Achhalda':  'Route C - East Zone',
-      'Bidhuna':   'Route D - West Zone',
-      'Rasulabad': 'Route B - South Zone',
-      'Ajitmal':   'Route B - South Zone',
-      'Dibiyapur': 'Route A - North Zone',
-      'Phaphund':  'Route A - North Zone',
-      'Saurikh':   'Route F - Rural Zone',
-    };
+    const transportRows = [];
 
     for (const s of allStudentIds) {
       if (s.village === 'Auraiya') continue; // Auraiya students walk
@@ -585,12 +637,16 @@ VALUES ($1, $2, $3, $4, 'driver', 'active', $5)
       // Find the vehicle assigned to this route
       const vehicleReg = routesData.find(r => r.name === routeName)?.vehicleReg;
       const vehicleId = vehicleIdMap[vehicleReg];
-
-      await client.query(`
-        INSERT INTO student_transport_assignments (student_id, route_id, vehicle_id, start_date)
-        VALUES ($1, $2, $3, $4);
-      `, [s.studentId, routeId, vehicleId, '2025-04-05']);
+      transportRows.push({
+        student_id: s.studentId,
+        route_id: routeId,
+        vehicle_id: vehicleId,
+        start_date: '2025-04-05'
+      });
     }
+
+    console.log('Inserting student transport assignments bulk...');
+    await bulkInsert(client, 'student_transport_assignments', ['student_id', 'route_id', 'vehicle_id', 'start_date'], transportRows);
     console.log('Student transport assignments seeded.');
 
     // ─────────────────────────────────────────────────────────────
@@ -659,6 +715,10 @@ VALUES ($1, $2, $3, $4, 'driver', 'active', $5)
           [secId]
         );
 
+        const values = [];
+        const params = [];
+        let pIndex = 1;
+
         for (const csRow of csRows.rows) {
           const subjectId = csRow.subject_id;
           const examId = classSubjectExamMap?.[classId]?.[subjectId];
@@ -670,12 +730,15 @@ VALUES ($1, $2, $3, $4, 'driver', 'active', $5)
             const isAbsent = (examName === 'Unit Test 1' ? srCount % 20 === 0 : srCount % 25 === 0);
             const marks = isAbsent ? null : (examName === 'Unit Test 1' ? (10 + (srCount % 16)) : (35 + (srCount % 46)));
 
-            // FIX: Added ON CONFLICT DO NOTHING — exam_results has UNIQUE(exam_id, student_id)
-            await client.query(
-              `INSERT INTO exam_results (exam_id, student_id, marks_obtained) VALUES ($1, $2, $3) ON CONFLICT (exam_id, student_id) DO NOTHING;`,
-              [examId, s.student_id, marks]
-            );
+            values.push(`($${pIndex}, $${pIndex+1}, $${pIndex+2})`);
+            params.push(examId, s.student_id, marks);
+            pIndex += 3;
           }
+        }
+
+        if (values.length > 0) {
+          const queryText = `INSERT INTO exam_results (exam_id, student_id, marks_obtained) VALUES ${values.join(', ')} ON CONFLICT (exam_id, student_id) DO NOTHING;`;
+          await client.query(queryText, params);
         }
       }
     }

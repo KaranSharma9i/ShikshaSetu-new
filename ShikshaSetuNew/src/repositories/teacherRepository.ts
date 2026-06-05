@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import Constants from "expo-constants";
 import {
   TeacherListItem,
   TeacherProfile,
@@ -108,16 +109,17 @@ export async function getTeacherList(
 
     // E. Fetch latest AI scores
     const { data: aiScores, error: aiErr } = await supabase
-      .from("ai_scores")
-      .select("student_id, score, date")
-      .order("date", { ascending: false });
+      .from("homework_submissions")
+      .select("student_id, ai_score, scored_at")
+      .not("ai_score", "is", null)
+      .order("scored_at", { ascending: false });
     if (aiErr) throw aiErr;
 
     // F. Process calculations in memory
     const latestAiScores: Record<string, number> = {};
     aiScores?.forEach((score: any) => {
       if (latestAiScores[score.student_id] === undefined) {
-        latestAiScores[score.student_id] = Number(score.score);
+        latestAiScores[score.student_id] = Number(score.ai_score);
       }
     });
 
@@ -175,13 +177,11 @@ export async function getTeacherList(
 
           students.forEach(studentId => {
             // AI score
-            let aiScore = latestAiScores[studentId];
-            if (aiScore === undefined) {
-              const sum = studentId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-              aiScore = 75 + (sum % 21);
+            const aiScore = latestAiScores[studentId];
+            if (aiScore !== undefined && aiScore !== null) {
+              totalAiScoreSum += aiScore;
+              totalAiScoreCount++;
             }
-            totalAiScoreSum += aiScore;
-            totalAiScoreCount++;
 
             // Exam Marks
             csExams.forEach(ex => {
@@ -197,8 +197,8 @@ export async function getTeacherList(
       });
 
       const avgMarksPct = totalMarksPctCount > 0 ? (totalMarksPctSum / totalMarksPctCount) : 82.5;
-      const avgAiScore = totalAiScoreCount > 0 ? (totalAiScoreSum / totalAiScoreCount) : 80.0;
-      const performanceScore = (avgMarksPct * 0.6) + (avgAiScore * 0.4);
+      const avgAiScore = totalAiScoreCount > 0 ? (totalAiScoreSum / totalAiScoreCount) : 8.0;
+      const performanceScore = (avgMarksPct * 0.6) + ((avgAiScore * 10) * 0.4);
 
       return {
         id: t.id,
@@ -472,13 +472,14 @@ export async function getTeacherPerformance(
 
     // Fetch AI scores
     const { data: aiScores } = await supabase
-      .from("ai_scores")
-      .select("student_id, score, date")
-      .order("date", { ascending: true });
+      .from("homework_submissions")
+      .select("student_id, ai_score, scored_at")
+      .not("ai_score", "is", null)
+      .order("scored_at", { ascending: true });
 
     const latestAiScores: Record<string, number> = {};
     aiScores?.forEach((score: any) => {
-      latestAiScores[score.student_id] = Number(score.score);
+      latestAiScores[score.student_id] = Number(score.ai_score);
     });
 
     // Calculate metrics per subject/class
@@ -507,15 +508,13 @@ export async function getTeacherPerformance(
           allTeacherStudents.add(studentId);
 
           // AI
-          let aiScore = latestAiScores[studentId];
-          if (aiScore === undefined) {
-            const sum = studentId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            aiScore = 75 + (sum % 21);
+          const aiScore = latestAiScores[studentId];
+          if (aiScore !== undefined && aiScore !== null) {
+            subAiSum += aiScore;
+            subAiCount++;
+            totalAiScoreSum += aiScore;
+            totalAiScoreCount++;
           }
-          subAiSum += aiScore;
-          subAiCount++;
-          totalAiScoreSum += aiScore;
-          totalAiScoreCount++;
 
           // Marks
           const exKey = `${classObj.id}_${cs.subject_id}`;
@@ -534,7 +533,7 @@ export async function getTeacherPerformance(
         });
 
         const avgMarks = subMarksCount > 0 ? Math.round(subMarksSum / subMarksCount) : 80;
-        const avgAi = subAiCount > 0 ? Math.round(subAiSum / subAiCount) : 78;
+        const avgAi = subAiCount > 0 ? parseFloat((subAiSum / subAiCount).toFixed(1)) : 8.0;
 
         subjectMetrics.push({
           subject: subject.name,
@@ -546,8 +545,8 @@ export async function getTeacherPerformance(
     });
 
     const overallMarks = totalMarksPctCount > 0 ? (totalMarksPctSum / totalMarksPctCount) : 82.5;
-    const overallAi = totalAiScoreCount > 0 ? (totalAiScoreSum / totalAiScoreCount) : 80.0;
-    const overallScore = parseFloat(((overallMarks * 0.6) + (overallAi * 0.4)).toFixed(1));
+    const overallAi = totalAiScoreCount > 0 ? (totalAiScoreSum / totalAiScoreCount) : 8.0;
+    const overallScore = parseFloat(((overallMarks * 0.6) + ((overallAi * 10) * 0.4)).toFixed(1));
 
     // Calculate AI Score History for the line chart (monthly averages for the teacher's students)
     const months = [
@@ -563,29 +562,30 @@ export async function getTeacherPerformance(
 
     if (studentIdsArr.length > 0 && aiScores && aiScores.length > 0) {
       aiScores.forEach((s: any) => {
-        if (allTeacherStudents.has(s.student_id) && monthlyScores[s.date]) {
-          monthlyScores[s.date].push(Number(s.score));
+        const dateStr = s.scored_at ? s.scored_at.split("T")[0] : "";
+        if (dateStr && allTeacherStudents.has(s.student_id)) {
+          // Find the month start date ('YYYY-MM-01')
+          const parts = dateStr.split("-");
+          const monthKey = `${parts[0]}-${parts[1]}-01`;
+          if (monthlyScores[monthKey]) {
+            monthlyScores[monthKey].push(Number(s.ai_score));
+          }
         }
       });
     }
 
-    let history: AIScoreHistoryPoint[] = months.map(m => {
-      const scores = monthlyScores[m];
-      let avgScore = 0;
-      if (scores.length > 0) {
-        avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-      } else {
-        // Fallback deterministic score based on date and teacherId
-        const dateIdx = months.indexOf(m);
-        const sum = teacherId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const base = 74 + (sum % 8);
-        avgScore = base + (dateIdx * 1.2) + Math.sin(dateIdx + sum) * 1.5;
-      }
-      return {
-        date: formatShortDate(m),
-        score: parseFloat(avgScore.toFixed(1)),
-      };
-    });
+    const hasAnyMonthlyScores = Object.values(monthlyScores).some(s => s.length > 0);
+    let history: AIScoreHistoryPoint[] = [];
+    if (hasAnyMonthlyScores) {
+      history = months.map(m => {
+        const scores = monthlyScores[m];
+        const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+        return {
+          date: formatShortDate(m),
+          score: parseFloat(avgScore.toFixed(1)),
+        };
+      });
+    }
 
     // Apply filters to history
     if (filter === "this_term") {
@@ -923,6 +923,20 @@ export async function getClassPerformanceCardData(
   }
 }
 
+function getServerUrl(): string {
+  let serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      serverUrl = `http://${host}:3001`;
+    } else {
+      serverUrl = 'http://localhost:3001';
+    }
+  }
+  return serverUrl || 'http://localhost:3001';
+}
+
 export async function generateHomework(payload: {
   grade: string;
   subject: string;
@@ -951,7 +965,7 @@ export async function generateHomework(payload: {
   pdf_url: string | null;
   generation_status: string;
 }> {
-  const SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL ?? 'http://localhost:3001';
+  const SERVER_URL = getServerUrl();
 
   const response = await fetch(`${SERVER_URL}/api/teacher/homework/generate`, {
     method: 'POST',

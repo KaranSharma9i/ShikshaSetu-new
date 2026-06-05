@@ -111,6 +111,7 @@ router.post("/homework/submit-evaluate", async (req: Request, res: Response) => 
         .select(`
           title,
           description,
+          generated_content,
           subjects ( name ),
           classes ( name )
         `)
@@ -132,6 +133,21 @@ router.post("/homework/submit-evaluate", async (req: Request, res: Response) => 
     const subjectName = homeworkContext.subjects?.name || "General";
     const className = homeworkContext.classes?.name || "Unknown Grade";
 
+    // Extract questions from generated_content if available
+    let questions: any[] = [];
+    if (homeworkContext.generated_content) {
+      try {
+        const content = typeof homeworkContext.generated_content === 'string'
+          ? JSON.parse(homeworkContext.generated_content)
+          : homeworkContext.generated_content;
+        if (content && Array.isArray(content.questions)) {
+          questions = content.questions;
+        }
+      } catch (parseErr) {
+        console.error("Failed to parse homework generated_content:", parseErr);
+      }
+    }
+
     // Step 5 — Call scoreHomework()
     let evaluation;
     try {
@@ -142,6 +158,7 @@ router.post("/homework/submit-evaluate", async (req: Request, res: Response) => 
         title,
         topicDescription: topic,
         planTier,
+        questions,
       });
     } catch (aiErr) {
       console.error("AI Scoring error:", aiErr);

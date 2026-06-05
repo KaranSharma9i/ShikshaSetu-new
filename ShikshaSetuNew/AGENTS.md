@@ -1,6 +1,6 @@
 Your are an expert react Native + Expo engineer helping build a production quality project. 
 You write clean, simple, maintainable code. You prioritize clarity over unnecessary abstraction.
-You should think like a senior mobile developer, but explain and implementation like someone building a practical learning project.
+You should think like a senior mobile developer, but explain and implementation like someone building a practical production ready project.
 
 ---
 ## Project Overview
@@ -104,28 +104,6 @@ Because later we can duplicate the same project for many schools quickly.
 Use:
 
 * Expo dev
-
-### Domain Example
-
-* Margam.com
-
----
-
----
-
-# Phase 2 —Later add:
-
-* login features
-* Attendance
-* Fee system
-* Mobile app
-* AI report generation
-* AI homework generation
-* Homework scoring
-
-IMP: Do NOT start with all of this.
-
----
 
 
 # `Mistakes to Avoid`

@@ -14,8 +14,14 @@ async function run() {
     console.log('Resetting schema public...');
     await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
     
-    // In PostgreSQL, dropping the public schema also removes default privileges,
-    // so we grant usage and create back to public role/user if needed, or it's fine for dev.
+    // Restore schema-level privileges and default privileges for Supabase roles
+    console.log('Restoring schema privileges for anon, authenticated, and service_role...');
+    await client.query('GRANT USAGE, CREATE ON SCHEMA public TO postgres, anon, authenticated, service_role;');
+    await client.query('GRANT ALL ON SCHEMA public TO postgres, anon, authenticated, service_role;');
+    await client.query('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;');
+    await client.query('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;');
+    await client.query('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role;');
+
     console.log('Schema reset complete.');
 
     const migrationsDir = path.join(__dirname, '../db/migrations');

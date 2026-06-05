@@ -12,6 +12,38 @@ AS $$
   SELECT id FROM public.students WHERE user_id = auth.uid()
 $$;
 
+CREATE OR REPLACE FUNCTION public.is_student()
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'student'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_teacher()
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'teacher'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.auth_institution_id()
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT institution_id FROM public.users
+  WHERE id = auth.uid();
+$$;
+
+
 -- Section: BLOCK 1 — students TABLE
 
 DO $$ BEGIN
