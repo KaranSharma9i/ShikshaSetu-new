@@ -175,4 +175,110 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/homework/publish", async (req: Request, res: Response) => {
+  try {
+    const { homework_id, generated_content } = req.body;
+
+    if (!homework_id) {
+      return res.status(400).json({ error: "Missing required field: homework_id" });
+    }
+
+    if (!generated_content) {
+      return res.status(400).json({ error: "Missing required field: generated_content" });
+    }
+
+    // 1. Fetch existing homework details
+    const { data: hw, error: fetchError } = await supabase
+      .from("homework")
+      .select(`
+        institution_id,
+        academic_year_id,
+        class_id,
+        section_id,
+        subject_id,
+        teacher_id,
+        title,
+        description,
+        due_date,
+        difficulty,
+        question_config,
+        class:classes ( name ),
+        section:sections ( name ),
+        subject:subjects ( name )
+      `)
+      .eq("id", homework_id)
+      .single();
+
+    if (fetchError || !hw) {
+      console.error("Failed to fetch homework for publishing:", fetchError);
+      return res.status(404).json({ error: "Homework record not found." });
+    }
+
+    const classObj = Array.isArray(hw.class) ? hw.class[0] : hw.class;
+    const sectionObj = Array.isArray(hw.section) ? hw.section[0] : hw.section;
+    const subjectObj = Array.isArray(hw.subject) ? hw.subject[0] : hw.subject;
+
+    const gradeName = (classObj as any)?.name || "";
+    const sectionName = (sectionObj as any)?.name || "";
+    const subjectName = (subjectObj as any)?.name || "";
+
+    // 2. Build PDF generation request payload
+    const pdfReq = {
+      grade: gradeName,
+      subject: subjectName,
+      title: hw.title,
+      topic_description: hw.description || "",
+      question_config: hw.question_config,
+      teacher_id: hw.teacher_id,
+      class_id: hw.class_id,
+      section_id: hw.section_id,
+      section_name: sectionName,
+      subject_id: hw.subject_id,
+      institution_id: hw.institution_id,
+      academic_year_id: hw.academic_year_id,
+      due_date: hw.due_date,
+      difficulty: hw.difficulty,
+    };
+
+    // 3. Generate and Upload PDF
+    let pdfUrl: string | null = null;
+    try {
+      pdfUrl = await pdfService.generateAndUpload(
+        generated_content,
+        homework_id,
+        pdfReq as any
+      );
+    } catch (pdfError: any) {
+      console.error("PDF Regeneration/Upload Error on Publish:", pdfError);
+    }
+
+    // 4. Update the homework row in database
+    const updatePayload: any = {
+      generated_content: generated_content,
+      generation_status: "published",
+      status: "active",
+      updated_at: new Date().toISOString(),
+    };
+
+    if (pdfUrl) {
+      updatePayload.pdf_url = pdfUrl;
+    }
+
+    const { error: updateError } = await supabase
+      .from("homework")
+      .update(updatePayload)
+      .eq("id", homework_id);
+
+    if (updateError) {
+      console.error("Publish homework error:", updateError);
+      return res.status(500).json({ error: `Failed to publish: ${updateError.message}` });
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error: any) {
+    console.error("Uncaught Publish Homework Error:", error);
+    return res.status(500).json({ error: `Internal Server Error: ${error.message}` });
+  }
+});
+
 export default router;
