@@ -90,24 +90,25 @@ export async function getStudents(
     const { data: studentsData, error } = await query;
     if (error) throw error;
 
-    // To display AI scores, we also fetch all records from ai_scores
+    // To display AI scores, we also fetch all records from homework_submissions
     // Since we only seed 2 students per class, we fetch latest scores in bulk
     const studentIds = (studentsData || []).map(s => s.id);
     
     let dbAiScores: Record<string, number> = {};
     if (studentIds.length > 0) {
-      // Query the latest score per student from ai_scores table
+      // Query the latest score per student from homework_submissions table
       const { data: scores, error: scoresErr } = await supabase
-        .from("ai_scores")
-        .select("student_id, score, date")
+        .from("homework_submissions")
+        .select("student_id, ai_score, scored_at")
         .in("student_id", studentIds)
-        .order("date", { ascending: false });
+        .not("ai_score", "is", null)
+        .order("scored_at", { ascending: false });
       
       if (!scoresErr && scores) {
         // Map student_id -> latest score
         scores.forEach(s => {
           if (!dbAiScores[s.student_id]) {
-            dbAiScores[s.student_id] = Number(s.score);
+            dbAiScores[s.student_id] = Number(s.ai_score);
           }
         });
       }
@@ -119,13 +120,8 @@ export async function getStudents(
       const section = enrollment?.section;
       const classObj = section?.class;
       
-      // Fallback deterministic AI score if not seeded in database
-      // Derived from student id character codes so it is stable per student (75 - 95 range)
-      let aiScore = dbAiScores[s.id];
-      if (aiScore === undefined) {
-        const sum = s.id.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-        aiScore = 75 + (sum % 21); // 75 to 95
-      }
+      // Fetch actual database score if exists, otherwise null
+      const aiScore = dbAiScores[s.id] !== undefined ? dbAiScores[s.id] : null;
 
       return {
         id: s.id,
@@ -326,41 +322,29 @@ export async function getStudentAIScores(
 ): Promise<StudentAIScoreSummary> {
   try {
     const { data: scores, error } = await supabase
-      .from("ai_scores")
-      .select("score, date")
+      .from("homework_submissions")
+      .select("ai_score, scored_at")
       .eq("student_id", studentId)
-      .order("date", { ascending: true });
+      .not("ai_score", "is", null)
+      .order("scored_at", { ascending: true });
 
     if (error) throw error;
 
     let history: AIScoreHistoryPoint[] = [];
 
     if (!scores || scores.length === 0) {
-      // GENERATE DETERMINISTIC FALLBACK FOR NON-SEEDED STUDENTS
-      // September 2025 to May 2026
-      const months = [
-        "2025-09-01", "2025-10-01", "2025-11-01", "2025-12-01",
-        "2026-01-01", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01"
-      ];
-      
-      const sum = studentId.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-      let score = 74 + (sum % 12); // start between 74 and 85
-      
-      history = months.map((date, idx) => {
-        const drift = 0.8 + (sum % 4) * 0.4; // positive drift
-        const fluctuation = Math.sin(idx + sum) * 1.5;
-        score = Math.min(99.4, score + drift + fluctuation);
-        return {
-          date: formatShortDate(date),
-          score: parseFloat(score.toFixed(1))
-        };
-      });
-    } else {
-      history = scores.map(s => ({
-        date: formatShortDate(s.date),
-        score: Number(s.score)
-      }));
+      return {
+        current: 0,
+        history: [],
+        trend: "0.0%",
+        isPositive: true
+      };
     }
+
+    history = scores.map(s => ({
+      date: formatShortDate(s.scored_at ? s.scored_at.split("T")[0] : ""),
+      score: Number(s.ai_score)
+    }));
 
     // Filter points based on active filter tab
     let filteredHistory = [...history];
