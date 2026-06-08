@@ -46,7 +46,14 @@ type TabName = "personal" | "performance" | "classes" | "management";
 export default function TeacherProfileScreen() {
   const router = useRouter();
   const { id: teacherId } = useLocalSearchParams<{ id: string }>();
-  const { isLoaded, isSignedIn, role, institutionId } = useAuth();
+  const { isLoaded, isSignedIn, role, institutionId, theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#F2C14E';
+  const creamColor = theme?.colors?.cream ?? '#F7F3EB';
+  const steelGrayColor = theme?.colors?.steelGray ?? '#6B7280';
+  const primaryAltColor = theme?.colors?.primaryAlt ?? '#162A56';
   
   // Navigation tabs state
   const [activeTab, setActiveTab] = useState<TabName>("personal");
@@ -268,12 +275,12 @@ export default function TeacherProfileScreen() {
         <Svg width={chartWidth} height={chartHeight}>
           <Defs>
             <LinearGradient id="tealGoldGrad" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0%" stopColor="#2ABFBF" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#C9A84C" stopOpacity="1" />
+              <Stop offset="0%" stopColor={primaryAltColor} stopOpacity="1" />
+              <Stop offset="100%" stopColor={secondaryColor} stopOpacity="1" />
             </LinearGradient>
             <LinearGradient id="fillGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#2ABFBF" stopOpacity="0.25" />
-              <Stop offset="100%" stopColor="#2ABFBF" stopOpacity="0.0" />
+              <Stop offset="0%" stopColor={primaryAltColor} stopOpacity="0.25" />
+              <Stop offset="100%" stopColor={primaryAltColor} stopOpacity="0.0" />
             </LinearGradient>
           </Defs>
 
@@ -312,7 +319,7 @@ export default function TeacherProfileScreen() {
                 cx={pt.x}
                 cy={pt.y}
                 r={isSelected ? 6.5 : 4}
-                fill={isSelected ? "#C9A84C" : "#2ABFBF"}
+                fill={isSelected ? secondaryColor : primaryAltColor}
                 stroke="white"
                 strokeWidth={isSelected ? 2.5 : 1.5}
                 onPress={() => setSelectedPointIdx(idx)}
@@ -334,7 +341,7 @@ export default function TeacherProfileScreen() {
                 y={chartHeight - 4}
                 fontSize="9"
                 fontFamily="Inter-Medium"
-                fill="#778598"
+                fill={steelGrayColor}
                 textAnchor="middle"
               >
                 {pt.date}
@@ -348,18 +355,18 @@ export default function TeacherProfileScreen() {
 
   if (!isLoaded || !isSignedIn || loadingProfile) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F7F3E8] justify-center items-center">
-        <ActivityIndicator size="large" color="#C9A84C" />
+      <SafeAreaView className="flex-grow flex-1 justify-center items-center" style={{ backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </SafeAreaView>
     );
   }
 
   if (!profile) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F7F3E8] justify-center items-center">
+      <SafeAreaView className="flex-grow flex-1 justify-center items-center" style={{ backgroundColor: creamColor }}>
         <Ionicons name="warning-outline" size={48} color="#EF4444" />
-        <Text className="font-poppins-bold text-sm text-[#0D1B2A] mt-3">Teacher profile not found</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 px-6 py-2 bg-[#C9A84C] rounded-xl">
+        <Text className="font-poppins-bold text-sm mt-3" style={{ color: primaryColor }}>Teacher profile not found</Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-4 px-6 py-2 rounded-xl" style={{ backgroundColor: secondaryColor }}>
           <Text className="text-white font-poppins-semibold text-xs">Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -378,15 +385,15 @@ export default function TeacherProfileScreen() {
   const classTeacherClass = classes.find(c => c.isClassTeacher);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F7F3E8]">
+    <SafeAreaView className="flex-grow flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Teacher Profile" showBackButton={true} onBackPress={() => router.push("/teachers" as any)} />
 
       <ScrollView className="flex-grow" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Banner Section */}
         <View className="items-center mt-6 mb-6">
           <View className="relative">
-            <View className="w-28 h-28 rounded-full border-4 border-white shadow-lg bg-[#ffe088] flex-row items-center justify-center">
-              <Text className="font-poppins-bold text-2xl text-[#574500]">
+            <View className="w-28 h-28 rounded-full border-4 border-white shadow-lg flex-row items-center justify-center" style={{ backgroundColor: secondaryLightColor }}>
+              <Text className="font-poppins-bold text-2xl" style={{ color: primaryColor }}>
                 {getInitials(profile.full_name)}
               </Text>
             </View>
@@ -394,25 +401,25 @@ export default function TeacherProfileScreen() {
               <Ionicons
                 name={profile.status === "Active" ? "checkmark-circle" : "ellipse-outline"}
                 size={20}
-                color={profile.status === "Active" ? "#2E7D32" : "#75777D"}
+                color={profile.status === "Active" ? "#2E7D32" : steelGrayColor}
               />
             </View>
           </View>
-          <Text className="font-poppins-bold text-xl text-[#0D1B2A] mt-3">
+          <Text className="font-poppins-bold text-xl mt-3" style={{ color: primaryColor }}>
             {profile.full_name}
           </Text>
           <View className="flex-row items-center space-x-2 mt-1.5">
-            <Text className="font-poppins-semibold text-[10px] text-[#75777D] uppercase tracking-wider">
+            <Text className="font-poppins-semibold text-[10px] uppercase tracking-wider" style={{ color: steelGrayColor }}>
               {profile.specialization}
             </Text>
-            <Text className="font-poppins text-[10px] text-[#75777D]">|</Text>
-            <Text className="font-poppins-semibold text-[10px] text-[#75777D] uppercase tracking-wider">
+            <Text className="font-poppins text-[10px]" style={{ color: steelGrayColor }}>|</Text>
+            <Text className="font-poppins-semibold text-[10px] uppercase tracking-wider" style={{ color: steelGrayColor }}>
               Code: {profile.employee_code}
             </Text>
-            <Text className="font-poppins text-[10px] text-[#75777D]">|</Text>
+            <Text className="font-poppins text-[10px]" style={{ color: steelGrayColor }}>|</Text>
             <View className="flex-row items-center space-x-1">
               <View className={`w-2.5 h-2.5 rounded-full ${profile.status === "Active" ? "bg-[#2E7D32]" : "bg-neutral-400"}`} />
-              <Text className={`font-poppins-semibold text-[10px] uppercase tracking-wider ${profile.status === "Active" ? "text-[#2E7D32]" : "text-[#75777D]"}`}>
+              <Text className="font-poppins-semibold text-[10px] uppercase tracking-wider" style={{ color: profile.status === "Active" ? "#2E7D32" : steelGrayColor }}>
                 {profile.status}
               </Text>
             </View>
@@ -436,14 +443,12 @@ export default function TeacherProfileScreen() {
               <TouchableOpacity
                 key={tab.id}
                 onPress={() => setActiveTab(tab.id)}
-                className={`mr-4 pb-2 px-1 border-b-2 ${
-                  activeTab === tab.id ? "border-[#C9A84C]" : "border-transparent"
-                }`}
+                className="mr-4 pb-2 px-1 border-b-2"
+                style={{ borderBottomColor: activeTab === tab.id ? secondaryColor : "transparent" }}
               >
                 <Text
-                  className={`font-poppins-bold text-[11px] uppercase tracking-widest ${
-                    activeTab === tab.id ? "text-[#0D1B2A]" : "text-[#75777D]"
-                  }`}
+                  className="font-poppins-bold text-[11px] uppercase tracking-widest"
+                  style={{ color: activeTab === tab.id ? primaryColor : steelGrayColor }}
                 >
                   {tab.label}
                 </Text>
@@ -459,18 +464,18 @@ export default function TeacherProfileScreen() {
           {activeTab === "personal" && (
             <View className="bg-white rounded-3xl p-5 border border-gray-200/60 shadow-sm space-y-4">
               <View className="flex-row justify-between items-center mb-1">
-                <Text className="font-poppins-bold text-base text-[#0D1B2A]">Personal Details</Text>
-                <Ionicons name="person-outline" size={18} color="#C9A84C" />
+                <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Personal Details</Text>
+                <Ionicons name="person-outline" size={18} color={secondaryColor} />
               </View>
 
               <View className="flex-row flex-wrap">
                 {/* Employee Code */}
                 <View className="w-1/2 mb-4 pr-2">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="card-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Employee Code</Text>
+                    <Ionicons name="card-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Employee Code</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.employee_code}
                   </Text>
                 </View>
@@ -478,10 +483,10 @@ export default function TeacherProfileScreen() {
                 {/* Status */}
                 <View className="w-1/2 mb-4">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="radio-button-on" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Status</Text>
+                    <Ionicons name="radio-button-on" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Status</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.status}
                   </Text>
                 </View>
@@ -489,10 +494,10 @@ export default function TeacherProfileScreen() {
                 {/* Email */}
                 <View className="w-1/2 mb-4 pr-2">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="mail-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Email</Text>
+                    <Ionicons name="mail-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Email</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]" numberOfLines={1}>
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }} numberOfLines={1}>
                     {profile.email || "—"}
                   </Text>
                 </View>
@@ -500,10 +505,10 @@ export default function TeacherProfileScreen() {
                 {/* Phone */}
                 <View className="w-1/2 mb-4">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="call-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Phone</Text>
+                    <Ionicons name="call-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Phone</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.phone || "—"}
                   </Text>
                 </View>
@@ -511,10 +516,10 @@ export default function TeacherProfileScreen() {
                 {/* Date of Birth */}
                 <View className="w-1/2 mb-4 pr-2">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="calendar-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">DOB</Text>
+                    <Ionicons name="calendar-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>DOB</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.date_of_birth
                       ? new Date(profile.date_of_birth).toLocaleDateString("en-GB", {
                           day: "numeric",
@@ -528,10 +533,10 @@ export default function TeacherProfileScreen() {
                 {/* Gender */}
                 <View className="w-1/2 mb-4">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="male-female-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Gender</Text>
+                    <Ionicons name="male-female-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Gender</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A] capitalize">
+                  <Text className="font-poppins-semibold text-xs capitalize" style={{ color: primaryColor }}>
                     {profile.gender || "—"}
                   </Text>
                 </View>
@@ -539,10 +544,10 @@ export default function TeacherProfileScreen() {
                 {/* Qualification */}
                 <View className="w-1/2 mb-4 pr-2">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="school-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Qualification</Text>
+                    <Ionicons name="school-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Qualification</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]" numberOfLines={1}>
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }} numberOfLines={1}>
                     {profile.qualification || "—"}
                   </Text>
                 </View>
@@ -550,10 +555,10 @@ export default function TeacherProfileScreen() {
                 {/* Specialization */}
                 <View className="w-1/2 mb-4">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="star-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Specialization</Text>
+                    <Ionicons name="star-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Specialization</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]" numberOfLines={1}>
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }} numberOfLines={1}>
                     {profile.specialization || "—"}
                   </Text>
                 </View>
@@ -561,10 +566,10 @@ export default function TeacherProfileScreen() {
                 {/* Date of Joining */}
                 <View className="w-1/2 mb-4 pr-2">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="time-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Date of Joining</Text>
+                    <Ionicons name="time-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Date of Joining</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.date_of_joining
                       ? new Date(profile.date_of_joining).toLocaleDateString("en-GB", {
                           day: "numeric",
@@ -578,10 +583,10 @@ export default function TeacherProfileScreen() {
                 {/* Last Login At */}
                 <View className="w-1/2 mb-4">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="log-in-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Last Login</Text>
+                    <Ionicons name="log-in-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Last Login</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.last_login_at
                       ? new Date(profile.last_login_at).toLocaleDateString("en-GB", {
                           day: "numeric",
@@ -597,10 +602,10 @@ export default function TeacherProfileScreen() {
                 {/* Address */}
                 <View className="w-full mb-4">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="home-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Address</Text>
+                    <Ionicons name="home-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Address</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A] leading-relaxed">
+                  <Text className="font-poppins-semibold text-xs leading-relaxed" style={{ color: primaryColor }}>
                     {profile.address || "—"}
                   </Text>
                 </View>
@@ -608,10 +613,10 @@ export default function TeacherProfileScreen() {
                 {/* Emergency Contact */}
                 <View className="w-full">
                   <View className="flex-row items-center space-x-1.5 mb-0.5">
-                    <Ionicons name="alert-circle-outline" size={12} color="#75777D" />
-                    <Text className="font-inter text-[10px] text-[#75777D]">Emergency Contact</Text>
+                    <Ionicons name="alert-circle-outline" size={12} color={steelGrayColor} />
+                    <Text className="font-inter text-[10px]" style={{ color: steelGrayColor }}>Emergency Contact</Text>
                   </View>
-                  <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                  <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                     {profile.emergency_contact || "—"}
                   </Text>
                 </View>
@@ -625,15 +630,15 @@ export default function TeacherProfileScreen() {
               
               {/* Overall Index Score */}
               {loadingPerformance ? (
-                <ActivityIndicator size="small" color="#C9A84C" className="my-10" />
+                <ActivityIndicator size="small" color={secondaryColor} className="my-10" />
               ) : performance ? (
                 <View className="bg-white rounded-3xl p-5 border border-gray-200/60 shadow-sm flex-row justify-between items-center">
                   <View>
-                    <Text className="font-poppins-bold text-sm text-[#0D1B2A]">Performance Index</Text>
-                    <Text className="font-inter text-[10px] text-[#75777D] mt-0.5">Cumulative teacher rating</Text>
+                    <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>Performance Index</Text>
+                    <Text className="font-inter text-[10px] mt-0.5" style={{ color: steelGrayColor }}>Cumulative teacher rating</Text>
                   </View>
                   <View className="items-end">
-                    <Text className="font-poppins-bold text-3xl text-[#C9A84C]">
+                    <Text className="font-poppins-bold text-3xl" style={{ color: secondaryColor }}>
                       {performance.overallScore}%
                     </Text>
                     <View className="flex-row items-center space-x-1 mt-0.5">
@@ -648,42 +653,41 @@ export default function TeacherProfileScreen() {
               {performance && (
                 <View className="bg-white rounded-3xl overflow-hidden border border-gray-200/60 shadow-sm">
                   <View className="p-5 flex-row justify-between items-center border-b border-gray-100">
-                    <Text className="font-poppins-bold text-base text-[#0D1B2A]">Academic Metrics</Text>
-                    <Ionicons name="journal-outline" size={18} color="#C9A84C" />
+                    <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Academic Metrics</Text>
+                    <Ionicons name="journal-outline" size={18} color={secondaryColor} />
                   </View>
 
                   {/* Table Header */}
                   <View className="flex-row bg-[#FDF9F1] px-5 py-2.5">
-                    <Text className="flex-[1.5] font-poppins-bold text-[9px] text-[#75777D] uppercase">Subject</Text>
-                    <Text className="flex-[1.2] font-poppins-bold text-[9px] text-[#75777D] uppercase text-center">Class</Text>
-                    <Text className="flex-1 font-poppins-bold text-[9px] text-[#75777D] uppercase text-center">Avg Marks</Text>
-                    <Text className="flex-1 font-poppins-bold text-[9px] text-[#75777D] uppercase text-right">AI Score</Text>
+                    <Text className="flex-[1.5] font-poppins-bold text-[9px] uppercase" style={{ color: steelGrayColor }}>Subject</Text>
+                    <Text className="flex-[1.2] font-poppins-bold text-[9px] uppercase text-center" style={{ color: steelGrayColor }}>Class</Text>
+                    <Text className="flex-1 font-poppins-bold text-[9px] uppercase text-center" style={{ color: steelGrayColor }}>Avg Marks</Text>
+                    <Text className="flex-1 font-poppins-bold text-[9px] uppercase text-right" style={{ color: steelGrayColor }}>AI Score</Text>
                   </View>
 
                   {/* Table Rows */}
                   {performance.subjectMetrics.length === 0 ? (
                     <View className="py-8 justify-center items-center">
-                      <Text className="font-inter text-xs text-[#75777D] italic">No active subject marks found.</Text>
+                      <Text className="font-inter text-xs italic" style={{ color: steelGrayColor }}>No active subject marks found.</Text>
                     </View>
                   ) : (
                     performance.subjectMetrics.map((m, idx) => (
                       <View
                         key={`${m.class}_${m.subject}`}
-                        className={`flex-row px-5 py-3.5 border-b border-gray-100 last:border-b-0 ${
-                          idx % 2 === 0 ? "bg-white" : "bg-[#F7F3E8]/30"
-                        }`}
+                        className="flex-row px-5 py-3.5 border-b border-gray-100 last:border-b-0"
+                        style={{ backgroundColor: idx % 2 === 0 ? "white" : creamColor + "4D" }}
                       >
-                        <Text className="flex-[1.5] font-poppins-bold text-xs text-[#0D1B2A]">{m.subject}</Text>
-                        <Text className="flex-[1.2] text-center font-inter text-xs text-[#75777D]">{m.class}</Text>
-                        <Text className="flex-1 text-center font-poppins-semibold text-xs text-[#0D1B2A]">{m.avgMarks}%</Text>
-                        <Text className="flex-1 text-right font-poppins-bold text-xs text-[#2ABFBF]">{m.aiScore}</Text>
+                        <Text className="flex-[1.5] font-poppins-bold text-xs" style={{ color: primaryColor }}>{m.subject}</Text>
+                        <Text className="flex-[1.2] text-center font-inter text-xs" style={{ color: steelGrayColor }}>{m.class}</Text>
+                        <Text className="flex-1 text-center font-poppins-semibold text-xs" style={{ color: primaryColor }}>{m.avgMarks}%</Text>
+                        <Text className="flex-1 text-right font-poppins-bold text-xs" style={{ color: primaryAltColor }}>{m.aiScore}</Text>
                       </View>
                     ))
                   )}
 
                   {/* Total Cumulative Row */}
                   {performance.subjectMetrics.length > 0 && (
-                    <View className="flex-row bg-[#C9A84C] px-5 py-4 items-center">
+                    <View className="flex-row px-5 py-4 items-center" style={{ backgroundColor: secondaryColor }}>
                       <Text className="flex-[2.7] font-poppins-bold text-xs text-white">Cumulative Averages</Text>
                       <Text className="flex-1 text-center font-poppins-bold text-xs text-white">{avgMarksCumulative}%</Text>
                       <Text className="flex-1 text-right font-poppins-bold text-xs text-white">{avgAiCumulative}</Text>
@@ -694,11 +698,11 @@ export default function TeacherProfileScreen() {
 
               {/* Student AI Score Trend Line Chart */}
               {performance && (
-                <View className="bg-[#0D1B2A] rounded-3xl p-5 border border-gray-800 shadow-lg">
+                <View className="rounded-3xl p-5 border border-gray-800 shadow-lg" style={{ backgroundColor: primaryColor }}>
                   <View className="flex-row justify-between items-start mb-5">
                     <View>
-                      <Text className="font-poppins-bold text-[#ffe088] text-sm flex-row items-center">
-                        <Ionicons name="sparkles" size={12} color="#ffe088" className="mr-1" />
+                      <Text className="font-poppins-bold text-sm flex-row items-center" style={{ color: secondaryLightColor }}>
+                        <Ionicons name="sparkles" size={12} color={secondaryLightColor} className="mr-1" />
                         Student AI Score Trend
                       </Text>
                       <Text className="font-inter text-[9.5px] text-gray-400 mt-0.5">
@@ -712,14 +716,12 @@ export default function TeacherProfileScreen() {
                         <TouchableOpacity
                           key={filter}
                           onPress={() => setPerformanceFilter(filter)}
-                          className={`px-2 py-1 rounded-md ${
-                            performanceFilter === filter ? "bg-[#C9A84C]" : "bg-transparent"
-                          }`}
+                          className="px-2 py-1 rounded-md"
+                          style={performanceFilter === filter ? { backgroundColor: secondaryColor } : undefined}
                         >
                           <Text
-                            className={`font-poppins-bold text-[8px] uppercase tracking-wider ${
-                              performanceFilter === filter ? "text-[#0D1B2A]" : "text-gray-400"
-                            }`}
+                            className="font-poppins-bold text-[8px] uppercase tracking-wider"
+                            style={{ color: performanceFilter === filter ? primaryColor : "#94A3B8" }}
                           >
                             {filter === "this_term" ? "Term" : filter === "this_year" ? "Year" : "All"}
                           </Text>
@@ -756,20 +758,20 @@ export default function TeacherProfileScreen() {
               
               {/* Class Teacher Badge (Gold border card) */}
               {classTeacherClass && (
-                <View className="bg-white rounded-3xl p-5 border-2 border-[#C9A84C] shadow-md flex-row justify-between items-center">
+                <View className="bg-white rounded-3xl p-5 shadow-md flex-row justify-between items-center border-2" style={{ borderColor: secondaryColor }}>
                   <View className="flex-1 pr-2">
-                    <Text className="font-poppins-bold text-xs text-[#C9A84C] uppercase tracking-widest">
+                    <Text className="font-poppins-bold text-xs uppercase tracking-widest" style={{ color: secondaryColor }}>
                       Designated Class Teacher
                     </Text>
-                    <Text className="font-poppins-bold text-lg text-[#0D1B2A] mt-1">
+                    <Text className="font-poppins-bold text-lg mt-1" style={{ color: primaryColor }}>
                       {classTeacherClass.class_name}-{classTeacherClass.section_name}
                     </Text>
-                    <Text className="font-inter text-[10px] text-[#75777D] mt-0.5">
+                    <Text className="font-inter text-[10px] mt-0.5" style={{ color: steelGrayColor }}>
                       Overseeing administrative and academic workflows
                     </Text>
                   </View>
-                  <View className="w-12 h-12 bg-[#ffe088]/20 border border-[#C9A84C]/50 rounded-full flex-row items-center justify-center">
-                    <Ionicons name="ribbon" size={24} color="#C9A84C" />
+                  <View className="w-12 h-12 rounded-full flex-row items-center justify-center border" style={{ backgroundColor: secondaryLightColor + "33", borderColor: secondaryColor + "80" }}>
+                    <Ionicons name="ribbon" size={24} color={secondaryColor} />
                   </View>
                 </View>
               )}
@@ -778,27 +780,27 @@ export default function TeacherProfileScreen() {
               {classTeacherClass && classPerformanceCard && (
                 <View className="bg-white rounded-3xl p-5 border border-gray-200/60 shadow-sm space-y-4">
                   <View className="flex-row justify-between items-center mb-1">
-                    <Text className="font-poppins-bold text-base text-[#0D1B2A]">
+                    <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>
                       Class Performance ({classPerformanceCard.class_name}-{classPerformanceCard.section_name})
                     </Text>
-                    <Ionicons name="bar-chart-outline" size={18} color="#C9A84C" />
+                    <Ionicons name="bar-chart-outline" size={18} color={secondaryColor} />
                   </View>
 
                   {classPerformanceCard.subjectMetrics.length === 0 ? (
-                    <Text className="font-inter text-xs text-[#75777D] italic text-center py-4">No class subjects marks found.</Text>
+                    <Text className="font-inter text-xs italic text-center py-4" style={{ color: steelGrayColor }}>No class subjects marks found.</Text>
                   ) : (
                     <View className="space-y-3">
                       {classPerformanceCard.subjectMetrics.map((sm, idx) => (
                         <View key={`${sm.subject_name}_${idx}`}>
                           <View className="flex-row justify-between items-center mb-1">
-                            <Text className="font-poppins-bold text-xs text-[#0D1B2A]">{sm.subject_name}</Text>
-                            <Text className="font-poppins-semibold text-xs text-[#C9A84C]">{sm.avgMarks}% Avg</Text>
+                            <Text className="font-poppins-bold text-xs" style={{ color: primaryColor }}>{sm.subject_name}</Text>
+                            <Text className="font-poppins-semibold text-xs" style={{ color: secondaryColor }}>{sm.avgMarks}% Avg</Text>
                           </View>
                           {/* Progress bar */}
                           <View className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                             <View
-                              className="h-full rounded-full bg-[#C9A84C]"
-                              style={{ width: `${sm.avgMarks}%` }}
+                              className="h-full rounded-full"
+                              style={{ width: `${sm.avgMarks}%`, backgroundColor: secondaryColor }}
                             />
                           </View>
                         </View>
@@ -811,19 +813,19 @@ export default function TeacherProfileScreen() {
               {/* List of Taught Classes */}
               <View className="bg-white rounded-3xl p-5 border border-gray-200/60 shadow-sm space-y-3">
                 <View className="flex-row justify-between items-center mb-1">
-                  <Text className="font-poppins-bold text-base text-[#0D1B2A]">Assigned Curriculum</Text>
-                  <Ionicons name="book-outline" size={18} color="#C9A84C" />
+                  <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Assigned Curriculum</Text>
+                  <Ionicons name="book-outline" size={18} color={secondaryColor} />
                 </View>
 
                 {loadingClasses ? (
-                  <ActivityIndicator size="small" color="#C9A84C" className="my-6" />
+                  <ActivityIndicator size="small" color={secondaryColor} className="my-6" />
                 ) : classes.length === 0 ? (
-                  <Text className="font-inter text-xs text-[#75777D] italic text-center py-4">No class subjects currently assigned.</Text>
+                  <Text className="font-inter text-xs italic text-center py-4" style={{ color: steelGrayColor }}>No class subjects currently assigned.</Text>
                 ) : (
                   classes.map((cls, idx) => (
                     <View key={`${cls.section_id}_${cls.subject_id}_${idx}`} className="flex-row items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                       <View>
-                        <Text className="font-poppins-bold text-xs text-[#0D1B2A]">
+                        <Text className="font-poppins-bold text-xs" style={{ color: primaryColor }}>
                           {cls.class_name}-{cls.section_name}
                         </Text>
                         <Text className="font-inter text-[10px] text-gray-500 mt-0.5">
@@ -831,8 +833,8 @@ export default function TeacherProfileScreen() {
                         </Text>
                       </View>
                       {cls.isClassTeacher && (
-                        <View className="bg-[#C9A84C]/10 border border-[#C9A84C]/30 px-2 py-0.5 rounded">
-                          <Text className="font-poppins-bold text-[8px] text-[#C9A84C] uppercase tracking-wider">
+                        <View className="px-2 py-0.5 rounded border" style={{ backgroundColor: secondaryColor + "1A", borderColor: secondaryColor + "4D" }}>
+                          <Text className="font-poppins-bold text-[8px] uppercase tracking-wider" style={{ color: secondaryColor }}>
                             Class Teacher
                           </Text>
                         </View>
@@ -851,21 +853,21 @@ export default function TeacherProfileScreen() {
               {/* Assign Classes List */}
               <View className="bg-white rounded-3xl p-5 border border-gray-200/60 shadow-sm space-y-3">
                 <View className="flex-row justify-between items-center mb-2">
-                  <Text className="font-poppins-bold text-base text-[#0D1B2A]">Class Assignments</Text>
-                  <Ionicons name="construct-outline" size={18} color="#C9A84C" />
+                  <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Class Assignments</Text>
+                  <Ionicons name="construct-outline" size={18} color={secondaryColor} />
                 </View>
 
                 {loadingClasses ? (
-                  <ActivityIndicator size="small" color="#C9A84C" className="my-6" />
+                  <ActivityIndicator size="small" color={secondaryColor} className="my-6" />
                 ) : classes.length === 0 ? (
                   <View className="py-6 justify-center items-center">
-                    <Text className="font-inter text-xs text-[#75777D] italic text-center mb-2">No class subjects currently assigned.</Text>
+                    <Text className="font-inter text-xs italic text-center mb-2" style={{ color: steelGrayColor }}>No class subjects currently assigned.</Text>
                   </View>
                 ) : (
                   classes.map((cls, idx) => (
                     <View key={`${cls.section_id}_${cls.subject_id}_${idx}`} className="flex-row items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
                       <View className="flex-1 pr-2">
-                        <Text className="font-poppins-bold text-xs text-[#0D1B2A]">
+                        <Text className="font-poppins-bold text-xs" style={{ color: primaryColor }}>
                           {cls.class_name}-{cls.section_name}
                         </Text>
                         <Text className="font-inter text-[10px] text-gray-500 mt-0.5">
@@ -887,10 +889,11 @@ export default function TeacherProfileScreen() {
                 {/* "+ Assign New Class" Gold Outlined Button */}
                 <TouchableOpacity
                   onPress={handleOpenAssignModal}
-                  className="mt-4 w-full py-3.5 border-2 border-dashed border-[#C9A84C] rounded-xl flex-row items-center justify-center space-x-2"
+                  className="mt-4 w-full py-3.5 border-2 border-dashed rounded-xl flex-row items-center justify-center space-x-2"
+                  style={{ borderColor: secondaryColor }}
                 >
-                  <Ionicons name="add" size={18} color="#C9A84C" />
-                  <Text className="font-poppins-bold text-xs text-[#C9A84C] uppercase tracking-wider">
+                  <Ionicons name="add" size={18} color={secondaryColor} />
+                  <Text className="font-poppins-bold text-xs uppercase tracking-wider" style={{ color: secondaryColor }}>
                     Assign New Class
                   </Text>
                 </TouchableOpacity>
@@ -905,15 +908,15 @@ export default function TeacherProfileScreen() {
         <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setAssignModalOpen(false)}>
           <View className="bg-white rounded-t-3xl max-h-[75%] p-6">
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-poppins-bold text-base text-[#0D1B2A]">Assign New Class</Text>
+              <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Assign New Class</Text>
               <TouchableOpacity onPress={() => setAssignModalOpen(false)}>
-                <Ionicons name="close" size={24} color="#0D1B2A" />
+                <Ionicons name="close" size={24} color={primaryColor} />
               </TouchableOpacity>
             </View>
 
             <ScrollView className="space-y-4" showsVerticalScrollIndicator={false}>
               {/* 1. Class Picker Selector */}
-              <Text className="font-poppins-bold text-xs text-[#75777D] uppercase tracking-wider mb-1">
+              <Text className="font-poppins-bold text-xs uppercase tracking-wider mb-1" style={{ color: steelGrayColor }}>
                 Select Class & Section
               </Text>
               <TouchableOpacity
@@ -923,12 +926,12 @@ export default function TeacherProfileScreen() {
                 }}
                 className="flex-row items-center justify-between px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl mb-3"
               >
-                <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   {selectedSectionId
                     ? `${availableSections.find(s => s.id === selectedSectionId)?.class_name}-${availableSections.find(s => s.id === selectedSectionId)?.section_name}`
                     : "Choose class..."}
                 </Text>
-                <Ionicons name={sectionPickerOpen ? "chevron-up" : "chevron-down"} size={14} color="#0D1B2A" />
+                <Ionicons name={sectionPickerOpen ? "chevron-up" : "chevron-down"} size={14} color={primaryColor} />
               </TouchableOpacity>
 
               {sectionPickerOpen && (
@@ -941,11 +944,10 @@ export default function TeacherProfileScreen() {
                           setSelectedSectionId(item.id);
                           setSectionPickerOpen(false);
                         }}
-                        className={`py-3 px-4 border-b border-gray-50 last:border-b-0 ${
-                          selectedSectionId === item.id ? "bg-[#F7F3E8]" : ""
-                        }`}
+                        className="py-3 px-4 border-b border-gray-50 last:border-b-0"
+                        style={selectedSectionId === item.id ? { backgroundColor: creamColor } : undefined}
                       >
-                        <Text className="font-inter text-xs text-[#0D1B2A]">
+                        <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                           {item.class_name}-{item.section_name}
                         </Text>
                       </TouchableOpacity>
@@ -955,7 +957,7 @@ export default function TeacherProfileScreen() {
               )}
 
               {/* 2. Subject Picker Selector */}
-              <Text className="font-poppins-bold text-xs text-[#75777D] uppercase tracking-wider mb-1">
+              <Text className="font-poppins-bold text-xs uppercase tracking-wider mb-1" style={{ color: steelGrayColor }}>
                 Select Subject
               </Text>
               <TouchableOpacity
@@ -965,12 +967,12 @@ export default function TeacherProfileScreen() {
                 }}
                 className="flex-row items-center justify-between px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl mb-3"
               >
-                <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   {selectedSubjectId
                     ? availableSubjects.find(s => s.id === selectedSubjectId)?.name
                     : "Choose subject..."}
                 </Text>
-                <Ionicons name={subjectPickerOpen ? "chevron-up" : "chevron-down"} size={14} color="#0D1B2A" />
+                <Ionicons name={subjectPickerOpen ? "chevron-up" : "chevron-down"} size={14} color={primaryColor} />
               </TouchableOpacity>
 
               {subjectPickerOpen && (
@@ -983,11 +985,10 @@ export default function TeacherProfileScreen() {
                           setSelectedSubjectId(item.id);
                           setSubjectPickerOpen(false);
                         }}
-                        className={`py-3 px-4 border-b border-gray-50 last:border-b-0 ${
-                          selectedSubjectId === item.id ? "bg-[#F7F3E8]" : ""
-                        }`}
+                        className="py-3 px-4 border-b border-gray-50 last:border-b-0"
+                        style={selectedSubjectId === item.id ? { backgroundColor: creamColor } : undefined}
                       >
-                        <Text className="font-inter text-xs text-[#0D1B2A]">
+                        <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                           {item.name}
                         </Text>
                       </TouchableOpacity>
@@ -1000,7 +1001,8 @@ export default function TeacherProfileScreen() {
               <TouchableOpacity
                 onPress={handleConfirmAssignment}
                 disabled={isAssigning}
-                className="mt-6 w-full py-4 bg-[#C9A84C] rounded-xl flex-row items-center justify-center shadow-md"
+                className="mt-6 w-full py-4 rounded-xl flex-row items-center justify-center shadow-md"
+                style={{ backgroundColor: secondaryColor }}
               >
                 {isAssigning ? (
                   <ActivityIndicator size="small" color="white" />

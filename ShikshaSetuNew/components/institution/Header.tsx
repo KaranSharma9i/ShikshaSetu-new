@@ -13,8 +13,12 @@ interface HeaderProps {
 
 export default function Header({ title, showBackButton = true, onBackPress }: HeaderProps) {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, theme, institutionName, logoUrl } = useAuth();
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
 
   const handleSignOut = async () => {
     try {
@@ -26,10 +30,11 @@ export default function Header({ title, showBackButton = true, onBackPress }: He
 
   return (
     <View 
-      className="bg-[#0F1C2C] border-b border-gray-800 px-5 flex-row justify-between items-center z-50"
+      className="border-b border-gray-800 px-5 flex-row justify-between items-center z-50"
       style={{
         paddingTop: Platform.OS === "android" ? statusBarHeight + 20 : 20,
         paddingBottom: 20,
+        backgroundColor: primaryColor,
       }}
     >
       <View className="flex-row items-center space-x-3">
@@ -46,22 +51,25 @@ export default function Header({ title, showBackButton = true, onBackPress }: He
             }}
             className="p-1.5 rounded-full bg-slate-800 mr-2"
           >
-            <Ionicons name="arrow-back-outline" size={22} color="#ffe088" />
+            <Ionicons name="arrow-back-outline" size={22} color={secondaryLightColor} />
           </TouchableOpacity>
         )}
         <View className="flex-row items-center space-x-2">
           <View className="w-10 h-10 rounded-lg bg-white items-center justify-center overflow-hidden">
             <Image
-              source={schoolData.config.logo}
+              source={logoUrl ? { uri: logoUrl } : schoolData.config.logo}
               style={{ width: 30, height: 30 }}
               resizeMode="contain"
             />
           </View>
           <View>
             <Text className="text-white font-poppins-bold text-base tracking-wide">
-              {schoolData.config.name}
+              {institutionName || schoolData.config.name}
             </Text>
-            <Text className="text-[10.5px] font-poppins-semibold text-[#ffe088] tracking-wider uppercase leading-none mt-0.5">
+            <Text 
+              className="text-[10.5px] font-poppins-semibold tracking-wider uppercase leading-none mt-0.5"
+              style={{ color: secondaryLightColor }}
+            >
               {title}
             </Text>
           </View>
@@ -73,13 +81,13 @@ export default function Header({ title, showBackButton = true, onBackPress }: He
           onPress={() => router.push("/institution/utilities" as any)}
           className="w-10 h-10 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
         >
-          <Ionicons name="apps-outline" size={20} color="#ffe088" />
+          <Ionicons name="apps-outline" size={20} color={secondaryLightColor} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleSignOut}
           className="w-10 h-10 rounded-full bg-slate-800 items-center justify-center border border-slate-700 overflow-hidden"
         >
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color={dangerColor} />
         </TouchableOpacity>
       </View>
     </View>

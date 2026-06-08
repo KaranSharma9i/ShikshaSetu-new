@@ -45,7 +45,7 @@ export default function BottomNavBar() {
           <Ionicons
             name={isActive ? (activeIcon as any) : (inactiveIcon as any)}
             size={18}
-            color={isActive ? (theme?.colors?.primary ?? "#0D1B2A") : "#6B7280"}
+            color={isActive ? (theme?.colors?.primary ?? "#0D1B2A") : (theme?.colors?.steelGray ?? "#6B7280")}
           />
           {isActive && (
             <Text 
@@ -57,7 +57,10 @@ export default function BottomNavBar() {
           )}
         </View>
         {!isActive && (
-          <Text className="font-poppins text-[9px] text-[#6B7280] mt-0.5">
+          <Text 
+            className="font-poppins text-[9px] mt-0.5"
+            style={{ color: theme?.colors?.steelGray ?? "#6B7280" }}
+          >
             {label}
           </Text>
         )}

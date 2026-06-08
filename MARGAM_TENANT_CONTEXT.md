@@ -236,10 +236,10 @@ Do portal by portal to keep sessions short:
 - [x] Student / Teacher / Institution portals: built
 - [x] AI homework generation + scoring: built
 - [x] Brand system defined (colors, typography, fonts): complete
-- [ ] `seed_database.js` updated to current schema: **pending**
-- [ ] `theme` JSONB column in `institutions` table: **pending**
-- [ ] `AuthProvider.tsx` fetches institution theme on login: **pending**
-- [ ] ThemeContext created and wired up: **pending**
-- [ ] Poppins / Inter / Open Sans loaded via expo-google-fonts: **pending**
-- [ ] Logo loaded from Supabase Storage: **pending**
-- [ ] Hardcoded colors replaced across 32+ screens: **pending**
+- [x] `seed_database.js` updated to current schema: complete
+- [x] `theme` JSONB column in `institutions` table: complete
+- [x] `AuthProvider.tsx` fetches institution theme on login: complete
+- [x] ThemeContext created and wired up (directly via `AuthContext` / `useAuth`): complete
+- [x] Poppins / Inter / Open Sans loaded via expo-google-fonts: complete
+- [x] Logo loaded from Supabase Storage: complete (headers updated to load logo dynamically from Supabase Storage/logoUrl with local fallback)
+- [x] Hardcoded colors replaced across 32+ screens: complete (replaced hardcoded colors across student, teacher, and institution portal screens with theme variables)

@@ -3,11 +3,16 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../src/hooks/useAuth";
 
 export default function BottomNavBar() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
 
   // Hide BottomNavBar on the homework published screen
   if (pathname.includes("/homework/published") || pathname.includes("/published")) {
@@ -57,7 +62,7 @@ export default function BottomNavBar() {
   return (
     <View
       style={{
-        backgroundColor: "#0D1B2A", // Navy
+        backgroundColor: primaryColor,
         height: 60 + insets.bottom,
         paddingBottom: insets.bottom,
         borderTopWidth: 1,
@@ -79,11 +84,11 @@ export default function BottomNavBar() {
             <Feather
               name={tab.icon}
               size={20}
-              color={active ? "#D4AF37" : "rgba(255, 255, 255, 0.6)"}
+              color={active ? secondaryColor : "rgba(255, 255, 255, 0.6)"}
             />
             <Text
               style={{
-                color: active ? "#D4AF37" : "rgba(255, 255, 255, 0.6)",
+                color: active ? secondaryColor : "rgba(255, 255, 255, 0.6)",
                 fontSize: 11,
                 marginTop: 4,
               }}
@@ -95,11 +100,12 @@ export default function BottomNavBar() {
             {/* Underline Indicator */}
             {active && (
               <View
-                className="absolute bottom-1 bg-[#D4AF37]"
+                className="absolute bottom-1"
                 style={{
                   width: 24,
                   height: 2,
                   borderRadius: 9999,
+                  backgroundColor: secondaryColor,
                 }}
               />
             )}

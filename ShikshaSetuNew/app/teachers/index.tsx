@@ -20,7 +20,14 @@ import { TeacherListItem } from "@/src/types/teacher";
 
 export default function TeacherListScreen() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, role, institutionId } = useAuth();
+  const { isLoaded, isSignedIn, role, institutionId, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#F2C14E';
+  const creamColor = theme?.colors?.cream ?? '#F7F3E8';
+  const steelGrayColor = theme?.colors?.steelGray ?? '#6B7280';
+  const primaryAltColor = theme?.colors?.primaryAlt ?? '#162A56';
   
   // URL Search Params
   const params = useLocalSearchParams<{ subject?: string; status?: string; search?: string }>();
@@ -131,8 +138,8 @@ export default function TeacherListScreen() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F7F3E8] justify-center items-center">
-        <ActivityIndicator size="large" color="#C9A84C" />
+      <SafeAreaView className="flex-grow flex-1 justify-center items-center" style={{ backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </SafeAreaView>
     );
   }
@@ -141,24 +148,25 @@ export default function TeacherListScreen() {
   const selectedStatus = params.status || "All";
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F7F3E8]">
+    <SafeAreaView className="flex-grow flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Teachers" showBackButton={true} />
 
       {/* Search and Filters */}
       <View className="px-5 mt-5">
         {/* Search Input */}
         <View className="relative bg-white border border-gray-300/80 rounded-full flex-row items-center px-4 py-2.5 shadow-sm">
-          <Ionicons name="search-outline" size={18} color="#75777D" className="mr-2" />
+          <Ionicons name="search-outline" size={18} color={steelGrayColor} className="mr-2" />
           <TextInput
-            className="flex-grow font-inter text-xs text-[#0D1B2A] py-0 outline-none"
+            className="flex-grow font-inter text-xs py-0 outline-none"
+            style={{ color: primaryColor }}
             placeholder="Search by name or subject..."
-            placeholderTextColor="#75777D"
+            placeholderTextColor={steelGrayColor}
             value={searchVal}
             onChangeText={setSearchVal}
           />
           {searchVal.length > 0 && (
             <TouchableOpacity onPress={() => setSearchVal("")}>
-              <Ionicons name="close-circle" size={16} color="#75777D" />
+              <Ionicons name="close-circle" size={16} color={steelGrayColor} />
             </TouchableOpacity>
           )}
         </View>
@@ -168,12 +176,13 @@ export default function TeacherListScreen() {
           {/* Subject Dropdown Filter */}
           <TouchableOpacity
             onPress={() => setSubjectModalOpen(true)}
-            className="flex-1 flex-row items-center justify-between px-4 py-3 bg-white border-[1.5px] border-[#C9A84C] rounded-xl shadow-sm"
+            className="flex-1 flex-row items-center justify-between px-4 py-3 bg-white border-[1.5px] rounded-xl shadow-sm"
+            style={{ borderColor: secondaryColor }}
           >
-            <Text className="font-poppins-semibold text-xs text-[#0D1B2A]" numberOfLines={1}>
+            <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }} numberOfLines={1}>
               {selectedSubject ? selectedSubject : "All Subjects"}
             </Text>
-            <Ionicons name="chevron-down" size={14} color="#0D1B2A" />
+            <Ionicons name="chevron-down" size={14} color={primaryColor} />
           </TouchableOpacity>
 
           {/* Status Selection Chips */}
@@ -182,14 +191,12 @@ export default function TeacherListScreen() {
               <TouchableOpacity
                 key={statusOpt}
                 onPress={() => handleSelectStatus(statusOpt)}
-                className={`px-3 py-1.5 rounded-lg ${
-                  selectedStatus === statusOpt ? "bg-[#C9A84C]" : "bg-transparent"
-                }`}
+                className="px-3 py-1.5 rounded-lg"
+                style={selectedStatus === statusOpt ? { backgroundColor: secondaryColor } : undefined}
               >
                 <Text
-                  className={`font-poppins-semibold text-[10px] uppercase tracking-wider ${
-                    selectedStatus === statusOpt ? "text-white" : "text-[#75777D]"
-                  }`}
+                  className="font-poppins-semibold text-[10px] uppercase tracking-wider"
+                  style={{ color: selectedStatus === statusOpt ? "#FFFFFF" : steelGrayColor }}
                 >
                   {statusOpt}
                 </Text>
@@ -206,19 +213,20 @@ export default function TeacherListScreen() {
         ) : error ? (
           <View className="flex-1 justify-center items-center p-5">
             <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-            <Text className="font-poppins-semibold text-sm text-[#0D1B2A] text-center mt-3">{error}</Text>
+            <Text className="font-poppins-semibold text-sm text-center mt-3" style={{ color: primaryColor }}>{error}</Text>
             <TouchableOpacity
               onPress={fetchTeachers}
-              className="mt-4 px-6 py-2.5 bg-[#C9A84C] rounded-xl"
+              className="mt-4 px-6 py-2.5 rounded-xl"
+              style={{ backgroundColor: secondaryColor }}
             >
               <Text className="font-poppins-bold text-xs text-white">Retry</Text>
             </TouchableOpacity>
           </View>
         ) : teachers.length === 0 ? (
           <View className="flex-1 justify-center items-center py-20">
-            <Ionicons name="search" size={48} color="#75777D" />
-            <Text className="font-poppins-semibold text-sm text-[#0D1B2A] text-center mt-3">No teachers found</Text>
-            <Text className="font-inter text-xs text-[#75777D] text-center mt-1">Try adjusting your filters or search keywords.</Text>
+            <Ionicons name="search" size={48} color={steelGrayColor} />
+            <Text className="font-poppins-semibold text-sm text-center mt-3" style={{ color: primaryColor }}>No teachers found</Text>
+            <Text className="font-inter text-xs text-center mt-1" style={{ color: steelGrayColor }}>Try adjusting your filters or search keywords.</Text>
           </View>
         ) : (
           <FlatList
@@ -230,11 +238,12 @@ export default function TeacherListScreen() {
               <TouchableOpacity
                 onPress={() => router.push(`/teachers/${item.id}` as any)}
                 activeOpacity={0.8}
-                className="bg-[#F5F0E8] p-4 rounded-2xl flex-row items-center space-x-4 mb-3 border border-gray-200/50 shadow-sm"
+                className="p-4 rounded-2xl flex-row items-center space-x-4 mb-3 border border-gray-200/50 shadow-sm"
+                style={{ backgroundColor: "#F5F0E8" }}
               >
                 {/* Avatar Initials */}
-                <View className="w-12 h-12 rounded-full bg-[#ffe088] flex-row items-center justify-center border border-[#C9A84C]">
-                  <Text className="font-poppins-bold text-xs text-[#574500]">
+                <View className="w-12 h-12 rounded-full flex-row items-center justify-center border" style={{ backgroundColor: secondaryLightColor, borderColor: secondaryColor }}>
+                  <Text className="font-poppins-bold text-xs" style={{ color: primaryColor }}>
                     {getInitials(item.full_name)}
                   </Text>
                 </View>
@@ -242,7 +251,7 @@ export default function TeacherListScreen() {
                 {/* Details */}
                 <View className="flex-1">
                   <View className="flex-row items-center space-x-1.5">
-                    <Text className="font-poppins-bold text-sm text-[#0D1B2A]" numberOfLines={1}>
+                    <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }} numberOfLines={1}>
                       {item.full_name}
                     </Text>
                     {/* Status Dot */}
@@ -250,7 +259,7 @@ export default function TeacherListScreen() {
                       item.status === "Active" ? "bg-emerald-600" : "bg-neutral-400"
                     }`} />
                   </View>
-                  <Text className="font-inter text-[11px] text-[#75777D] mt-0.5">
+                  <Text className="font-inter text-[11px] mt-0.5" style={{ color: steelGrayColor }}>
                     Code: {item.employee_code} | {item.specialization}
                   </Text>
                   
@@ -264,12 +273,12 @@ export default function TeacherListScreen() {
 
                 {/* Performance Score Badge */}
                 <View className="flex-row items-center space-x-2">
-                  <View className="bg-[#2ABFBF]/10 px-2.5 py-1 rounded-full border border-[#2ABFBF]/30">
-                    <Text className="font-poppins-bold text-[10px] text-[#2ABFBF]">
+                  <View className="px-2.5 py-1 rounded-full border" style={{ backgroundColor: primaryAltColor + "1A", borderColor: primaryAltColor + "4D" }}>
+                    <Text className="font-poppins-bold text-[10px]" style={{ color: primaryAltColor }}>
                       Perf: {item.performanceScore}%
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward-outline" size={16} color="#75777D" />
+                  <Ionicons name="chevron-forward-outline" size={16} color={steelGrayColor} />
                 </View>
               </TouchableOpacity>
             )}
@@ -280,9 +289,9 @@ export default function TeacherListScreen() {
       {/* Department Overview Sticky Card at Bottom */}
       {!isLoading && teachers.length > 0 && (
         <View className="absolute bottom-[65px] left-0 right-0 px-5 bg-transparent pointer-events-none">
-          <View className="bg-[#0D1B2A] rounded-2xl p-4 flex-row justify-between items-center border border-gray-800 shadow-lg pointer-events-auto">
+          <View className="rounded-2xl p-4 flex-row justify-between items-center border border-gray-800 shadow-lg pointer-events-auto" style={{ backgroundColor: primaryColor }}>
             <View>
-              <Text className="font-poppins-bold text-[10px] text-[#ffe088] uppercase tracking-widest">
+              <Text className="font-poppins-bold text-[10px] uppercase tracking-widest" style={{ color: secondaryLightColor }}>
                 Department Overview
               </Text>
               <Text className="font-inter text-[9.5px] text-gray-400 mt-0.5">
@@ -299,7 +308,7 @@ export default function TeacherListScreen() {
                 </Text>
               </View>
               <View className="items-end">
-                <Text className="font-poppins-bold text-xs text-[#ffe088]">
+                <Text className="font-poppins-bold text-xs" style={{ color: secondaryLightColor }}>
                   {activeCount}/{totalCount}
                 </Text>
                 <Text className="font-inter text-[8px] text-gray-400 uppercase">
@@ -316,9 +325,9 @@ export default function TeacherListScreen() {
         <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setSubjectModalOpen(false)}>
           <View className="bg-white rounded-t-3xl max-h-[70%] p-6">
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="font-poppins-bold text-base text-[#0D1B2A]">Select Subject</Text>
+              <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Select Subject</Text>
               <TouchableOpacity onPress={() => setSubjectModalOpen(false)}>
-                <Ionicons name="close" size={24} color="#0D1B2A" />
+                <Ionicons name="close" size={24} color={primaryColor} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -329,17 +338,14 @@ export default function TeacherListScreen() {
                 return (
                   <TouchableOpacity
                     onPress={() => handleSelectSubject(item.name)}
-                    className={`py-3.5 px-4 rounded-xl mb-2 flex-row justify-between items-center ${
-                      isSelected ? "bg-[#F7F3E8] border border-[#C9A84C]" : "bg-gray-50"
-                    }`}
+                    className="py-3.5 px-4 rounded-xl mb-2 flex-row justify-between items-center bg-gray-50"
+                    style={isSelected ? { backgroundColor: creamColor, borderWidth: 1, borderColor: secondaryColor } : undefined}
                   >
-                    <Text className={`font-poppins-semibold text-xs ${
-                      isSelected ? "text-[#C9A84C]" : "text-[#0D1B2A]"
-                    }`}>
+                    <Text className="font-poppins-semibold text-xs" style={{ color: isSelected ? secondaryColor : primaryColor }}>
                       {item.name}
                     </Text>
                     {isSelected && (
-                      <Ionicons name="checkmark" size={16} color="#C9A84C" />
+                      <Ionicons name="checkmark" size={16} color={secondaryColor} />
                     )}
                   </TouchableOpacity>
                 );

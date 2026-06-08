@@ -93,7 +93,7 @@ export default function Header({ studentName, profilePhotoUrl, title, showBack =
           activeOpacity={0.7}
         >
           <Ionicons name="notifications-outline" size={22} color={theme?.colors?.primary ?? "#0D1B2A"} />
-          <View className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#ba1a1a] rounded-full" />
+          <View className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ backgroundColor: theme?.colors?.danger ?? "#EF4444" }} />
         </TouchableOpacity>
 
         {/* Profile Avatar */}
@@ -110,13 +110,13 @@ export default function Header({ studentName, profilePhotoUrl, title, showBack =
             <View 
               className="w-8 h-8 rounded-full flex-row items-center justify-center border"
               style={{ 
-                backgroundColor: theme?.colors?.secondaryLight ?? '#ffe088',
-                borderColor: theme?.colors?.secondary ?? '#C9A84C'
+                backgroundColor: theme?.colors?.secondaryLight ?? '#F2C14E',
+                borderColor: theme?.colors?.secondary ?? '#D4AF37'
               }}
             >
               <Text 
                 className="font-poppins-bold text-[10px]"
-                style={{ color: theme?.colors?.primary ?? '#574500' }}
+                style={{ color: theme?.colors?.primary ?? '#0D1B2A' }}
               >
                 {getInitials(studentName || "Student")}
               </Text>

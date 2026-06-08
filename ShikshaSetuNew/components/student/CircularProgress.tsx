@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import { useAuth } from "../../src/hooks/useAuth";
 
 interface CircularProgressProps {
   percentage: number;
@@ -16,12 +17,15 @@ export default function CircularProgress({
   label,
   size = 80,
   strokeWidth = 8,
-  color = "#D4AF37",
+  color,
   children,
 }: CircularProgressProps) {
+  const { theme } = useAuth();
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
+
+  const activeColor = color ?? theme?.colors?.secondary ?? "#D4AF37";
 
   return (
     <View className="items-center justify-center">
@@ -32,7 +36,7 @@ export default function CircularProgress({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#E5E7EB"
+            stroke={theme?.colors?.lightGray ?? "#E5E7EB"}
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -41,7 +45,7 @@ export default function CircularProgress({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={color}
+            stroke={activeColor}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={circumference}
@@ -55,7 +59,7 @@ export default function CircularProgress({
           {children ? (
             children
           ) : (
-            <Text className="font-poppins-bold text-lg text-[#0D1B2A]">{percentage}%</Text>
+            <Text className="font-poppins-bold text-lg" style={{ color: theme?.colors?.primary ?? "#0D1B2A" }}>{percentage}%</Text>
           )}
         </View>
       </View>

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { uploadProfilePhoto } from "../../src/repositories/studentRepository";
 import { updateTeacherProfile } from "../../src/repositories/teacherRepository";
+import { useAuth } from "../../src/hooks/useAuth";
 
 interface ProfilePhotoUploaderProps {
   teacherId: string;
@@ -19,6 +20,10 @@ export default function ProfilePhotoUploader({
   onUploadSuccess,
 }: ProfilePhotoUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const { theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
 
   const handleImagePick = async () => {
     if (isUploading) return;
@@ -76,7 +81,10 @@ export default function ProfilePhotoUploader({
   return (
     <View className="items-center mb-4 relative">
       <View className="relative">
-        <View className="w-[100px] h-[100px] rounded-full border-[3px] border-[#D4AF37] overflow-hidden bg-gray-100 justify-center items-center">
+        <View 
+          className="w-[100px] h-[100px] rounded-full border-[3px] overflow-hidden bg-gray-100 justify-center items-center"
+          style={{ borderColor: secondaryColor }}
+        >
           {currentPhotoUrl ? (
             <Image 
               source={{ uri: currentPhotoUrl }} 
@@ -103,9 +111,10 @@ export default function ProfilePhotoUploader({
         <TouchableOpacity
           onPress={handleImagePick}
           disabled={isUploading}
-          className={`absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#0D1B2A] items-center justify-center border-2 border-white shadow-sm ${
+          className={`absolute bottom-0 right-0 w-7 h-7 rounded-full items-center justify-center border-2 border-white shadow-sm ${
             isUploading ? "opacity-50" : ""
           }`}
+          style={{ backgroundColor: primaryColor }}
           activeOpacity={0.7}
         >
           <Ionicons name="pencil" size={12} color="#FFFFFF" />

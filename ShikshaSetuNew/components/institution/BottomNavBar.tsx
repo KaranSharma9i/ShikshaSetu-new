@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@/src/hooks/useAuth";
 
 interface BottomNavBarProps {
   activeTab: "home" | "academics" | "circulars" | "utilities";
@@ -9,13 +10,21 @@ interface BottomNavBarProps {
 
 export default function BottomNavBar({ activeTab }: BottomNavBarProps) {
   const router = useRouter();
+  const { theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const steelGrayColor = theme?.colors?.steelGray ?? "#6B7280";
 
   const handleTabPress = (route: string) => {
     router.replace(route as any);
   };
 
   return (
-    <View className="bg-[#0F1C2C] border-t border-gray-800 flex-row justify-around items-center h-20 px-4 pb-2 z-50">
+    <View 
+      className="border-t border-gray-800 flex-row justify-around items-center h-20 px-4 pb-2 z-50"
+      style={{ backgroundColor: primaryColor }}
+    >
       {/* Home Tab */}
       <TouchableOpacity
         onPress={() => handleTabPress("/institution")}
@@ -24,12 +33,13 @@ export default function BottomNavBar({ activeTab }: BottomNavBarProps) {
         <Ionicons
           name={activeTab === "home" ? "home" : "home-outline"}
           size={20}
-          color={activeTab === "home" ? "#ffe088" : "#778598"}
+          color={activeTab === "home" ? secondaryLightColor : steelGrayColor}
         />
         <Text
           className={`font-poppins text-[10px] mt-1 ${
-            activeTab === "home" ? "text-[#ffe088] font-bold" : "text-[#778598]"
+            activeTab === "home" ? "font-bold" : ""
           }`}
+          style={{ color: activeTab === "home" ? secondaryLightColor : steelGrayColor }}
         >
           Home
         </Text>
@@ -43,12 +53,13 @@ export default function BottomNavBar({ activeTab }: BottomNavBarProps) {
         <Ionicons
           name={activeTab === "academics" ? "school" : "school-outline"}
           size={20}
-          color={activeTab === "academics" ? "#ffe088" : "#778598"}
+          color={activeTab === "academics" ? secondaryLightColor : steelGrayColor}
         />
         <Text
           className={`font-poppins text-[10px] mt-1 ${
-            activeTab === "academics" ? "text-[#ffe088] font-bold" : "text-[#778598]"
+            activeTab === "academics" ? "font-bold" : ""
           }`}
+          style={{ color: activeTab === "academics" ? secondaryLightColor : steelGrayColor }}
         >
           Academics
         </Text>
@@ -62,12 +73,13 @@ export default function BottomNavBar({ activeTab }: BottomNavBarProps) {
         <Ionicons
           name={activeTab === "circulars" ? "notifications" : "notifications-outline"}
           size={20}
-          color={activeTab === "circulars" ? "#ffe088" : "#778598"}
+          color={activeTab === "circulars" ? secondaryLightColor : steelGrayColor}
         />
         <Text
           className={`font-poppins text-[10px] mt-1 ${
-            activeTab === "circulars" ? "text-[#ffe088] font-bold" : "text-[#778598]"
+            activeTab === "circulars" ? "font-bold" : ""
           }`}
+          style={{ color: activeTab === "circulars" ? secondaryLightColor : steelGrayColor }}
         >
           Notices
         </Text>
@@ -81,12 +93,13 @@ export default function BottomNavBar({ activeTab }: BottomNavBarProps) {
         <Ionicons
           name={activeTab === "utilities" ? "grid" : "grid-outline"}
           size={20}
-          color={activeTab === "utilities" ? "#ffe088" : "#778598"}
+          color={activeTab === "utilities" ? secondaryLightColor : steelGrayColor}
         />
         <Text
           className={`font-poppins text-[10px] mt-1 ${
-            activeTab === "utilities" ? "text-[#ffe088] font-bold" : "text-[#778598]"
+            activeTab === "utilities" ? "font-bold" : ""
           }`}
+          style={{ color: activeTab === "utilities" ? secondaryLightColor : steelGrayColor }}
         >
           Utilities
         </Text>
