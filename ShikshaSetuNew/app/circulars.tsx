@@ -19,7 +19,12 @@ import Header from "../components/student/Header";
 import BottomNavBar from "../components/student/BottomNavBar";
 
 export default function CircularsScreen() {
-  const { user, isLoaded, isSignedIn } = useAuth();
+  const { user, isLoaded, isSignedIn, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
 
   // 1. Fetch Student Profile
   const { data: studentProfile, isLoading: isProfileLoading } = useQuery(
@@ -66,7 +71,7 @@ export default function CircularsScreen() {
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F9F6EF]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: creamColor }}>
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
       
       <Header
@@ -80,7 +85,7 @@ export default function CircularsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="mb-4">
-          <Text className="font-poppins-bold text-2xl text-[#0D1B2A]">
+          <Text className="font-poppins-bold text-2xl" style={{ color: primaryColor }}>
             Notice Board
           </Text>
           <Text className="font-inter text-xs text-gray-500 mt-1">
@@ -90,13 +95,13 @@ export default function CircularsScreen() {
 
         {isLoading ? (
           <View className="flex-1 justify-center items-center py-20">
-            <ActivityIndicator size="large" color="#D4AF37" />
+            <ActivityIndicator size="large" color={secondaryColor} />
             <Text className="font-inter text-xs text-gray-400 mt-3">Loading bulletin feed...</Text>
           </View>
         ) : feedItems.length === 0 ? (
           <View className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 items-center justify-center mt-6">
             <Ionicons name="notifications-off-outline" size={40} color="#D1D5DB" />
-            <Text className="font-poppins-semibold text-sm text-[#0D1B2A] mt-3">
+            <Text className="font-poppins-semibold text-sm mt-3" style={{ color: primaryColor }}>
               All Clear!
             </Text>
             <Text className="font-inter text-xs text-gray-400 text-center mt-1">
@@ -132,7 +137,7 @@ export default function CircularsScreen() {
                     </Text>
                   </View>
 
-                  <Text className="font-poppins-bold text-sm text-[#0D1B2A] mb-1.5 leading-tight">
+                  <Text className="font-poppins-bold text-sm mb-1.5 leading-tight" style={{ color: primaryColor }}>
                     {item.title}
                   </Text>
                   <Text className="text-xs text-neutral-charcoal leading-relaxed font-inter">
@@ -150,17 +155,24 @@ export default function CircularsScreen() {
               return (
                 <View
                   key={`event-${item.id}`}
-                  className="bg-white rounded-2xl border border-[#D4AF37]/30 shadow-sm mb-4 overflow-hidden"
+                  className="bg-white rounded-2xl shadow-sm mb-4 overflow-hidden"
+                  style={{ borderWidth: 1, borderColor: secondaryColor + "4d" }}
                 >
                   {/* Visual gold category band */}
-                  <View className="bg-[#D4AF37]/5 px-4 py-2 border-b border-[#D4AF37]/15 flex-row justify-between items-center">
+                  <View 
+                    className="px-4 py-2 border-b flex-row justify-between items-center"
+                    style={{ backgroundColor: secondaryColor + "0d", borderColor: secondaryColor + "26" }}
+                  >
                     <View className="flex-row items-center space-x-1.5">
-                      <Ionicons name="sparkles" size={12} color="#D4AF37" />
-                      <Text className="text-[9px] font-poppins-bold text-[#A8871E] uppercase tracking-wider">
+                      <Ionicons name="sparkles" size={12} color={secondaryColor} />
+                      <Text 
+                        className="text-[9px] font-poppins-bold uppercase tracking-wider"
+                        style={{ color: theme?.colors?.secondary ?? '#A8871E' }}
+                      >
                         {item.category} Event
                       </Text>
                     </View>
-                    <View className="bg-[#D4AF37] px-2 py-0.5 rounded">
+                    <View className="px-2 py-0.5 rounded" style={{ backgroundColor: secondaryColor }}>
                       <Text className="text-white text-[7px] font-poppins-bold uppercase tracking-wider">
                         Calendar
                       </Text>
@@ -173,14 +185,14 @@ export default function CircularsScreen() {
                       <Text className="text-[9px] font-poppins-bold text-gray-400 uppercase">
                         {monthLabel}
                       </Text>
-                      <Text className="text-lg font-poppins-bold text-[#0D1B2A] -mt-1">
+                      <Text className="text-lg font-poppins-bold -mt-1" style={{ color: primaryColor }}>
                         {dayLabel}
                       </Text>
                     </View>
 
                     {/* Content details */}
                     <View className="flex-1 justify-center">
-                      <Text className="font-poppins-bold text-sm text-[#0D1B2A] mb-1.5 leading-tight">
+                      <Text className="font-poppins-bold text-sm mb-1.5 leading-tight" style={{ color: primaryColor }}>
                         {item.title}
                       </Text>
                       

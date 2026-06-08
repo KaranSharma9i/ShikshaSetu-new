@@ -40,7 +40,12 @@ const CLASSES = [
 export default function RegisterUser() {
   const router = useRouter();
   const { type } = useLocalSearchParams<{ type?: string }>();
-  const { institutionId } = useAuth();
+  const { institutionId, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const creamColor = theme?.colors?.cream ?? "#F5F0E8";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
   
   // Registration type state (toggle between student and teacher)
   const [regType, setRegType] = useState<"student" | "teacher">(
@@ -372,11 +377,11 @@ export default function RegisterUser() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Institution Forms" />
 
       {step <= 3 && (
-        <View className="px-5 pt-4 pb-2 flex-row justify-between items-center bg-[#FDF9F1]">
+        <View className="px-5 pt-4 pb-2 flex-row justify-between items-center" style={{ backgroundColor: creamColor }}>
           {/* Form Selector Tabs */}
           <View className="flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex-1 mr-4">
             <TouchableOpacity
@@ -384,14 +389,12 @@ export default function RegisterUser() {
                 setRegType("student");
                 setStep(1);
               }}
-              className={`flex-1 py-2 items-center ${
-                regType === "student" ? "bg-[#0F1C2C]" : "bg-transparent"
-              }`}
+              className="flex-1 py-2 items-center"
+              style={{ backgroundColor: regType === "student" ? primaryColor : "transparent" }}
             >
               <Text
-                className={`text-xs font-poppins-semibold ${
-                  regType === "student" ? "text-[#ffe088]" : "text-[#0F1C2C]"
-                }`}
+                className="text-xs font-poppins-semibold"
+                style={{ color: regType === "student" ? secondaryColor : primaryColor }}
               >
                 Student Registration
               </Text>
@@ -401,14 +404,12 @@ export default function RegisterUser() {
                 setRegType("teacher");
                 setStep(1);
               }}
-              className={`flex-1 py-2 items-center ${
-                regType === "teacher" ? "bg-[#0F1C2C]" : "bg-transparent"
-              }`}
+              className="flex-1 py-2 items-center"
+              style={{ backgroundColor: regType === "teacher" ? primaryColor : "transparent" }}
             >
               <Text
-                className={`text-xs font-poppins-semibold ${
-                  regType === "teacher" ? "text-[#ffe088]" : "text-[#0F1C2C]"
-                }`}
+                className="text-xs font-poppins-semibold"
+                style={{ color: regType === "teacher" ? secondaryColor : primaryColor }}
               >
                 Teacher Appointment
               </Text>
@@ -418,20 +419,17 @@ export default function RegisterUser() {
           {/* Form Step Indicators */}
           <View className="flex-row space-x-1">
             <View
-              className={`w-4 h-2 rounded-full ${
-                step >= 1 ? "bg-[#735c00]" : "bg-gray-200"
-              }`}
+              className="w-4 h-2 rounded-full"
+              style={{ backgroundColor: step >= 1 ? secondaryColor : "#E5E7EB" }}
             />
             <View
-              className={`w-4 h-2 rounded-full ${
-                step >= 2 ? "bg-[#735c00]" : "bg-gray-200"
-              }`}
+              className="w-4 h-2 rounded-full"
+              style={{ backgroundColor: step >= 2 ? secondaryColor : "#E5E7EB" }}
             />
             {regType === "student" && (
               <View
-                className={`w-4 h-2 rounded-full ${
-                  step >= 3 ? "bg-[#735c00]" : "bg-gray-200"
-                }`}
+                className="w-4 h-2 rounded-full"
+                style={{ backgroundColor: step >= 3 ? secondaryColor : "#E5E7EB" }}
               />
             )}
           </View>
@@ -445,7 +443,7 @@ export default function RegisterUser() {
             <Ionicons name="checkmark-circle" size={56} color="#059669" />
           </View>
           
-          <Text className="text-2xl font-poppins-bold text-[#0F1C2C] text-center">
+          <Text className="text-2xl font-poppins-bold text-center" style={{ color: primaryColor }}>
             {regType === "student" ? "Registration Successful" : "Appointment Successful"}
           </Text>
           <Text className="text-xs text-neutral-steel font-inter text-center mt-1 max-w-xs">
@@ -456,19 +454,19 @@ export default function RegisterUser() {
 
           {/* Details Confirmation Card */}
           <View className="bg-white border border-gray-100 rounded-2xl p-5 w-full mt-8 shadow-sm">
-            <Text className="font-poppins-bold text-[#0F1C2C] text-xs mb-3 uppercase tracking-wider text-center border-b border-gray-50 pb-2">
+            <Text className="font-poppins-bold text-xs mb-3 uppercase tracking-wider text-center border-b border-gray-50 pb-2" style={{ color: primaryColor }}>
               Credentials Details
             </Text>
             
             <View className="flex-row justify-between mb-2">
               <Text className="text-[10px] text-neutral-steel font-inter">Portal ID</Text>
-              <Text className="text-[11px] text-[#0f1c2c] font-poppins-semibold">
+              <Text className="text-[11px] font-poppins-semibold" style={{ color: primaryColor }}>
                 {registeredUser?.portalId || (regType === "student" ? "STU-2026-045" : "TCH-2026-089")}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
               <Text className="text-[10px] text-neutral-steel font-inter">Temp Password</Text>
-              <Text className="text-[11px] text-[#0f1c2c] font-poppins-semibold">
+              <Text className="text-[11px] font-poppins-semibold" style={{ color: primaryColor }}>
                 {registeredUser?.tempPassword || "GURK2026"}
               </Text>
             </View>
@@ -483,10 +481,11 @@ export default function RegisterUser() {
               resetForms();
               router.replace("/institution" as any);
             }}
-            className="bg-[#0F1C2C] py-4 rounded-xl items-center w-full mt-10 shadow-sm flex-row justify-center space-x-2"
+            className="py-4 rounded-xl items-center w-full mt-10 shadow-sm flex-row justify-center space-x-2"
+            style={{ backgroundColor: primaryColor }}
           >
-            <Ionicons name="home-outline" size={16} color="#ffe088" />
-            <Text className="text-[#ffe088] font-poppins-bold text-xs">
+            <Ionicons name="home-outline" size={16} color={secondaryColor} />
+            <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
               Return to Dashboard
             </Text>
           </TouchableOpacity>
@@ -506,7 +505,7 @@ export default function RegisterUser() {
                 {/* STEP 1: PERSONAL CANDIDATE INFO */}
                 {step === 1 && (
                   <View>
-                    <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
+                    <Text className="font-poppins-bold text-sm mb-4" style={{ color: primaryColor }}>
                       Step 1: Candidate Identity
                     </Text>
 
@@ -529,7 +528,8 @@ export default function RegisterUser() {
                       onChangeText={setStudentName}
                       placeholder="e.g. Alexander J. Sterling"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* DOB */}
@@ -540,7 +540,7 @@ export default function RegisterUser() {
                       onPress={() => setShowStudentDobPicker(true)}
                       className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 flex-row items-center justify-between"
                     >
-                      <Text className={`font-inter text-xs ${dob ? "text-[#0F1C2C]" : "text-[#9CA3AF]"}`}>
+                      <Text className="font-inter text-xs" style={{ color: dob ? primaryColor : "#9CA3AF" }}>
                         {dob ? formatDateDisplay(dob) : "Select date of birth"}
                       </Text>
                       <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
@@ -564,16 +564,17 @@ export default function RegisterUser() {
                         <TouchableOpacity
                           key={grade}
                           onPress={() => setStudentGrade(grade)}
-                          className={`w-[32%] py-2.5 rounded-lg border items-center ${
-                            studentGrade === grade
-                              ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                              : "bg-[#FCFAFA] border-gray-200"
-                          }`}
+                          className="w-[32%] py-2.5 rounded-lg border items-center"
+                          style={{
+                            backgroundColor: studentGrade === grade ? primaryColor : "#FCFAFA",
+                            borderColor: studentGrade === grade ? primaryColor : "#E5E7EB"
+                          }}
                         >
                           <Text
-                            className={`text-[10px] font-poppins-semibold ${
-                              studentGrade === grade ? "text-[#ffe088]" : "text-neutral-steel"
-                            }`}
+                            className="text-[10px] font-poppins-semibold"
+                            style={{
+                              color: studentGrade === grade ? secondaryColor : "#75777D"
+                            }}
                           >
                             {grade}
                           </Text>
@@ -592,16 +593,17 @@ export default function RegisterUser() {
                             <TouchableOpacity
                               key={sec}
                               onPress={() => setStudentSection(sec)}
-                              className={`flex-1 py-2.5 rounded-lg border items-center ${
-                                studentSection === sec
-                                  ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                                  : "bg-[#FCFAFA] border-gray-200"
-                              }`}
+                              className="flex-1 py-2.5 rounded-lg border items-center"
+                              style={{
+                                backgroundColor: studentSection === sec ? primaryColor : "#FCFAFA",
+                                borderColor: studentSection === sec ? primaryColor : "#E5E7EB"
+                              }}
                             >
                               <Text
-                                className={`text-[10px] font-poppins-semibold ${
-                                  studentSection === sec ? "text-[#ffe088]" : "text-neutral-steel"
-                                }`}
+                                className="text-[10px] font-poppins-semibold"
+                                style={{
+                                  color: studentSection === sec ? secondaryColor : "#75777D"
+                                }}
                               >
                                 {sec}
                               </Text>
@@ -620,16 +622,17 @@ export default function RegisterUser() {
                         <TouchableOpacity
                           key={gen}
                           onPress={() => setGender(gen)}
-                          className={`flex-1 py-2.5 rounded-lg border items-center ${
-                            gender === gen
-                              ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                              : "bg-[#FCFAFA] border-gray-200"
-                          }`}
+                          className="flex-1 py-2.5 rounded-lg border items-center"
+                          style={{
+                            backgroundColor: gender === gen ? primaryColor : "#FCFAFA",
+                            borderColor: gender === gen ? primaryColor : "#E5E7EB"
+                          }}
                         >
                           <Text
-                            className={`text-[10px] font-poppins-semibold ${
-                              gender === gen ? "text-[#ffe088]" : "text-neutral-steel"
-                            }`}
+                            className="text-[10px] font-poppins-semibold"
+                            style={{
+                              color: gender === gen ? secondaryColor : "#75777D"
+                            }}
                           >
                             {gen}
                           </Text>
@@ -640,12 +643,13 @@ export default function RegisterUser() {
                     {/* Next Button */}
                     <TouchableOpacity
                       onPress={handleNextStepStudent}
-                      className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2"
+                      className="py-4 rounded-xl items-center flex-row justify-center space-x-2"
+                      style={{ backgroundColor: primaryColor }}
                     >
-                      <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                      <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                         Next Step: Background Details
                       </Text>
-                      <Ionicons name="arrow-forward" size={16} color="#ffe088" />
+                      <Ionicons name="arrow-forward" size={16} color={secondaryColor} />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -653,7 +657,7 @@ export default function RegisterUser() {
                 {/* STEP 2: DETAILS & BACKGROUND */}
                 {step === 2 && (
                   <View>
-                    <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
+                    <Text className="font-poppins-bold text-sm mb-4" style={{ color: primaryColor }}>
                       Step 2: Address & Academic Background
                     </Text>
 
@@ -666,7 +670,8 @@ export default function RegisterUser() {
                       onChangeText={setAddress}
                       placeholder="e.g. 42 Heritage Oaks Way, State 4022"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Transport Option */}
@@ -678,16 +683,17 @@ export default function RegisterUser() {
                         <TouchableOpacity
                           key={tr}
                           onPress={() => setTransport(tr)}
-                          className={`flex-1 py-2.5 rounded-lg border items-center ${
-                            transport === tr
-                              ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                              : "bg-[#FCFAFA] border-gray-200"
-                          }`}
+                          className="flex-1 py-2.5 rounded-lg border items-center"
+                          style={{
+                            backgroundColor: transport === tr ? primaryColor : "#FCFAFA",
+                            borderColor: transport === tr ? primaryColor : "#E5E7EB"
+                          }}
                         >
                           <Text
-                            className={`text-[10px] font-poppins-semibold ${
-                              transport === tr ? "text-[#ffe088]" : "text-neutral-steel"
-                            }`}
+                            className="text-[10px] font-poppins-semibold"
+                            style={{
+                              color: transport === tr ? secondaryColor : "#75777D"
+                            }}
                           >
                             {tr}
                           </Text>
@@ -704,7 +710,8 @@ export default function RegisterUser() {
                       onChangeText={setPrevInst}
                       placeholder="e.g. Saint Jude's Preparatory"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Previous GPA */}
@@ -716,7 +723,8 @@ export default function RegisterUser() {
                       onChangeText={setGpa}
                       placeholder="e.g. 3.9 / 4.0 (92%)"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Guardian Email */}
@@ -729,7 +737,8 @@ export default function RegisterUser() {
                       placeholder="e.g. e.sterling@university.edu"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="email-address"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Guardian Phone */}
@@ -742,7 +751,8 @@ export default function RegisterUser() {
                       placeholder="e.g. +1 (555) 012-3456"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="phone-pad"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Buttons Layout */}
@@ -755,12 +765,13 @@ export default function RegisterUser() {
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={handleNextStepStudent}
-                        className="flex-[2] bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-1"
+                        className="flex-[2] py-4 rounded-xl items-center flex-row justify-center space-x-1"
+                        style={{ backgroundColor: primaryColor }}
                       >
-                        <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                        <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                           Continue
                         </Text>
-                        <Ionicons name="arrow-forward" size={16} color="#ffe088" />
+                        <Ionicons name="arrow-forward" size={16} color={secondaryColor} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -769,7 +780,7 @@ export default function RegisterUser() {
                 {/* STEP 3: GUARDIAN DETAILS & CONFIRMATION */}
                 {step === 3 && (
                   <View>
-                    <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
+                    <Text className="font-poppins-bold text-sm mb-4" style={{ color: primaryColor }}>
                       Step 3: Guardian Details & Review
                     </Text>
 
@@ -782,7 +793,8 @@ export default function RegisterUser() {
                       onChangeText={setGuardianName}
                       placeholder="e.g. Dr. Eleanor Sterling"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Relationship */}
@@ -794,7 +806,8 @@ export default function RegisterUser() {
                       onChangeText={setGuardianRel}
                       placeholder="e.g. Mother, Father"
                       placeholderTextColor="#9CA3AF"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-4 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Student Email */}
@@ -807,19 +820,21 @@ export default function RegisterUser() {
                       placeholder="e.g. alex.sterling@gurukulsiksha.edu.in"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="email-address"
-                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
+                      className="bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl mb-6 font-inter text-xs"
+                      style={{ color: primaryColor }}
                     />
 
                     {/* Declaration Policy */}
                     <TouchableOpacity
                       onPress={() => setDeclarationAccepted(!declarationAccepted)}
-                      className="flex-row items-start space-x-3 mb-6 bg-[#FDF9F1] p-3 rounded-xl border border-gray-200/50"
+                      className="flex-row items-start space-x-3 mb-6 p-3 rounded-xl border border-gray-200/50"
+                      style={{ backgroundColor: creamColor }}
                     >
                       <View className="mt-0.5">
                         <Ionicons
                           name={declarationAccepted ? "checkbox" : "square-outline"}
                           size={18}
-                          color={declarationAccepted ? "#735c00" : "#9CA3AF"}
+                          color={declarationAccepted ? secondaryColor : "#9CA3AF"}
                         />
                       </View>
                       <Text className="text-[9px] text-[#778598] font-inter leading-relaxed flex-1">
@@ -838,16 +853,17 @@ export default function RegisterUser() {
                       <TouchableOpacity
                         onPress={handleRegisterStudent}
                         disabled={isSubmitting}
-                        className="flex-[2] bg-[#0f1c2c] py-4 rounded-xl items-center flex-row justify-center space-x-1 active:opacity-90"
+                        className="flex-[2] py-4 rounded-xl items-center flex-row justify-center space-x-1 active:opacity-90"
+                        style={{ backgroundColor: primaryColor }}
                       >
                         {isSubmitting ? (
-                          <ActivityIndicator size="small" color="#ffe088" />
+                          <ActivityIndicator size="small" color={secondaryColor} />
                         ) : (
                           <>
-                            <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                            <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                               Confirm & Register
                             </Text>
-                            <Ionicons name="shield-checkmark-outline" size={16} color="#ffe088" />
+                            <Ionicons name="shield-checkmark-outline" size={16} color={secondaryColor} />
                           </>
                         )}
                       </TouchableOpacity>
@@ -867,7 +883,7 @@ export default function RegisterUser() {
                 {/* STEP 1: APPOINTMENT DETAILS */}
                 {step === 1 && (
                   <View>
-                    <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
+                    <Text className="font-poppins-bold text-sm mb-4" style={{ color: primaryColor }}>
                       Step 1: Faculty Identity
                     </Text>
 
@@ -880,7 +896,8 @@ export default function RegisterUser() {
                       onChangeText={(t) => { setTeacherName(t); setTeacherErrors((p) => { const n = {...p}; delete n.teacherName; return n; }); }}
                       placeholder="e.g. Dr. Amit Sharma"
                       placeholderTextColor="#9CA3AF"
-                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherName ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs ${teacherErrors.teacherName ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.teacherName && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherName}</Text>}
                     {!teacherErrors.teacherName && <View className="mb-3" />}
@@ -891,7 +908,7 @@ export default function RegisterUser() {
                     </Text>
                     {loadingSubjects ? (
                       <View className="flex-row items-center py-3 mb-1">
-                        <ActivityIndicator size="small" color="#735c00" />
+                        <ActivityIndicator size="small" color={secondaryColor} />
                         <Text className="text-[10px] text-neutral-steel font-inter ml-2">Loading subjects...</Text>
                       </View>
                     ) : (
@@ -902,9 +919,16 @@ export default function RegisterUser() {
                             <TouchableOpacity
                               key={sub.id}
                               onPress={() => toggleChipSelection(sub.name, teacherSubjects, setTeacherSubjects, "teacherSubjects")}
-                              className={`px-3 py-2 rounded-lg border ${selected ? "bg-[#735c00] border-[#735c00]" : "bg-[#FCFAFA] border-gray-200"}`}
+                              className="px-3 py-2 rounded-lg border"
+                              style={{
+                                backgroundColor: selected ? secondaryColor : "#FCFAFA",
+                                borderColor: selected ? secondaryColor : "#E5E7EB"
+                              }}
                             >
-                              <Text className={`text-[10px] font-poppins-semibold ${selected ? "text-white" : "text-neutral-steel"}`}>
+                              <Text
+                                className="text-[10px] font-poppins-semibold"
+                                style={{ color: selected ? "white" : "#75777D" }}
+                              >
                                 {sub.name}
                               </Text>
                             </TouchableOpacity>
@@ -924,7 +948,7 @@ export default function RegisterUser() {
                     </Text>
                     {loadingClasses ? (
                       <View className="flex-row items-center py-3 mb-1">
-                        <ActivityIndicator size="small" color="#735c00" />
+                        <ActivityIndicator size="small" color={secondaryColor} />
                         <Text className="text-[10px] text-neutral-steel font-inter ml-2">Loading classes...</Text>
                       </View>
                     ) : (
@@ -935,9 +959,16 @@ export default function RegisterUser() {
                             <TouchableOpacity
                               key={cs.label}
                               onPress={() => toggleChipSelection(cs.label, teacherClasses, setTeacherClasses, "teacherClasses")}
-                              className={`px-3 py-2 rounded-lg border ${selected ? "bg-[#735c00] border-[#735c00]" : "bg-[#FCFAFA] border-gray-200"}`}
+                              className="px-3 py-2 rounded-lg border"
+                              style={{
+                                backgroundColor: selected ? secondaryColor : "#FCFAFA",
+                                borderColor: selected ? secondaryColor : "#E5E7EB"
+                              }}
                             >
-                              <Text className={`text-[10px] font-poppins-semibold ${selected ? "text-white" : "text-neutral-steel"}`}>
+                              <Text
+                                className="text-[10px] font-poppins-semibold"
+                                style={{ color: selected ? "white" : "#75777D" }}
+                              >
                                 {cs.label}
                               </Text>
                             </TouchableOpacity>
@@ -959,7 +990,7 @@ export default function RegisterUser() {
                       onPress={() => setShowTeacherDobPicker(true)}
                       className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 flex-row items-center justify-between ${teacherErrors.teacherDob ? "border-red-400" : "border-gray-200"}`}
                     >
-                      <Text className={`font-inter text-xs ${teacherDob ? "text-[#0F1C2C]" : "text-[#9CA3AF]"}`}>
+                      <Text className="font-inter text-xs" style={{ color: teacherDob ? primaryColor : "#9CA3AF" }}>
                         {teacherDob ? formatDateDisplay(teacherDob) : "Select date of birth"}
                       </Text>
                       <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
@@ -985,16 +1016,15 @@ export default function RegisterUser() {
                         <TouchableOpacity
                           key={gen}
                           onPress={() => { setTeacherGender(gen); setTeacherErrors((p) => { const n = {...p}; delete n.teacherGender; return n; }); }}
-                          className={`flex-1 py-2.5 rounded-lg border items-center ${
-                            teacherGender === gen
-                              ? "bg-[#735c00] border-[#735c00]"
-                              : "bg-[#FCFAFA] border-gray-200"
-                          }`}
+                          className="flex-1 py-2.5 rounded-lg border items-center"
+                          style={{
+                            backgroundColor: teacherGender === gen ? secondaryColor : "#FCFAFA",
+                            borderColor: teacherGender === gen ? secondaryColor : "#E5E7EB"
+                          }}
                         >
                           <Text
-                            className={`text-[10px] font-poppins-semibold ${
-                              teacherGender === gen ? "text-white" : "text-neutral-steel"
-                            }`}
+                            className="text-[10px] font-poppins-semibold"
+                            style={{ color: teacherGender === gen ? "white" : "#75777D" }}
                           >
                             {gen}
                           </Text>
@@ -1014,7 +1044,8 @@ export default function RegisterUser() {
                       placeholder="e.g. 9876543210"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="phone-pad"
-                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherContact ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs ${teacherErrors.teacherContact ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.teacherContact && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherContact}</Text>}
                     {!teacherErrors.teacherContact && <View className="mb-3" />}
@@ -1030,7 +1061,8 @@ export default function RegisterUser() {
                       placeholderTextColor="#9CA3AF"
                       keyboardType="email-address"
                       autoCapitalize="none"
-                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherEmail ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs ${teacherErrors.teacherEmail ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.teacherEmail && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherEmail}</Text>}
                     {!teacherErrors.teacherEmail && <View className="mb-3" />}
@@ -1047,7 +1079,8 @@ export default function RegisterUser() {
                       multiline
                       numberOfLines={3}
                       textAlignVertical="top"
-                      className={`bg-[#FCFAFA] border px-4 py-3 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] min-h-[72px] ${teacherErrors.teacherAddress ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3 rounded-xl mb-1 font-inter text-xs min-h-[72px] ${teacherErrors.teacherAddress ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.teacherAddress && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-4">{teacherErrors.teacherAddress}</Text>}
                     {!teacherErrors.teacherAddress && <View className="mb-4" />}
@@ -1055,12 +1088,13 @@ export default function RegisterUser() {
                     {/* Next Button */}
                     <TouchableOpacity
                       onPress={handleRegisterTeacher}
-                      className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2"
+                      className="py-4 rounded-xl items-center flex-row justify-center space-x-2"
+                      style={{ backgroundColor: primaryColor }}
                     >
-                      <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                      <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                         Next: Experience & Bio
                       </Text>
-                      <Ionicons name="arrow-forward" size={16} color="#ffe088" />
+                      <Ionicons name="arrow-forward" size={16} color={secondaryColor} />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1068,7 +1102,7 @@ export default function RegisterUser() {
                 {/* STEP 2: DETAILS & BIO */}
                 {step === 2 && (
                   <View>
-                    <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
+                    <Text className="font-poppins-bold text-sm mb-4" style={{ color: primaryColor }}>
                       Step 2: Profile Background
                     </Text>
 
@@ -1080,7 +1114,7 @@ export default function RegisterUser() {
                       onPress={() => setShowDojPicker(true)}
                       className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 flex-row items-center justify-between ${teacherErrors.doj ? "border-red-400" : "border-gray-200"}`}
                     >
-                      <Text className={`font-inter text-xs ${doj ? "text-[#0F1C2C]" : "text-[#9CA3AF]"}`}>
+                      <Text className="font-inter text-xs" style={{ color: doj ? primaryColor : "#9CA3AF" }}>
                         {doj ? formatDateDisplay(doj) : "Select date of joining"}
                       </Text>
                       <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
@@ -1105,7 +1139,8 @@ export default function RegisterUser() {
                       onChangeText={(t) => { setExperience(t); setTeacherErrors((p) => { const n = {...p}; delete n.experience; return n; }); }}
                       placeholder="e.g. 8 Years"
                       placeholderTextColor="#9CA3AF"
-                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.experience ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs ${teacherErrors.experience ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.experience && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.experience}</Text>}
                     {!teacherErrors.experience && <View className="mb-3" />}
@@ -1119,7 +1154,8 @@ export default function RegisterUser() {
                       onChangeText={(t) => { setQualification(t); setTeacherErrors((p) => { const n = {...p}; delete n.qualification; return n; }); }}
                       placeholder="e.g. Ph.D. in Applied Mathematics"
                       placeholderTextColor="#9CA3AF"
-                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.qualification ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs ${teacherErrors.qualification ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.qualification && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.qualification}</Text>}
                     {!teacherErrors.qualification && <View className="mb-3" />}
@@ -1134,7 +1170,8 @@ export default function RegisterUser() {
                       placeholder="e.g. 9876543210"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="phone-pad"
-                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs text-[#0F1C2C] ${teacherErrors.teacherEmergencyContact ? "border-red-400" : "border-gray-200"}`}
+                      className={`bg-[#FCFAFA] border px-4 py-3.5 rounded-xl mb-1 font-inter text-xs ${teacherErrors.teacherEmergencyContact ? "border-red-400" : "border-gray-200"}`}
+                      style={{ color: primaryColor }}
                     />
                     {teacherErrors.teacherEmergencyContact && <Text className="text-red-500 text-[10px] font-inter ml-1 mb-3">{teacherErrors.teacherEmergencyContact}</Text>}
                     {!teacherErrors.teacherEmergencyContact && <View className="mb-3" />}
@@ -1145,7 +1182,7 @@ export default function RegisterUser() {
                     </Text>
                     {loadingClasses ? (
                       <View className="flex-row items-center py-3 mb-1">
-                        <ActivityIndicator size="small" color="#735c00" />
+                        <ActivityIndicator size="small" color={secondaryColor} />
                         <Text className="text-[10px] text-neutral-steel font-inter ml-2">Loading sections...</Text>
                       </View>
                     ) : (
@@ -1158,9 +1195,16 @@ export default function RegisterUser() {
                               <TouchableOpacity
                                 key={sec}
                                 onPress={() => toggleChipSelection(sec, teacherSections, setTeacherSections, "teacherSections")}
-                                className={`px-4 py-2 rounded-lg border ${selected ? "bg-[#735c00] border-[#735c00]" : "bg-[#FCFAFA] border-gray-200"}`}
+                                className="px-4 py-2 rounded-lg border"
+                                style={{
+                                  backgroundColor: selected ? secondaryColor : "#FCFAFA",
+                                  borderColor: selected ? secondaryColor : "#E5E7EB"
+                                }}
                               >
-                                <Text className={`text-[10px] font-poppins-semibold ${selected ? "text-white" : "text-neutral-steel"}`}>
+                                <Text
+                                  className="text-[10px] font-poppins-semibold"
+                                  style={{ color: selected ? "white" : "#75777D" }}
+                                >
                                   {sec}
                                 </Text>
                               </TouchableOpacity>
@@ -1186,16 +1230,17 @@ export default function RegisterUser() {
                       <TouchableOpacity
                         onPress={handleRegisterTeacher}
                         disabled={isSubmitting}
-                        className="flex-[2] bg-[#0f1c2c] py-4 rounded-xl items-center flex-row justify-center space-x-1 active:opacity-90"
+                        className="flex-[2] py-4 rounded-xl items-center flex-row justify-center space-x-1 active:opacity-90"
+                        style={{ backgroundColor: primaryColor }}
                       >
                         {isSubmitting ? (
-                          <ActivityIndicator size="small" color="#ffe088" />
+                          <ActivityIndicator size="small" color={secondaryColor} />
                         ) : (
                           <>
-                            <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                            <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                               Confirm Appointment
                             </Text>
-                            <Ionicons name="checkbox-outline" size={16} color="#ffe088" />
+                            <Ionicons name="checkbox-outline" size={16} color={secondaryColor} />
                           </>
                         )}
                       </TouchableOpacity>

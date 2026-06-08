@@ -18,7 +18,13 @@ import { useAuth } from "@/src/hooks/useAuth";
 
 export default function UtilitiesHub() {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0F1C2C";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#FDF9F1";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
 
   // Time Extension states
   const [selectedClass, setSelectedClass] = useState("Grade 10-B");
@@ -49,7 +55,7 @@ export default function UtilitiesHub() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="More Utilities" />
 
       <ScrollView
@@ -68,7 +74,7 @@ export default function UtilitiesHub() {
               />
             </View>
             <View className="flex-1">
-              <Text className="text-[#0F1C2C] font-poppins-bold text-base leading-tight">
+              <Text className="font-poppins-bold text-base leading-tight" style={{ color: primaryColor }}>
                 {schoolData.config.name}
               </Text>
               <Text className="text-neutral-steel font-inter text-xs mt-0.5">
@@ -81,7 +87,7 @@ export default function UtilitiesHub() {
 
         {/* Navigation list */}
         <View className="px-5 mb-6">
-          <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-3 px-1">
+          <Text className="font-poppins-bold text-sm mb-3 px-1" style={{ color: primaryColor }}>
             Administrative Directory
           </Text>
 
@@ -92,8 +98,8 @@ export default function UtilitiesHub() {
               className="flex-row items-center justify-between p-4 border-b border-gray-150"
             >
               <View className="flex-row items-center space-x-3">
-                <Ionicons name="person-add-outline" size={18} color="#0F1C2C" />
-                <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">
+                <Ionicons name="person-add-outline" size={18} color={primaryColor} />
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   Register New Student
                 </Text>
               </View>
@@ -106,8 +112,8 @@ export default function UtilitiesHub() {
               className="flex-row items-center justify-between p-4 border-b border-gray-150"
             >
               <View className="flex-row items-center space-x-3">
-                <Ionicons name="people-outline" size={18} color="#0F1C2C" />
-                <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">
+                <Ionicons name="people-outline" size={18} color={primaryColor} />
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   Appoint New Teacher
                 </Text>
               </View>
@@ -120,8 +126,8 @@ export default function UtilitiesHub() {
               className="flex-row items-center justify-between p-4 border-b border-gray-150"
             >
               <View className="flex-row items-center space-x-3">
-                <Ionicons name="calendar-outline" size={18} color="#0F1C2C" />
-                <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">
+                <Ionicons name="calendar-outline" size={18} color={primaryColor} />
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   Academic Calendar & Events Hub
                 </Text>
               </View>
@@ -134,8 +140,8 @@ export default function UtilitiesHub() {
               className="flex-row items-center justify-between p-4 border-b border-gray-150"
             >
               <View className="flex-row items-center space-x-3">
-                <Ionicons name="cash-outline" size={18} color="#0F1C2C" />
-                <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">
+                <Ionicons name="cash-outline" size={18} color={primaryColor} />
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   Fee Collection Dashboard
                 </Text>
               </View>
@@ -148,8 +154,8 @@ export default function UtilitiesHub() {
               className="flex-row items-center justify-between p-4 border-b border-gray-150"
             >
               <View className="flex-row items-center space-x-3">
-                <Ionicons name="key-outline" size={18} color="#0F1C2C" />
-                <Text className="text-[#0F1C2C] font-poppins-semibold text-xs">
+                <Ionicons name="key-outline" size={18} color={primaryColor} />
+                <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                   Update Password
                 </Text>
               </View>
@@ -169,12 +175,12 @@ export default function UtilitiesHub() {
               className="flex-row items-center justify-between p-4"
             >
               <View className="flex-row items-center space-x-3">
-                <Ionicons name="log-out-outline" size={18} color="#EF4444" />
-                <Text className="text-[#EF4444] font-poppins-semibold text-xs">
+                <Ionicons name="log-out-outline" size={18} color={dangerColor} />
+                <Text className="font-poppins-semibold text-xs" style={{ color: dangerColor }}>
                   Sign Out / Log Out
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#EF4444" />
+              <Ionicons name="chevron-forward" size={16} color={dangerColor} />
             </TouchableOpacity>
           </View>
         </View>
@@ -184,14 +190,14 @@ export default function UtilitiesHub() {
           <View className="bg-white rounded-2xl p-5 border border-gray-200/60 shadow-sm">
             <View className="flex-row justify-between items-center mb-4 border-b border-gray-50 pb-2">
               <View>
-                <Text className="text-[#0F1C2C] font-poppins-bold text-sm">
+                <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>
                   Time Limit Extension
                 </Text>
                 <Text className="text-[10px] text-neutral-steel">
                   Extend exam or homework limits for sections
                 </Text>
               </View>
-              <Ionicons name="hourglass-outline" size={20} color="#735c00" />
+              <Ionicons name="hourglass-outline" size={20} color={secondaryColor} />
             </View>
 
             {/* Class Dropdown selector */}
@@ -203,10 +209,10 @@ export default function UtilitiesHub() {
                 onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex-row items-center justify-between bg-[#FCFAFA] border border-gray-200 px-4 py-3.5 rounded-xl"
               >
-                <Text className="text-xs font-inter text-[#0F1C2C]">
+                <Text className="text-xs font-inter" style={{ color: primaryColor }}>
                   {selectedClass}
                 </Text>
-                <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#0F1C2C" />
+                <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color={primaryColor} />
               </TouchableOpacity>
 
               {isDropdownOpen && (
@@ -218,16 +224,14 @@ export default function UtilitiesHub() {
                         setSelectedClass(cls);
                         setIsDropdownOpen(false);
                       }}
-                      className={`px-4 py-2.5 ${
-                        selectedClass === cls ? "bg-[#FDF9F1]" : "bg-transparent"
-                      }`}
+                      className="px-4 py-2.5"
+                      style={selectedClass === cls ? { backgroundColor: creamColor } : undefined}
                     >
                       <Text
                         className={`text-xs ${
-                          selectedClass === cls
-                            ? "font-poppins-bold text-[#735c00]"
-                            : "font-poppins-medium text-[#0F1C2C]"
+                          selectedClass === cls ? "font-poppins-bold" : "font-poppins-medium"
                         }`}
+                        style={{ color: selectedClass === cls ? secondaryColor : primaryColor }}
                       >
                         {cls}
                       </Text>
@@ -246,7 +250,8 @@ export default function UtilitiesHub() {
               onChangeText={setExamName}
               placeholder="e.g. Calculus Mid-Term Examination"
               placeholderTextColor="#9CA3AF"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs"
+              style={{ color: primaryColor }}
             />
 
             {/* Hours Extension input */}
@@ -259,7 +264,8 @@ export default function UtilitiesHub() {
               placeholder="e.g. 2, 4, 24"
               placeholderTextColor="#9CA3AF"
               keyboardType="number-pad"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs"
+              style={{ color: primaryColor }}
             />
 
             {/* Reason input */}
@@ -271,21 +277,23 @@ export default function UtilitiesHub() {
               onChangeText={setReason}
               placeholder="e.g. Power outage during exam session"
               placeholderTextColor="#9CA3AF"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-6 font-inter text-xs text-[#0F1C2C]"
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-6 font-inter text-xs"
+              style={{ color: primaryColor }}
             />
 
             {/* Button */}
             <TouchableOpacity
               onPress={handleTimeExtension}
               disabled={isExtending}
-              className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2"
+              className="py-4 rounded-xl items-center flex-row justify-center space-x-2"
+              style={{ backgroundColor: primaryColor }}
             >
               {isExtending ? (
                 <Text className="text-white font-poppins-bold text-xs">Granting Time...</Text>
               ) : (
                 <>
-                  <Ionicons name="time-outline" size={16} color="#ffe088" />
-                  <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                  <Ionicons name="time-outline" size={16} color={secondaryLightColor} />
+                  <Text className="font-poppins-bold text-xs" style={{ color: secondaryLightColor }}>
                     Extend Limit Now
                   </Text>
                 </>

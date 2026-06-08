@@ -100,7 +100,10 @@ interface HomeworkListItem {
 export default function HomeworkDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   const [loading, setLoading] = useState(true);
   const [homeworks, setHomeworks] = useState<HomeworkListItem[]>([]);
@@ -257,7 +260,7 @@ export default function HomeworkDashboard() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="Homework" showBack={false} />
 
       {loading ? (
@@ -265,7 +268,7 @@ export default function HomeworkDashboard() {
       ) : error ? (
         <View className="flex-1 justify-center items-center p-6">
           <Ionicons name="alert-circle" size={48} color="#DC2626" />
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A] text-center mt-3">
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold text-lg text-center mt-3">
             Error Loading Data
           </Text>
           <Text className="font-inter text-gray-500 text-center mt-1">
@@ -274,7 +277,8 @@ export default function HomeworkDashboard() {
           <TouchableOpacity
             onPress={fetchHomeworkData}
             activeOpacity={0.7}
-            className="mt-4 px-6 py-2.5 bg-[#0D1B2A] rounded-lg"
+            style={{ backgroundColor: primaryColor }}
+            className="mt-4 px-6 py-2.5 rounded-lg"
           >
             <Text className="font-poppins-semibold text-xs text-white">
               Try Again
@@ -285,9 +289,9 @@ export default function HomeworkDashboard() {
         // Empty State
         <View className="flex-1 justify-center items-center p-6">
           <View className="w-24 h-24 rounded-full bg-[#FFFFFF] shadow-sm items-center justify-center mb-4 border border-gray-50">
-            <Feather name="clipboard" size={48} color="#D4AF37" />
+            <Feather name="clipboard" size={48} color={secondaryColor} />
           </View>
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A]">
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold text-lg">
             No assignments yet
           </Text>
           <Text className="font-inter text-sm text-gray-400 mt-1">
@@ -300,7 +304,7 @@ export default function HomeworkDashboard() {
           contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          <Text className="font-poppins-semibold text-base text-[#0D1B2A] mb-4">
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold text-base mb-4">
             Active Assignments
           </Text>
 
@@ -348,7 +352,7 @@ export default function HomeworkDashboard() {
                         fontWeight: "700",
                         letterSpacing: 1.2,
                         textTransform: "uppercase",
-                        color: "#D4AF37",
+                        color: secondaryColor,
                         marginBottom: 4,
                       }}
                     >
@@ -376,7 +380,7 @@ export default function HomeworkDashboard() {
                   </View>
 
                   {/* Homework Title (Main Heading) */}
-                  <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A] mt-1.5">
+                  <Text style={{ color: primaryColor }} className="font-poppins-semibold text-[16px] mt-1.5">
                     {item.title}
                   </Text>
                   
@@ -419,20 +423,21 @@ export default function HomeworkDashboard() {
       <TouchableOpacity
         onPress={() => router.push("/(teacher)/teacher-homework/create" as any)}
         activeOpacity={0.85}
-        className="absolute rounded-full bg-[#0D1B2A] items-center justify-center shadow-lg"
+        className="absolute rounded-full items-center justify-center shadow-lg"
         style={{
+          backgroundColor: primaryColor,
           width: 56,
           height: 56,
           bottom: 60 + insets.bottom + 16,
           right: 16,
-          shadowColor: "#0D1B2A",
+          shadowColor: primaryColor,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 6,
           elevation: 6,
         }}
       >
-        <Feather name="plus" size={24} color="#D4AF37" />
+        <Feather name="plus" size={24} color={secondaryColor} />
       </TouchableOpacity>
     </View>
   );

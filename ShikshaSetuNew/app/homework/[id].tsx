@@ -125,7 +125,13 @@ function LoadingSkeleton() {
 export default function HomeworkDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { userId, isSignedIn, isLoaded } = useAuth();
+  const { userId, isSignedIn, isLoaded, theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const creamColor = theme?.colors?.cream ?? '#fbf9f8';
+  const surfaceColor = theme?.colors?.white ?? '#FFFFFF';
+  const lightGrayColor = theme?.colors?.lightGray ?? '#E4E2E1';
 
   const [homework, setHomework] = useState<HomeworkItem | null>(null);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -327,8 +333,8 @@ export default function HomeworkDetailScreen() {
   // ── Auth guard ────────────────────────────────────────────────────
   if (!isLoaded || !isSignedIn) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#fbf9f8', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#D4AF37" />
+      <View style={{ flex: 1, backgroundColor: creamColor, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </View>
     );
   }
@@ -336,14 +342,14 @@ export default function HomeworkDetailScreen() {
   // ── Error state ───────────────────────────────────────────────────
   if (!isLoading && hasError) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#fbf9f8' }}>
+      <View style={{ flex: 1, backgroundColor: creamColor }}>
         {Platform.OS === 'android' && <View style={{ height: statusBarHeight }} />}
         <DetailHeader onBack={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
           <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
             <Ionicons name="alert-circle-outline" size={32} color="#DC2626" />
           </View>
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: '#0D1B2A', textAlign: 'center', marginBottom: 8 }}>
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: primaryColor, textAlign: 'center', marginBottom: 8 }}>
             Could not load homework
           </Text>
           <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 24 }}>
@@ -351,7 +357,7 @@ export default function HomeworkDetailScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => fetchData()}
-            style={{ backgroundColor: '#0D1B2A', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 10 }}
+            style={{ backgroundColor: primaryColor, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 10 }}
             activeOpacity={0.8}
           >
             <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: '#FFFFFF' }}>Retry</Text>
@@ -363,7 +369,7 @@ export default function HomeworkDetailScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fbf9f8' }}>
+    <View style={{ flex: 1, backgroundColor: creamColor }}>
       {Platform.OS === 'android' && <View style={{ height: statusBarHeight }} />}
 
       {/* ── Custom Header ─── */}
@@ -377,7 +383,7 @@ export default function HomeworkDetailScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0D1B2A" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />}
         >
           <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
 
@@ -389,7 +395,7 @@ export default function HomeworkDetailScreen() {
               style={{
                 fontFamily: 'Poppins_700Bold',
                 fontSize: 26,
-                color: '#0D1B2A',
+                color: primaryColor,
                 lineHeight: 34,
                 marginBottom: 16,
               }}
@@ -436,7 +442,7 @@ export default function HomeworkDetailScreen() {
                 <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: '#74777D', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
                   HOMEWORK PAPER
                 </Text>
-                <View style={{ backgroundColor: Colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.border }}>
+                <View style={{ backgroundColor: surfaceColor, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: lightGrayColor }}>
                   <TouchableOpacity
                     onPress={() => {
                       if (homework.pdf_url) {
@@ -449,7 +455,7 @@ export default function HomeworkDetailScreen() {
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      backgroundColor: Colors.navyBlue,
+                      backgroundColor: primaryColor,
                       borderRadius: 8,
                       paddingVertical: 12,
                       paddingHorizontal: 16,
@@ -457,8 +463,8 @@ export default function HomeworkDetailScreen() {
                       gap: 8,
                     }}
                   >
-                    <Ionicons name="document-text-outline" size={18} color={Colors.surface} />
-                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.surface }}>
+                    <Ionicons name="document-text-outline" size={18} color={surfaceColor} />
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: surfaceColor }}>
                       View PDF
                     </Text>
                   </TouchableOpacity>
@@ -514,6 +520,10 @@ export default function HomeworkDetailScreen() {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function DetailHeader({ onBack }: { onBack: () => void }) {
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const lightGray = theme?.colors?.lightGray ?? '#E4E2E1';
+  
   return (
     <View
       style={{
@@ -523,7 +533,7 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
         paddingHorizontal: 16,
         paddingVertical: 14,
         borderBottomWidth: 1,
-        borderBottomColor: '#E4E2E1',
+        borderBottomColor: lightGray,
       }}
     >
       <TouchableOpacity
@@ -538,7 +548,7 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
         }}
         activeOpacity={0.7}
       >
-        <Ionicons name="arrow-back" size={20} color="#0D1B2A" />
+        <Ionicons name="arrow-back" size={20} color={primaryColor} />
       </TouchableOpacity>
 
       <Text
@@ -546,7 +556,7 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
           flex: 1,
           fontFamily: 'Poppins_600SemiBold',
           fontSize: 17,
-          color: '#0D1B2A',
+          color: primaryColor,
           textAlign: 'center',
         }}
       >
@@ -565,7 +575,7 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
         activeOpacity={0.7}
         onPress={() => Alert.alert('Notifications', 'No new notifications.')}
       >
-        <Ionicons name="notifications-outline" size={20} color="#0D1B2A" />
+        <Ionicons name="notifications-outline" size={20} color={primaryColor} />
       </TouchableOpacity>
     </View>
   );
@@ -654,6 +664,9 @@ function MetaRow({ icon, label, labelColor }: { icon: any; label: string; labelC
 
 function AttachmentCard({ fileUrl }: { fileUrl: string }) {
   const filename = getFilenameFromUrl(fileUrl);
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const lightGray = theme?.colors?.lightGray ?? '#E4E2E1';
 
   const handleOpen = async () => {
     try {
@@ -687,8 +700,8 @@ function AttachmentCard({ fileUrl }: { fileUrl: string }) {
           flexDirection: 'row',
           alignItems: 'center',
           borderWidth: 1,
-          borderColor: '#E4E2E1',
-          shadowColor: '#0D1B2A',
+          borderColor: lightGray,
+          shadowColor: primaryColor,
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.05,
           shadowRadius: 8,
@@ -709,7 +722,7 @@ function AttachmentCard({ fileUrl }: { fileUrl: string }) {
           <Ionicons name="document-text" size={22} color="#DC2626" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: '#0D1B2A', fontWeight: '600' }} numberOfLines={1}>
+          <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: primaryColor, fontWeight: '600' }} numberOfLines={1}>
             {filename}
           </Text>
           <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: '#74777D', marginTop: 2 }}>
@@ -792,11 +805,17 @@ function SubmissionCard({
   handleSubmitForScoring: () => void;
   onReviewFeedback: () => void;
 }) {
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#FFF3CD';
+  const lightGray = theme?.colors?.lightGray ?? '#E4E2E1';
+  
   const sub = homework.submission;
 
   const statusConfig = sub
     ? sub.status === 'scored'
-      ? { label: 'SCORED', bg: Colors.badgeGoldBg, text: Colors.textGold, border: Colors.borderGold }
+      ? { label: 'SCORED', bg: secondaryLightColor, text: theme?.colors?.secondary ?? '#856404', border: secondaryColor }
       : { label: 'SUBMITTED', bg: '#ECFDF5', text: '#15803D', border: '#BBF7D0' }
     : { label: 'NOT SUBMITTED', bg: '#F9FAFB', text: '#6B7280', border: '#E5E7EB' };
 
@@ -804,12 +823,12 @@ function SubmissionCard({
     <View
       style={{
         marginTop: 20,
-        backgroundColor: Colors.surface,
+        backgroundColor: '#FFFFFF',
         borderRadius: 16,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: Colors.border,
-        shadowColor: Colors.navyBlue,
+        borderColor: lightGray,
+        shadowColor: primaryColor,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 16,
@@ -828,7 +847,7 @@ function SubmissionCard({
           borderBottomColor: '#F0EDED',
         }}
       >
-        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.navyBlue }}>
+        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: primaryColor }}>
           Your Submission
         </Text>
         <View
@@ -895,11 +914,16 @@ function PendingSubmissionBody({
   handleGalleryPick: () => void;
   handleSubmitForScoring: () => void;
 }) {
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#FFF3CD';
+
   // Show loading while fetching subscription
   if (subscriptionLoading) {
     return (
       <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="small" color={Colors.navyBlue} />
+        <ActivityIndicator size="small" color={primaryColor} />
       </View>
     );
   }
@@ -907,14 +931,14 @@ function PendingSubmissionBody({
   // Case 1: FREE plan or expired — show upgrade banner, no upload
   if (!subscriptionStatus?.is_active) {
     return (
-      <View style={styles.upgradeBanner}>
+      <View style={[styles.upgradeBanner, { backgroundColor: secondaryLightColor }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Ionicons name="lock-closed" size={18} color={Colors.textGold} style={{ marginRight: 8 }} />
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.textGold }}>
+          <Ionicons name="lock-closed" size={18} color={secondaryColor} style={{ marginRight: 8 }} />
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: secondaryColor }}>
             AI scoring requires Standard or Pro plan
           </Text>
         </View>
-        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.textGold }}>
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: secondaryColor }}>
           Contact your institution to upgrade
         </Text>
       </View>
@@ -924,14 +948,14 @@ function PendingSubmissionBody({
   // Case 2: Daily limit reached — show limit banner, no upload
   if (subscriptionStatus.remaining_today <= 0) {
     return (
-      <View style={styles.limitBanner}>
+      <View style={[styles.limitBanner, { backgroundColor: secondaryLightColor }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Ionicons name="alert-circle" size={18} color={Colors.textGold} style={{ marginRight: 8 }} />
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.textGold }}>
+          <Ionicons name="alert-circle" size={18} color={secondaryColor} style={{ marginRight: 8 }} />
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: secondaryColor }}>
             Daily AI limit reached ({subscriptionStatus.used_today}/{subscriptionStatus.daily_limit})
           </Text>
         </View>
-        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.textGold }}>
+        <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: secondaryColor }}>
           Try again tomorrow
         </Text>
       </View>
@@ -948,7 +972,7 @@ function PendingSubmissionBody({
   return (
     <>
       {showExpiryWarning && (
-        <View style={styles.expiryWarning}>
+        <View style={[styles.expiryWarning, { backgroundColor: secondaryLightColor }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="warning-outline" size={16} color={Colors.textRed} style={{ marginRight: 6 }} />
             <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: Colors.textRed }}>
@@ -960,7 +984,7 @@ function PendingSubmissionBody({
 
       {/* Remaining evaluations badge: "{remaining_today} of {daily_limit} evaluations left today" */}
       <View style={{
-        backgroundColor: Colors.badgeNavyBg,
+        backgroundColor: theme?.colors?.lightGray ?? '#E6ECF2',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
@@ -969,24 +993,24 @@ function PendingSubmissionBody({
         flexDirection: 'row',
         alignItems: 'center',
       }}>
-        <Ionicons name="flash" size={12} color={Colors.navyBlue} style={{ marginRight: 6 }} />
-        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: Colors.navyBlue }}>
+        <Ionicons name="flash" size={12} color={primaryColor} style={{ marginRight: 6 }} />
+        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: primaryColor }}>
           {subscriptionStatus.remaining_today} of {subscriptionStatus.daily_limit} evaluations left today
         </Text>
       </View>
 
       {/* Two buttons side by side */}
       <View style={styles.pickerRow}>
-        <TouchableOpacity onPress={handleCameraCapture} style={styles.pickerButton} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleCameraCapture} style={[styles.pickerButton, { backgroundColor: theme?.colors?.lightGray ?? '#E6ECF2' }]} activeOpacity={0.7}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="camera-outline" size={20} color={Colors.navyBlue} />
-            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.navyBlue }}>Camera</Text>
+            <Ionicons name="camera-outline" size={20} color={primaryColor} />
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: primaryColor }}>Camera</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleGalleryPick} style={styles.pickerButton} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleGalleryPick} style={[styles.pickerButton, { backgroundColor: theme?.colors?.lightGray ?? '#E6ECF2' }]} activeOpacity={0.7}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="image-outline" size={20} color={Colors.navyBlue} />
-            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: Colors.navyBlue }}>Gallery</Text>
+            <Ionicons name="image-outline" size={20} color={primaryColor} />
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: primaryColor }}>Gallery</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -1004,7 +1028,7 @@ function PendingSubmissionBody({
       <TouchableOpacity 
         onPress={handleSubmitForScoring}
         disabled={!selectedImageUri || isSubmitting}
-        style={[styles.submitButton, (!selectedImageUri || isSubmitting) && styles.submitButtonDisabled]}
+        style={[[styles.submitButton, { backgroundColor: primaryColor }], (!selectedImageUri || isSubmitting) && styles.submitButtonDisabled]}
         activeOpacity={0.8}
       >
         {isSubmitting ? (
@@ -1028,6 +1052,9 @@ function PendingSubmissionBody({
 }
 
 function SubmittedBody({ submission }: { submission: NonNullable<HomeworkItem['submission']> }) {
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -1045,7 +1072,7 @@ function SubmittedBody({ submission }: { submission: NonNullable<HomeworkItem['s
           <Ionicons name="checkmark-circle" size={22} color="#16A34A" />
         </View>
         <View>
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: '#0D1B2A' }}>
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: primaryColor }}>
             Assignment submitted
           </Text>
           <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6B7280', marginTop: 2 }}>
@@ -1101,6 +1128,11 @@ function ScoredBody({
   submission: NonNullable<HomeworkItem['submission']>;
   onReview: () => void;
 }) {
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#FFFBEB';
+
   const pct =
     submission.marks_obtained !== null && homework.total_marks
       ? Math.round((submission.marks_obtained / homework.total_marks) * 100)
@@ -1111,17 +1143,17 @@ function ScoredBody({
       {/* Score display */}
       <View
         style={{
-          backgroundColor: '#FFFBEB',
+          backgroundColor: secondaryLightColor,
           borderRadius: 14,
           padding: 18,
           alignItems: 'center',
           marginBottom: 14,
           borderWidth: 1,
-          borderColor: '#FDE68A',
+          borderColor: secondaryColor,
         }}
       >
-        <Ionicons name="ribbon" size={28} color="#D4AF37" style={{ marginBottom: 8 }} />
-        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 32, color: '#0D1B2A' }}>
+        <Ionicons name="ribbon" size={28} color={secondaryColor} style={{ marginBottom: 8 }} />
+        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 32, color: primaryColor }}>
           {submission.marks_obtained !== null ? submission.marks_obtained : '—'}
           <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 20, color: '#74777D' }}>
             /{homework.total_marks}
@@ -1166,7 +1198,7 @@ function ScoredBody({
         onPress={onReview}
         activeOpacity={0.85}
         style={{
-          backgroundColor: '#D4AF37',
+          backgroundColor: secondaryColor,
           borderRadius: 12,
           paddingVertical: 16,
           flexDirection: 'row',
@@ -1175,8 +1207,8 @@ function ScoredBody({
           gap: 8,
         }}
       >
-        <Ionicons name="document-text-outline" size={16} color="#0D1B2A" />
-        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: '#0D1B2A' }}>
+        <Ionicons name="document-text-outline" size={16} color={primaryColor} />
+        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: primaryColor }}>
           Review Feedback →
         </Text>
       </TouchableOpacity>

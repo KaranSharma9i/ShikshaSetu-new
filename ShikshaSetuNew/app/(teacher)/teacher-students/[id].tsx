@@ -80,6 +80,8 @@ interface SubjectDropdownProps {
 function SubjectDropdown({ options, selectedId, onSelect }: SubjectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options.find((opt) => opt.id === selectedId);
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
 
   return (
     <View className="relative z-50">
@@ -88,10 +90,10 @@ function SubjectDropdown({ options, selectedId, onSelect }: SubjectDropdownProps
         activeOpacity={0.8}
         className="bg-white border border-[#E4E2E1] px-3 py-1.5 rounded-lg flex-row items-center space-x-1"
       >
-        <Text className="font-inter-medium text-xs text-[#0D1B2A]">
+        <Text className="font-inter-medium text-xs" style={{ color: primaryColor }}>
           {selectedOption ? selectedOption.name : "Select Subject"}
         </Text>
-        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={14} color="#0D1B2A" />
+        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={14} color={primaryColor} />
       </TouchableOpacity>
 
       {isOpen && options.length > 0 && (
@@ -121,7 +123,7 @@ function SubjectDropdown({ options, selectedId, onSelect }: SubjectDropdownProps
               }}
               className="px-3 py-2 border-b border-gray-100 last:border-b-0"
             >
-              <Text className="font-inter text-xs text-[#0D1B2A]">{opt.name}</Text>
+              <Text className="font-inter text-xs" style={{ color: primaryColor }}>{opt.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -149,7 +151,11 @@ const getBezierPath = (points: { x: number; y: number }[]) => {
 export default function StudentDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#FFF3CD";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   // Load state and sections
   const [profileLoading, setProfileLoading] = useState(true);
@@ -590,7 +596,7 @@ export default function StudentDetailScreen() {
         <Svg width={W} height={H}>
           {gridLines}
           {/* Main Smooth Line */}
-          <Path d={pathData} fill="none" stroke="#D4AF37" strokeWidth={2.5} />
+          <Path d={pathData} fill="none" stroke={secondaryColor} strokeWidth={2.5} />
           {/* Data point circles */}
           {points.map((p, i) => (
             <Circle
@@ -598,7 +604,7 @@ export default function StudentDetailScreen() {
               cx={p.x}
               cy={p.y}
               r={5}
-              fill="#D4AF37"
+              fill={secondaryColor}
               stroke="#FFFFFF"
               strokeWidth={2}
             />
@@ -649,7 +655,7 @@ export default function StudentDetailScreen() {
             cx={size / 2}
             cy={size / 2}
             r={r}
-            stroke="#D4AF37"
+            stroke={secondaryColor}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={circumference}
@@ -661,7 +667,7 @@ export default function StudentDetailScreen() {
         </Svg>
         <View className="absolute items-center justify-center">
           <Text
-            style={{ fontFamily: "Poppins-Bold", color: "#0D1B2A" }}
+            style={{ fontFamily: "Poppins-Bold", color: primaryColor }}
             className="text-[22px] font-bold"
           >
             {percentage}%
@@ -730,7 +736,8 @@ export default function StudentDetailScreen() {
             >
               <View className="flex-[2] pr-2">
                 <Text
-                  className="font-inter-medium text-[13px] text-[#0D1B2A] leading-tight"
+                  className="font-inter-medium text-[13px] leading-tight"
+                  style={{ color: primaryColor }}
                   numberOfLines={2}
                 >
                   {title}
@@ -743,9 +750,8 @@ export default function StudentDetailScreen() {
               </View>
               <View className="flex-1 items-end">
                 <Text
-                  className={`font-inter-bold text-[13px] text-right ${
-                    sub.marks_obtained !== null ? "text-[#0D1B2A]" : "text-gray-400 font-medium"
-                  }`}
+                  className="font-inter-bold text-[13px] text-right"
+                  style={{ color: sub.marks_obtained !== null ? primaryColor : "#9CA3AF" }}
                 >
                   {scoreStr}
                 </Text>
@@ -758,7 +764,7 @@ export default function StudentDetailScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {/* ─── Local Custom Premium Header ──────────────────────── */}
       <View
         style={{
@@ -773,19 +779,19 @@ export default function StudentDetailScreen() {
           className="p-1 w-10 items-start"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color="#0D1B2A" />
+          <Ionicons name="chevron-back" size={24} color={primaryColor} />
         </TouchableOpacity>
 
         <Text
-          style={{ fontFamily: "Poppins-Bold" }}
-          className="font-poppins-bold text-[18px] text-[#0D1B2A] flex-1 text-center"
+          style={{ fontFamily: "Poppins-Bold", color: primaryColor }}
+          className="font-poppins-bold text-[18px] flex-1 text-center"
         >
           Student Profile
         </Text>
 
         <View className="flex-row items-center space-x-3 w-10 justify-end">
           <TouchableOpacity activeOpacity={0.7} className="p-1 relative">
-            <Ionicons name="notifications-outline" size={22} color="#0D1B2A" />
+            <Ionicons name="notifications-outline" size={22} color={primaryColor} />
           </TouchableOpacity>
         </View>
       </View>
@@ -826,8 +832,8 @@ export default function StudentDetailScreen() {
                       className="w-20 h-20 rounded-full border-2 border-white"
                     />
                   ) : (
-                    <View className="w-20 h-20 rounded-full bg-[#0D1B2A] items-center justify-center border-2 border-white">
-                      <Text className="font-poppins-bold text-3xl text-[#D4AF37]">
+                    <View className="w-20 h-20 rounded-full items-center justify-center border-2 border-white" style={{ backgroundColor: primaryColor }}>
+                      <Text className="font-poppins-bold text-3xl" style={{ color: secondaryColor }}>
                         {getInitials(student.full_name)}
                       </Text>
                     </View>
@@ -838,7 +844,7 @@ export default function StudentDetailScreen() {
                       width: 24,
                       height: 24,
                       borderRadius: 12,
-                      backgroundColor: "#D4AF37",
+                      backgroundColor: secondaryColor,
                       position: "absolute",
                       bottom: -2,
                       right: -2,
@@ -848,24 +854,23 @@ export default function StudentDetailScreen() {
                       borderColor: "#FFFFFF",
                     }}
                   >
-                    <Ionicons name="star" size={12} color="#0D1B2A" />
+                    <Ionicons name="star" size={12} color={primaryColor} />
                   </View>
                 </View>
 
                 <Text
-                  style={{ fontFamily: "Poppins-Bold" }}
-                  className="text-2xl font-bold text-[#0D1B2A] text-center"
+                  style={{ fontFamily: "Poppins-Bold", color: primaryColor }}
+                  className="text-2xl font-bold text-center"
                 >
                   {student.full_name}
                 </Text>
 
                 <View
-                  style={{ backgroundColor: "#D4AF37", borderRadius: 9999 }}
+                  style={{ backgroundColor: secondaryColor, borderRadius: 9999 }}
                   className="px-3 py-1 mt-1.5 items-center justify-center"
                 >
                   <Text
-                    style={{ fontFamily: "Poppins-SemiBold", fontSize: 12 }}
-                    className="text-[#0D1B2A]"
+                    style={{ fontFamily: "Poppins-SemiBold", fontSize: 12, color: primaryColor }}
                   >
                     {student.class_name}-{student.section_name}
                   </Text>
@@ -899,7 +904,7 @@ export default function StudentDetailScreen() {
                           fontFamily: "OpenSans-Bold",
                           fontSize: 10,
                           fontWeight: "700",
-                          color: "#D4AF37",
+                          color: secondaryColor,
                           letterSpacing: 0.5,
                         }}
                       >
@@ -910,7 +915,7 @@ export default function StudentDetailScreen() {
                           fontFamily: "Poppins-Bold",
                           fontSize: 18,
                           fontWeight: "700",
-                          color: "#0D1B2A",
+                          color: primaryColor,
                           marginTop: 4,
                         }}
                       >
@@ -938,7 +943,7 @@ export default function StudentDetailScreen() {
                           fontFamily: "OpenSans-Bold",
                           fontSize: 10,
                           fontWeight: "700",
-                          color: "#D4AF37",
+                          color: secondaryColor,
                           letterSpacing: 0.5,
                         }}
                       >
@@ -949,7 +954,7 @@ export default function StudentDetailScreen() {
                           fontFamily: "Poppins-Bold",
                           fontSize: 18,
                           fontWeight: "700",
-                          color: "#0D1B2A",
+                          color: primaryColor,
                           marginTop: 4,
                         }}
                       >
@@ -975,9 +980,10 @@ export default function StudentDetailScreen() {
                           student.section_id
                         )
                       }
-                      className="bg-[#D4AF37] px-4 py-2 rounded-lg items-center"
+                      className="px-4 py-2 rounded-lg items-center"
+                      style={{ backgroundColor: secondaryColor }}
                     >
-                      <Text className="font-inter-semibold text-xs text-[#0D1B2A]">Retry</Text>
+                      <Text className="font-inter-semibold text-xs" style={{ color: primaryColor }}>Retry</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -995,7 +1001,7 @@ export default function StudentDetailScreen() {
                   >
                     <View className="flex-row items-center justify-between">
                       <Text
-                        style={{ fontFamily: "Poppins-SemiBold", color: "#0D1B2A" }}
+                        style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
                         className="text-base font-bold"
                       >
                         Marks History
@@ -1029,7 +1035,7 @@ export default function StudentDetailScreen() {
                 >
                   <View className="flex-row items-center justify-between mb-3">
                     <Text
-                      style={{ fontFamily: "Poppins-SemiBold", color: "#0D1B2A" }}
+                      style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
                       className="text-base font-bold"
                     >
                       Exam Marks
@@ -1042,7 +1048,7 @@ export default function StudentDetailScreen() {
                       activeOpacity={0.7}
                     >
                       <Text
-                        style={{ fontFamily: "Inter-SemiBold", color: "#D4AF37" }}
+                        style={{ fontFamily: "Inter-SemiBold", color: secondaryColor }}
                         className="text-xs underline font-medium"
                       >
                         Edit
@@ -1071,8 +1077,8 @@ export default function StudentDetailScreen() {
                           >
                             <View className="flex-1 pr-2">
                               <Text
-                                style={{ fontFamily: "Inter-Medium" }}
-                                className="text-[#0D1B2A] text-sm font-semibold"
+                                style={{ fontFamily: "Inter-Medium", color: primaryColor }}
+                                className="text-sm font-semibold"
                                 numberOfLines={1}
                               >
                                 {examName}
@@ -1082,8 +1088,8 @@ export default function StudentDetailScreen() {
                               </Text>
                             </View>
                             <Text
-                              style={{ fontFamily: "Poppins-Bold" }}
-                              className="text-[#0D1B2A] text-sm font-bold"
+                              style={{ fontFamily: "Poppins-Bold", color: primaryColor }}
+                              className="text-sm font-bold"
                             >
                               {marksVal}
                             </Text>
@@ -1104,7 +1110,7 @@ export default function StudentDetailScreen() {
               <View className="px-4">
                 <View
                   style={{
-                    backgroundColor: "#0D1B2A", // Navy background
+                    backgroundColor: primaryColor, // Navy background
                     borderRadius: 16,
                     shadowColor: "rgba(0,0,0,0.04)",
                     shadowOffset: { width: 0, height: 2 },
@@ -1115,7 +1121,7 @@ export default function StudentDetailScreen() {
                   className="p-4 mb-4"
                 >
                   <View className="flex-row items-center space-x-2">
-                    <Ionicons name="bulb-outline" size={20} color="#D4AF37" />
+                    <Ionicons name="bulb-outline" size={20} color={secondaryColor} />
                     <Text
                       style={{ fontFamily: "Poppins-SemiBold" }}
                       className="text-base font-bold text-white"
@@ -1137,7 +1143,7 @@ export default function StudentDetailScreen() {
                       <Text className="font-inter-medium text-[13px] text-white">
                         Concept clarity
                       </Text>
-                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">
+                      <Text className="font-inter-bold text-[13px]" style={{ color: secondaryColor }}>
                         {aiEngagement.conceptClarity !== "—" ? `${aiEngagement.conceptClarity}/10` : "—"}
                       </Text>
                     </View>
@@ -1146,9 +1152,10 @@ export default function StudentDetailScreen() {
                         style={{
                           width: aiEngagement.conceptClarity !== "—"
                             ? `${parseFloat(aiEngagement.conceptClarity) * 10}%`
-                            : "0%"
+                            : "0%",
+                          backgroundColor: secondaryColor,
                         }}
-                        className="h-full bg-[#D4AF37] rounded-full"
+                        className="h-full rounded-full"
                       />
                     </View>
                   </View>
@@ -1159,7 +1166,7 @@ export default function StudentDetailScreen() {
                       <Text className="font-inter-medium text-[13px] text-white">
                         Completeness
                       </Text>
-                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">
+                      <Text className="font-inter-bold text-[13px]" style={{ color: secondaryColor }}>
                         {aiEngagement.completeness !== "—" ? `${aiEngagement.completeness}/10` : "—"}
                       </Text>
                     </View>
@@ -1168,9 +1175,10 @@ export default function StudentDetailScreen() {
                         style={{
                           width: aiEngagement.completeness !== "—"
                             ? `${parseFloat(aiEngagement.completeness) * 10}%`
-                            : "0%"
+                            : "0%",
+                          backgroundColor: secondaryColor,
                         }}
-                        className="h-full bg-[#D4AF37] rounded-full"
+                        className="h-full rounded-full"
                       />
                     </View>
                   </View>
@@ -1181,7 +1189,7 @@ export default function StudentDetailScreen() {
                       <Text className="font-inter-medium text-[13px] text-white">
                         presentation
                       </Text>
-                      <Text className="font-inter-bold text-[13px] text-[#D4AF37]">
+                      <Text className="font-inter-bold text-[13px]" style={{ color: secondaryColor }}>
                         {aiEngagement.presentation !== "—" ? `${aiEngagement.presentation}/10` : "—"}
                       </Text>
                     </View>
@@ -1190,9 +1198,10 @@ export default function StudentDetailScreen() {
                         style={{
                           width: aiEngagement.presentation !== "—"
                             ? `${parseFloat(aiEngagement.presentation) * 10}%`
-                            : "0%"
+                            : "0%",
+                          backgroundColor: secondaryColor,
                         }}
-                        className="h-full bg-[#D4AF37] rounded-full"
+                        className="h-full rounded-full"
                       />
                     </View>
                   </View>
@@ -1208,9 +1217,10 @@ export default function StudentDetailScreen() {
                     <Text className="font-inter text-red-500 text-sm mb-2">{homeworkError}</Text>
                     <TouchableOpacity
                       onPress={() => loadHomeworkStats(student.id, student.class_id, student.teacher_id)}
-                      className="bg-[#D4AF37] px-4 py-2 rounded-lg items-center"
+                      className="px-4 py-2 rounded-lg items-center"
+                      style={{ backgroundColor: secondaryColor }}
                     >
-                      <Text className="font-inter-semibold text-xs text-[#0D1B2A]">Retry</Text>
+                      <Text className="font-inter-semibold text-xs" style={{ color: primaryColor }}>Retry</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -1231,7 +1241,7 @@ export default function StudentDetailScreen() {
                         fontFamily: "OpenSans-Bold",
                         fontSize: 10,
                         fontWeight: "700",
-                        color: "#D4AF37",
+                        color: secondaryColor,
                         letterSpacing: 0.5,
                       }}
                       className="text-center mb-2"
@@ -1268,14 +1278,14 @@ export default function StudentDetailScreen() {
                   >
                     <View className="flex-row items-center justify-between mb-2">
                       <Text
-                        style={{ fontFamily: "Poppins-SemiBold", color: "#0D1B2A" }}
+                        style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
                         className="text-base font-bold"
                       >
                         Recent Submissions
                       </Text>
                       <TouchableOpacity activeOpacity={0.7}>
                         <Text
-                          style={{ fontFamily: "Inter-Medium", color: "#D4AF37" }}
+                          style={{ fontFamily: "Inter-Medium", color: secondaryColor }}
                           className="text-xs underline font-medium"
                         >
                           View All
@@ -1322,15 +1332,15 @@ export default function StudentDetailScreen() {
             />
 
             <Text
-              style={{ fontFamily: "Poppins-SemiBold" }}
-              className="text-[#0D1B2A] text-lg font-bold mb-4"
+              style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+              className="text-lg font-bold mb-4"
             >
               Edit Marks for {student?.full_name}
             </Text>
 
             {modalLoading && modalExams.length === 0 ? (
               <View className="py-12 justify-center items-center">
-                <ActivityIndicator size="large" color="#D4AF37" />
+                <ActivityIndicator size="large" color={secondaryColor} />
               </View>
             ) : (
               <KeyboardAvoidingView
@@ -1358,8 +1368,8 @@ export default function StudentDetailScreen() {
                         >
                           <View className="flex-1 pr-2">
                             <Text
-                              style={{ fontFamily: "Poppins-Medium" }}
-                              className="text-[#0D1B2A] text-sm font-semibold"
+                              style={{ fontFamily: "Poppins-Medium", color: primaryColor }}
+                              className="text-sm font-semibold"
                             >
                               {exam.exam_name}
                             </Text>
@@ -1379,7 +1389,7 @@ export default function StudentDetailScreen() {
                                 borderRadius: 8,
                                 fontFamily: "Poppins-Bold",
                                 fontSize: 14,
-                                color: "#0D1B2A",
+                                color: primaryColor,
                                 backgroundColor: "#FFFFFF",
                               }}
                               placeholder="—"
@@ -1410,7 +1420,7 @@ export default function StudentDetailScreen() {
                     onPress={saveStudentMarks}
                     activeOpacity={0.8}
                     style={{
-                      backgroundColor: "#0D1B2A",
+                      backgroundColor: primaryColor,
                       height: 48,
                       borderRadius: 12,
                       alignItems: "center",
@@ -1420,10 +1430,10 @@ export default function StudentDetailScreen() {
                     className="w-full flex-row text-center justify-center"
                   >
                     {modalLoading && (
-                      <ActivityIndicator size="small" color="#D4AF37" className="mr-2" />
+                      <ActivityIndicator size="small" color={secondaryColor} className="mr-2" />
                     )}
                     <Text
-                      style={{ fontFamily: "Poppins-SemiBold", color: "#D4AF37" }}
+                      style={{ fontFamily: "Poppins-SemiBold", color: secondaryColor }}
                       className="text-sm font-bold text-center"
                     >
                       {modalLoading ? "Saving..." : "Save Marks"}
@@ -1442,8 +1452,8 @@ export default function StudentDetailScreen() {
                     className="w-full"
                   >
                     <Text
-                      style={{ fontFamily: "Poppins-SemiBold" }}
-                      className="text-[#0D1B2A] text-sm font-semibold text-center"
+                      style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                      className="text-sm font-semibold text-center"
                     >
                       Cancel
                     </Text>

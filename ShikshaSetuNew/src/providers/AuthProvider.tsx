@@ -12,6 +12,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: null,
     session: null,
     isLoading: true,
+    theme: null,
+    institutionName: null,
+    logoUrl: null,
+    tagline: null,
   });
 
   const fetchUserProfile = async (session: Session | null) => {
@@ -24,6 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: null,
         session: null,
         isLoading: false,
+        theme: null,
+        institutionName: null,
+        logoUrl: null,
+        tagline: null,
       });
       return;
     }
@@ -35,7 +43,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 1. Try fetching by ID
       const { data: byIdData, error: byIdError } = await supabase
         .from("users")
-        .select("id, role, institution_id, full_name")
+        .select(`
+          id, 
+          role, 
+          institution_id, 
+          full_name,
+          institutions (
+            name,
+            logo_url,
+            tagline,
+            theme
+          )
+        `)
         .eq("id", user.id)
         .maybeSingle();
 
@@ -49,7 +68,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 2. Fallback to fetching by email
         const { data: byEmailData, error: byEmailError } = await supabase
           .from("users")
-          .select("id, role, institution_id, full_name")
+          .select(`
+            id, 
+            role, 
+            institution_id, 
+            full_name,
+            institutions (
+              name,
+              logo_url,
+              tagline,
+              theme
+            )
+          `)
           .eq("email", user.email)
           .maybeSingle();
         
@@ -75,6 +105,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role = dbRole as UserRole;
         }
 
+        // Parse theme safely
+        const instRaw = Array.isArray(userData.institutions)
+          ? userData.institutions[0]
+          : userData.institutions;
+        const instThemeRaw = instRaw?.theme;
+        const institutionName = instRaw?.name || null;
+        const logoUrl = instRaw?.logo_url || null;
+        const tagline = instRaw?.tagline || null;
+
+        const defaultColors = {
+          primary: "#0D1B2A",
+          primaryAlt: "#162A56",
+          secondary: "#D4AF37",
+          secondaryLight: "#F2C14E",
+          charcoal: "#333333",
+          steelGray: "#6B7280",
+          lightGray: "#E5E7EB",
+          cream: "#F7F3EB",
+          white: "#FFFFFF",
+          success: "#22C55E",
+          warning: "#EAB308",
+          danger: "#EF4444"
+        };
+
+        const defaultFonts = {
+          heading: "Poppins",
+          body: "Inter",
+          caption: "OpenSans"
+        };
+
+        const parsedTheme = {
+          colors: {
+            primary: instThemeRaw?.colors?.primary ?? defaultColors.primary,
+            primaryAlt: instThemeRaw?.colors?.primaryAlt ?? defaultColors.primaryAlt,
+            secondary: instThemeRaw?.colors?.secondary ?? defaultColors.secondary,
+            secondaryLight: instThemeRaw?.colors?.secondaryLight ?? defaultColors.secondaryLight,
+            charcoal: instThemeRaw?.colors?.charcoal ?? defaultColors.charcoal,
+            steelGray: instThemeRaw?.colors?.steelGray ?? defaultColors.steelGray,
+            lightGray: instThemeRaw?.colors?.lightGray ?? defaultColors.lightGray,
+            cream: instThemeRaw?.colors?.cream ?? defaultColors.cream,
+            white: instThemeRaw?.colors?.white ?? defaultColors.white,
+            success: instThemeRaw?.colors?.success ?? defaultColors.success,
+            warning: instThemeRaw?.colors?.warning ?? defaultColors.warning,
+            danger: instThemeRaw?.colors?.danger ?? defaultColors.danger
+          },
+          fonts: {
+            heading: instThemeRaw?.fonts?.heading ?? defaultFonts.heading,
+            body: instThemeRaw?.fonts?.body ?? defaultFonts.body,
+            caption: instThemeRaw?.fonts?.caption ?? defaultFonts.caption
+          }
+        };
+
         setAuthState({
           userId: user.id,
           institutionId: userData.institution_id || null,
@@ -83,6 +165,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email || null,
           session,
           isLoading: false,
+          theme: parsedTheme,
+          institutionName,
+          logoUrl,
+          tagline,
         });
       } else {
         // No matching public.users profile found
@@ -94,6 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email || null,
           session,
           isLoading: false,
+          theme: null,
+          institutionName: null,
+          logoUrl: null,
+          tagline: null,
         });
       }
     } catch (err) {
@@ -106,6 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: session.user.email || null,
         session,
         isLoading: false,
+        theme: null,
+        institutionName: null,
+        logoUrl: null,
+        tagline: null,
       });
     }
   };

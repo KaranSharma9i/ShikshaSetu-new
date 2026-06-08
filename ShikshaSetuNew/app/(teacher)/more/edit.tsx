@@ -21,7 +21,10 @@ import ProfilePhotoUploader from "../../../components/teacher/ProfilePhotoUpload
 
 export default function EditTeacherProfileScreen() {
   const router = useRouter();
-  const { userId } = useAuth();
+  const { userId, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   const [profile, setProfile] = useState<any>(null);
@@ -89,14 +92,14 @@ export default function EditTeacherProfileScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#F7F3EB] justify-center items-center">
-        <ActivityIndicator size="large" color="#0D1B2A" />
+      <View style={{ backgroundColor: creamColor }} className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color={primaryColor} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       {/* Custom Header */}
       <View 
         className="bg-white border-b border-[#E5E7EB] px-5 flex-row items-center justify-between z-50"
@@ -111,9 +114,9 @@ export default function EditTeacherProfileScreen() {
             className="mr-3 p-1"
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#0D1B2A" />
+            <Ionicons name="arrow-back" size={24} color={primaryColor} />
           </TouchableOpacity>
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A]">
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold text-lg">
             Edit Profile
           </Text>
         </View>
@@ -125,7 +128,7 @@ export default function EditTeacherProfileScreen() {
           activeOpacity={0.7}
         >
           <Text 
-            style={{ color: isDirty && !isSaving ? "#D4AF37" : "#E5E7EB" }}
+            style={{ color: isDirty && !isSaving ? secondaryColor : "#E5E7EB" }}
             className="font-poppins-semibold text-base"
           >
             Save
@@ -181,9 +184,11 @@ export default function EditTeacherProfileScreen() {
               placeholderTextColor="#9CA3AF"
               onFocus={() => setFocusedField("email")}
               onBlur={() => setFocusedField(null)}
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] ${
-                focusedField === "email" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 font-inter text-[15px]"
+              style={{
+                color: primaryColor,
+                borderColor: focusedField === "email" ? primaryColor : "#E5E7EB"
+              }}
             />
           </View>
 
@@ -200,9 +205,11 @@ export default function EditTeacherProfileScreen() {
               placeholderTextColor="#9CA3AF"
               onFocus={() => setFocusedField("phone")}
               onBlur={() => setFocusedField(null)}
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] ${
-                focusedField === "phone" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 font-inter text-[15px]"
+              style={{
+                color: primaryColor,
+                borderColor: focusedField === "phone" ? primaryColor : "#E5E7EB"
+              }}
             />
           </View>
 
@@ -221,9 +228,11 @@ export default function EditTeacherProfileScreen() {
               onFocus={() => setFocusedField("address")}
               onBlur={() => setFocusedField(null)}
               textAlignVertical="top"
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] h-20 ${
-                focusedField === "address" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 font-inter text-[15px] h-20"
+              style={{
+                color: primaryColor,
+                borderColor: focusedField === "address" ? primaryColor : "#E5E7EB"
+              }}
             />
           </View>
 
@@ -239,9 +248,11 @@ export default function EditTeacherProfileScreen() {
               placeholderTextColor="#9CA3AF"
               onFocus={() => setFocusedField("emergencyContact")}
               onBlur={() => setFocusedField(null)}
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] ${
-                focusedField === "emergencyContact" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 font-inter text-[15px]"
+              style={{
+                color: primaryColor,
+                borderColor: focusedField === "emergencyContact" ? primaryColor : "#E5E7EB"
+              }}
             />
           </View>
 
@@ -355,9 +366,10 @@ export default function EditTeacherProfileScreen() {
         <TouchableOpacity
           onPress={handleSave}
           disabled={!isDirty || isSaving}
-          className={`mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row ${
-            isDirty && !isSaving ? "bg-[#0D1B2A]" : "bg-gray-300"
-          }`}
+          className="mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row"
+          style={{
+            backgroundColor: isDirty && !isSaving ? primaryColor : "#D1D5DB"
+          }}
           activeOpacity={0.8}
         >
           {isSaving ? (

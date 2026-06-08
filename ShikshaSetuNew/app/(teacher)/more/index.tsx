@@ -9,7 +9,11 @@ import ProfilePhotoUploader from "@/components/teacher/ProfilePhotoUploader";
 
 export default function MoreMenuScreen() {
   const router = useRouter();
-  const { userId, signOut } = useAuth();
+  const { userId, signOut, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,19 +80,19 @@ export default function MoreMenuScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#F7F3EB] justify-center items-center">
-        <ActivityIndicator size="large" color="#0D1B2A" />
+      <View style={{ backgroundColor: creamColor }} className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color={primaryColor} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 bg-[#F7F3EB]">
+      <View style={{ backgroundColor: creamColor }} className="flex-1">
         <Header title="More" showBack={false} />
         <View className="flex-1 justify-center items-center p-6">
           <Ionicons name="alert-circle-outline" size={64} color="#BA1A1A" />
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A] mt-4 mb-2 text-center">
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold text-lg mt-4 mb-2 text-center">
             Failed to Load Profile
           </Text>
           <Text className="font-inter text-gray-500 text-center mb-6 px-4">
@@ -96,7 +100,8 @@ export default function MoreMenuScreen() {
           </Text>
           <TouchableOpacity
             onPress={fetchProfileData}
-            className="bg-[#0D1B2A] px-6 py-3 rounded-xl shadow-sm"
+            style={{ backgroundColor: primaryColor }}
+            className="px-6 py-3 rounded-xl shadow-sm"
             activeOpacity={0.8}
           >
             <Text className="font-poppins-medium text-white text-sm">Retry</Text>
@@ -107,7 +112,7 @@ export default function MoreMenuScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="More" showBack={false} />
       <ScrollView
         className="flex-1"
@@ -136,14 +141,14 @@ export default function MoreMenuScreen() {
           />
 
           {/* Teacher Name */}
-          <Text className="font-poppins-bold text-[22px] text-[#0D1B2A] text-center">
+          <Text style={{ color: primaryColor }} className="font-poppins-bold text-[22px] text-center">
             {profile?.full_name}
           </Text>
 
           {/* Badges Row */}
           <View className="flex-row justify-center items-center space-x-2 mt-3">
             {/* Specialization Badge */}
-            <View className="bg-[#0D1B2A] px-3.5 py-1.5 rounded-full flex-row items-center">
+            <View style={{ backgroundColor: primaryColor }} className="px-3.5 py-1.5 rounded-full flex-row items-center">
               <Ionicons name="star" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
               <Text className="font-poppins-medium text-xs text-white">
                 {profile?.specialization || "General"}
@@ -151,8 +156,8 @@ export default function MoreMenuScreen() {
             </View>
 
             {/* Employee Code Badge */}
-            <View className="bg-[#fed65b] px-3.5 py-1.5 rounded-full flex-row items-center">
-              <Text className="font-poppins-medium text-xs text-[#745c00]">
+            <View style={{ backgroundColor: secondaryLightColor + "20", borderColor: secondaryLightColor + "40", borderWidth: 1 }} className="px-3.5 py-1.5 rounded-full flex-row items-center">
+              <Text style={{ color: secondaryColor }} className="font-poppins-medium text-xs">
                 Code: {profile?.employee_code || "N/A"}
               </Text>
             </View>
@@ -171,35 +176,35 @@ export default function MoreMenuScreen() {
           }}
         >
           <View className="flex-row justify-between items-center mb-3">
-            <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A]">
+            <Text style={{ color: primaryColor }} className="font-poppins-semibold text-[16px]">
               Personal Details
             </Text>
-            <Ionicons name="person-outline" size={18} color="#D4AF37" />
+            <Ionicons name="person-outline" size={18} color={secondaryColor} />
           </View>
 
           <View className="space-y-3">
             {/* Email */}
             <View className="flex-row justify-between py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400">Email Address</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A]">{profile?.email || "—"}</Text>
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs">{profile?.email || "—"}</Text>
             </View>
 
             {/* Contact */}
             <View className="flex-row justify-between py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400">Phone (Contact)</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A]">{profile?.phone || "—"}</Text>
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs">{profile?.phone || "—"}</Text>
             </View>
 
             {/* Qualification */}
             <View className="flex-row justify-between py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400">Qualification</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A]">{profile?.qualification || "—"}</Text>
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs">{profile?.qualification || "—"}</Text>
             </View>
 
             {/* Date of Birth */}
             <View className="flex-row justify-between py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400">Date of Birth</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A]">
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs">
                 {profile?.date_of_birth
                   ? new Date(profile.date_of_birth).toLocaleDateString("en-GB", {
                       day: "numeric",
@@ -213,13 +218,13 @@ export default function MoreMenuScreen() {
             {/* Gender */}
             <View className="flex-row justify-between py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400">Gender</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A] capitalize">{profile?.gender || "—"}</Text>
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs capitalize">{profile?.gender || "—"}</Text>
             </View>
 
             {/* Date of Joining */}
             <View className="flex-row justify-between py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400">Date of Joining</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A]">
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs">
                 {profile?.date_of_joining
                   ? new Date(profile.date_of_joining).toLocaleDateString("en-GB", {
                       day: "numeric",
@@ -233,7 +238,7 @@ export default function MoreMenuScreen() {
             {/* Address */}
             <View className="py-1 border-b border-gray-50">
               <Text className="font-inter text-xs text-gray-400 mb-1">Residential Address</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A] leading-relaxed">
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs leading-relaxed">
                 {profile?.address || "—"}
               </Text>
             </View>
@@ -241,7 +246,7 @@ export default function MoreMenuScreen() {
             {/* Emergency Contact */}
             <View className="py-1">
               <Text className="font-inter text-xs text-gray-400 mb-1">Emergency Contact</Text>
-              <Text className="font-poppins-medium text-xs text-[#0D1B2A] leading-relaxed">
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-xs leading-relaxed">
                 {profile?.emergency_contact || "—"}
               </Text>
             </View>
@@ -254,10 +259,10 @@ export default function MoreMenuScreen() {
             activeOpacity={0.7}
           >
             <View className="flex-row items-center">
-              <View className="w-8 h-8 rounded-lg bg-[#0D1B2A] items-center justify-center mr-2">
+              <View style={{ backgroundColor: primaryColor }} className="w-8 h-8 rounded-lg items-center justify-center mr-2">
                 <Ionicons name="create-outline" size={16} color="#FFFFFF" />
               </View>
-              <Text className="font-poppins-medium text-[14px] text-[#0D1B2A]">
+              <Text style={{ color: primaryColor }} className="font-poppins-medium text-[14px]">
                 Update Personal Information
               </Text>
             </View>
@@ -310,13 +315,13 @@ export default function MoreMenuScreen() {
                   }}
                 >
                   <View className="mr-4">
-                    <Feather name={item.icon} size={24} color="#D4AF37" />
+                    <Feather name={item.icon} size={24} color={secondaryColor} />
                   </View>
 
                   <View className="flex-1 pr-2">
                     <Text
-                      style={{ fontFamily: "Poppins-SemiBold" }}
-                      className="text-[15px] font-bold text-[#0D1B2A] leading-tight"
+                      style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                      className="text-[15px] font-bold leading-tight"
                     >
                       {item.title}
                     </Text>
@@ -328,7 +333,7 @@ export default function MoreMenuScreen() {
                     </Text>
                   </View>
 
-                  <Feather name="chevron-right" size={20} color="#0D1B2A" />
+                  <Feather name="chevron-right" size={20} color={primaryColor} />
                 </TouchableOpacity>
               );
             })}
@@ -352,10 +357,10 @@ export default function MoreMenuScreen() {
             className="flex-row items-center pb-3.5"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View style={{ backgroundColor: primaryColor }} className="w-10 h-10 rounded-xl items-center justify-center mr-3">
               <Ionicons name="key-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text style={{ color: primaryColor }} className="font-poppins-medium text-[15px] flex-1">
               Update Password
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />

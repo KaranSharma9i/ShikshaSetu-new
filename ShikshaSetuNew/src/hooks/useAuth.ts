@@ -35,5 +35,10 @@ export function useAuth() {
     // Clerk compatibility flags
     isSignedIn: !!context.userId,
     isLoaded: !context.isLoading,
+    // Institution theme
+    theme: context.theme,
+    institutionName: context.institutionName,
+    logoUrl: context.logoUrl,
+    tagline: context.tagline,
   };
 }

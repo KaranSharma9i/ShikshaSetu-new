@@ -2,78 +2,119 @@
 
 ```text
 ShikshaSetu/
-  Ai_imple.md
   arch.md
-  MARGAM_AI_HOMEWORK_CONTEXT.md
+  MARGAM_TENANT_CONTEXT.md
   package-lock.json
   package.json
   ShikshaSetuNew/
+    .env
+    .eslintrc.js
+    .gitignore
     AGENTS.md
-    Ai_imple.md
+    app.json
+    babel.config.js
+    eslint.config.js
+    expo-env.d.ts
+    expo-fix.md
+    global.css
+    inspect_all_policies.js
+    inspect_schema.js
+    margam-db.skill
+    metro.config.js
+    nativewind-env.d.ts
+    open_router.ts
+    package-lock.json
+    package.json
+    schema.txt
+    tailwind.config.js
+    test_rls_functions.js
+    tsconfig.json
+    .vscode/
+      extensions.json
+      settings.json
     app/
+      _layout.tsx
+      index.tsx
+      circulars.tsx
+      fees.tsx
+      onboarding.tsx
+      report-card.tsx
+      schedule.tsx
+      timetable.tsx
       (teacher)/
+        _layout.tsx
         index.tsx
         more/
+          _layout.tsx
+          index.tsx
           circulars.tsx
           edit.tsx
           exams.tsx
-          index.tsx
           marks.tsx
           timetable.tsx
-          _layout.tsx
+          update-password.tsx
         teacher-homework/
-          create.tsx
+          _layout.tsx
           index.tsx
+          [id].tsx
+          create.tsx
           preview.tsx
           published.tsx
-          [id].tsx
-          _layout.tsx
         teacher-students/
+          _layout.tsx
           index.tsx
           [id].tsx
-          _layout.tsx
-        _layout.tsx
       auth/
+        _layout.tsx
         signin.tsx
         signup.tsx
-        _layout.tsx
-      circulars.tsx
-      fees.tsx
       homework/
-        index.tsx
-        score/
-          [id].tsx
-          _layout.tsx
-        [id].tsx
         _layout.tsx
-      index.tsx
+        index.tsx
+        [id].tsx
+        score/
+          _layout.tsx
+          [id].tsx
       institution/
+        _layout.tsx
+        index.tsx
         academics.tsx
         attendance.tsx
         circulars.tsx
         events.tsx
         fees.tsx
-        index.tsx
         register.tsx
+        update-password.tsx
         utilities.tsx
-        _layout.tsx
-      onboarding.tsx
       profile/
-        edit.tsx
-        index.tsx
         _layout.tsx
-      report-card.tsx
-      schedule.tsx
+        index.tsx
+        edit.tsx
+        update-password.tsx
       students/
         index.tsx
         [id].tsx
       teachers/
         index.tsx
         [id].tsx
-      timetable.tsx
-      _layout.tsx
-    app.json
     assets/
+      gurukul.png
+      icon.png
+      infographic-1-margam.png
+      infographic-2-gurukul shikshalay.png
+      mascot.png
+      profile.jpg
+      images/
+        android-icon-background.png
+        android-icon-foreground.png
+        android-icon-monochrome.png
+        favicon.png
+        icon.png
+        partial-react-logo.png
+        react-logo.png
+        react-logo@2x.png
+        react-logo@3x.png
+        splash-icon.png
       01-institution-attendance/
         stitch_gurukul_shikshalaya_institution_portal/
           academic_excellence/
@@ -171,23 +212,6 @@ ShikshaSetu/
             screen.png
           teacher_performance_analysis/
             screen.png
-      gurukul.png
-      icon.png
-      images/
-        android-icon-background.png
-        android-icon-foreground.png
-        android-icon-monochrome.png
-        favicon.png
-        icon.png
-        partial-react-logo.png
-        react-logo.png
-        react-logo@2x.png
-        react-logo@3x.png
-        splash-icon.png
-      infographic-1-margam.png
-      infographic-2-gurukul shikshalay.png
-      mascot.png
-      profile.jpg
       student-dashboard/
         DESIGN.md
         screen.png
@@ -207,6 +231,9 @@ ShikshaSetu/
         DESIGN.md
         screen.png
       student-schedule/
+        DESIGN.md
+        screen.png
+      subject-analysis/
         DESIGN.md
         screen.png
       teacher-dashboard/
@@ -230,16 +257,16 @@ ShikshaSetu/
       teacher-student-list/
         DESIGN.md
         screen.png
-    babel.config.js
-    CLAUDE.md
     components/
       external-link.tsx
       haptic-tab.tsx
       hello-wave.tsx
+      parallax-scroll-view.tsx
+      themed-text.tsx
+      themed-view.tsx
       institution/
         BottomNavBar.tsx
         Header.tsx
-      parallax-scroll-view.tsx
       student/
         BottomNavBar.tsx
         CircularProgress.tsx
@@ -249,8 +276,6 @@ ShikshaSetu/
         BottomNavBar.tsx
         Header.tsx
         ProfilePhotoUploader.tsx
-      themed-text.tsx
-      themed-view.tsx
       ui/
         collapsible.tsx
         icon-symbol.ios.tsx
@@ -261,11 +286,11 @@ ShikshaSetu/
     db/
       assign-teachers.js
       index.ts
+      inspect-attendance.js
       inspect-attendance-all.js
       inspect-attendance-dates.js
       inspect-attendance-rows.js
       inspect-attendance-students.js
-      inspect-attendance.js
       inspect-ay.js
       inspect-data.js
       inspect-enrollments-all.js
@@ -273,6 +298,10 @@ ShikshaSetu/
       inspect-nursery-attendance.js
       inspect-student-data.js
       inspect-tables.js
+      supabase.js
+      test-ay-query.js
+      test-db.js
+      test-db.ts
       migrations/
         0001_create_institutions.sql
         0002_create_users.sql
@@ -309,24 +338,22 @@ ShikshaSetu/
         0032_add_homework_section.sql
         0033_fix_homework_submissions_ai_scoring.sql
         0034_add_users_student_select_policy.sql
+        0035_add_circular_category.sql
+        0036_extend_holidays_as_events.sql
         All_view.sql
-      supabase.js
-      test-ay-query.js
-      test-db.js
-      test-db.ts
-    eslint.config.js
-    expo-env.d.ts
-    expo-fix.md
-    global.css
-    HOMEWORK_AI_IMPLEMENTATION_PLAN.md
     hooks/
       use-color-scheme.ts
       use-color-scheme.web.ts
-      use-theme-color.ts
+      useInstitutionAttendance.ts
+      useInstitutionDashboard.ts
       useStudentDashboard.ts
-    inspect_all_policies.js
+      useStudentFees.ts
+      useStudentReportCard.ts
+      useTeacherDashboard.ts
+      use-theme-color.ts
     margam-db-skill/
       margam-db-skill/
+        SKILL.md
         references/
           academics.md
           circulars.md
@@ -338,46 +365,44 @@ ShikshaSetu/
           students.md
           teachers.md
           transport.md
-        SKILL.md
-    margam-db.skill
-    metro.config.js
-    nativewind-env.d.ts
-    open_router.md
-    open_router.ts
-    package-lock.json
-    package.json
+    scratch/
+      test_prompt_format.ts
+      test-pdf.ts
+      test-output.pdf
     scripts/
       alter-transport.js
       apply-migration-033.js
       apply-rls.js
-      check-local-db.js
-      check-users.js
       check_aarav.js
       check_attendance_schema.js
+      check_policies.js
       check_schema.js
+      check-local-db.js
+      check-users.js
       debug-submissions.js
       diagnose_academics.js
+      diagnose_db.js
+      diagnose_teachers.js
+      inspect_teachers_2.js
       reset-project.js
+      run_migrations.js
       run-any-query.js
       run-homework-query.js
       run-query-2.js
       run-query-3.js
       run-sql.js
-      run_migrations.js
-      seed-amir-teacher.js
-      seed-yash-schedule.ts
-      seed-yash-timetable.ts
       seed_database.js
-      setup-storage.ts
       setup_ai_scores.js
       setup_attendance_data.js
       setup_fee_data.js
+      setup-storage.ts
       test_alter_type.js
       test_conn.js
       test_supabase_auth.js
       verify_attendance_data.js
       verify_attendance_repository.js
       verify_attendance_repository.ts
+      verify_new_repos.ts
       verify_seed.js
     server/
       config.ts
@@ -396,9 +421,9 @@ ShikshaSetu/
       utils/
         planResolver.ts
     src/
+      gemini_flash.ts
       context/
         AuthContext.tsx
-      gemini_flash.ts
       hooks/
         useAuth.ts
         useQuery.ts
@@ -426,6 +451,8 @@ ShikshaSetu/
         error.ts
     supabase/
       config.toml
+      .temp/
+        cli-latest
       migrations/
         0001_create_institutions.sql
         0002_create_users.sql
@@ -456,14 +483,11 @@ ShikshaSetu/
         0027_create_ai_scores.sql
         0028_homework_columns.sql
         0029_billing_schema.sql
-        0029_exams_syllabus.sql
         0030_billing_rls.sql
         0031_homework_ai_generation.sql
         0032_add_homework_section.sql
         0033_fix_homework_submissions_ai_scoring.sql
         0034_add_users_student_select_policy.sql
-        All_view.sql
-    tailwind.config.js
-    test_rls_functions.js
-    tsconfig.json
+        0035_add_circular_category.sql
+        0036_extend_holidays_as_events.sql
 ```

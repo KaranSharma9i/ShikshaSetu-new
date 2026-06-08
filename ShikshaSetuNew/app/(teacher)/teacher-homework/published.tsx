@@ -3,10 +3,16 @@ import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import Header from "@/components/teacher/Header";
+import { useAuth } from "@/src/hooks/useAuth";
+
 
 export default function HomeworkPublished() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { theme, institutionName } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   // Retrieve parameters from local search params
   const {
@@ -29,9 +35,9 @@ export default function HomeworkPublished() {
   const cleanSubject = Array.isArray(subject) ? subject[0] : subject;
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       {/* Header: title "Gurukul Admin", no back button */}
-      <Header title="Gurukul Admin" showBack={false} />
+      <Header title={institutionName ? `${institutionName} Admin` : "Gurukul Admin"} showBack={false} />
 
       <ScrollView
         className="flex-1"
@@ -49,11 +55,11 @@ export default function HomeworkPublished() {
           style={{ width: 96, height: 96, borderRadius: 48 }}
           className="bg-[#FFF8E1] items-center justify-center mb-6"
         >
-          <Feather name="check" size={40} color="#0D1B2A" />
+          <Feather name="check" size={40} color={primaryColor} />
         </View>
 
         {/* 2. Title */}
-        <Text className="font-poppins-bold text-[28px] text-[#0D1B2A] text-center leading-tight mb-2">
+        <Text style={{ color: primaryColor }} className="font-poppins-bold text-[28px] text-center leading-tight mb-2">
           Assignment Published
         </Text>
 
@@ -73,15 +79,16 @@ export default function HomeworkPublished() {
             shadowOpacity: 0.04,
             shadowRadius: 8,
             elevation: 2,
+            borderColor: secondaryColor,
           }}
-          className="w-full bg-white rounded-2xl border-2 border-[#D4AF37] p-5 mb-5"
+          className="w-full bg-white rounded-2xl border-2 p-5 mb-5"
         >
           {/* Top Row */}
           <View className="flex-row items-center mb-3">
-            <Feather name="award" size={16} color="#D4AF37" className="mr-2" />
+            <Feather name="award" size={16} color={secondaryColor} className="mr-2" />
             <Text
-              style={{ letterSpacing: 0.5 }}
-              className="font-open-sans font-bold text-[11px] text-[#D4AF37] uppercase"
+              style={{ letterSpacing: 0.5, color: secondaryColor }}
+              className="font-open-sans font-bold text-[11px] uppercase"
             >
               ACADEMIC EXCELLENCE
             </Text>
@@ -91,7 +98,7 @@ export default function HomeworkPublished() {
           <View className="h-[1px] bg-[#E4E2E1] w-full mb-3" />
 
           {/* Heading info */}
-          <Text className="font-poppins-bold text-[20px] text-[#0D1B2A] mb-1.5 leading-snug">
+          <Text style={{ color: primaryColor }} className="font-poppins-bold text-[20px] mb-1.5 leading-snug">
             {cleanGrade} — {cleanSubject}
           </Text>
           
@@ -117,23 +124,23 @@ export default function HomeworkPublished() {
         </View>
 
         {/* 5. Due Date Card */}
-        <View className="w-full bg-[#0D1B2A] rounded-2xl p-6 items-center mb-8">
-          <Feather name="calendar" size={24} color="#D4AF37" className="mb-2" />
+        <View style={{ backgroundColor: primaryColor }} className="w-full rounded-2xl p-6 items-center mb-8">
+          <Feather name="calendar" size={24} color={secondaryColor} className="mb-2" />
           
           <Text
-            style={{ letterSpacing: 0.5 }}
-            className="font-open-sans font-bold text-[11px] text-[#D4AF37] uppercase mb-1"
+            style={{ letterSpacing: 0.5, color: secondaryColor }}
+            className="font-open-sans font-bold text-[11px] uppercase mb-1"
           >
             DUE DATE
           </Text>
           
-          <Text className="font-poppins-bold text-[22px] text-[#D4AF37] mb-4">
+          <Text style={{ color: secondaryColor }} className="font-poppins-bold text-[22px] mb-4">
             {dueDate}
           </Text>
 
           {/* Delivery pill */}
-          <View className="bg-[#1A2A3A] px-4 py-1.5 rounded-full border border-opacity-10 border-[#D4AF37]">
-            <Text className="font-open-sans font-bold text-[12px] text-[#D4AF37]">
+          <View style={{ borderColor: secondaryColor }} className="bg-[#1A2A3A] px-4 py-1.5 rounded-full border border-opacity-10">
+            <Text style={{ color: secondaryColor }} className="font-open-sans font-bold text-[12px]">
               Delivery: 100% Complete
             </Text>
           </View>
@@ -145,7 +152,8 @@ export default function HomeworkPublished() {
           <TouchableOpacity
             onPress={() => router.push("/(teacher)/teacher-homework" as any)}
             activeOpacity={0.85}
-            className="w-full h-[52px] bg-[#0D1B2A] rounded-2xl flex-row items-center justify-center"
+            style={{ backgroundColor: primaryColor }}
+            className="w-full h-[52px] rounded-2xl flex-row items-center justify-center"
           >
             <Feather name="eye" size={18} color="white" className="mr-2" />
             <Text className="font-poppins-semibold text-[15px] text-white">
@@ -157,10 +165,11 @@ export default function HomeworkPublished() {
           <TouchableOpacity
             onPress={() => router.replace("/(teacher)/" as any)}
             activeOpacity={0.85}
-            className="w-full h-[52px] bg-white border border-[#0D1B2A] rounded-2xl flex-row items-center justify-center"
+            style={{ borderColor: primaryColor }}
+            className="w-full h-[52px] bg-white border rounded-2xl flex-row items-center justify-center"
           >
-            <Feather name="grid" size={18} color="#0D1B2A" className="mr-2" />
-            <Text className="font-poppins-semibold text-[15px] text-[#0D1B2A]">
+            <Feather name="grid" size={18} color={primaryColor} className="mr-2" />
+            <Text style={{ color: primaryColor }} className="font-poppins-semibold text-[15px]">
               Return to Dashboard
             </Text>
           </TouchableOpacity>

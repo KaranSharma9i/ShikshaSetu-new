@@ -17,6 +17,12 @@ import { useInstitutionDashboard } from "@/hooks/useInstitutionDashboard";
 export default function InstitutionDashboard() {
   const router = useRouter();
   const { metrics, circulars, isLoading, error, refetch } = useInstitutionDashboard();
+  const { theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0F1C2C";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#FDF9F1";
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -36,7 +42,7 @@ export default function InstitutionDashboard() {
 
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
+    <SafeAreaView style={{ flex: 1, backgroundColor: creamColor }}>
       {/* Custom Header */}
       <Header title="Dashboard" showBackButton={true} />
 
@@ -47,10 +53,10 @@ export default function InstitutionDashboard() {
       >
         {/* Welcome Block */}
         <View className="px-5 pt-6 pb-4">
-          <Text className="text-[11px] font-poppins-semibold text-[#735c00] tracking-widest uppercase mb-1">
+          <Text className="text-[11px] font-poppins-semibold tracking-widest uppercase mb-1" style={{ color: secondaryColor }}>
             Academic Session 2026-27
           </Text>
-          <Text className="text-2xl font-poppins-bold text-[#0F1C2C] leading-tight">
+          <Text className="text-2xl font-poppins-bold leading-tight" style={{ color: primaryColor }}>
             Administrator Portal
           </Text>
           <Text className="text-xs font-inter text-neutral-steel mt-1">
@@ -62,7 +68,7 @@ export default function InstitutionDashboard() {
         <View className="px-5 mb-6">
           {isLoading ? (
             <View className="py-10 justify-center items-center">
-              <ActivityIndicator size="small" color="#FF5E00" />
+              <ActivityIndicator size="small" color={secondaryColor} />
             </View>
           ) : (
             <View className="flex-row flex-wrap -mx-2">
@@ -85,13 +91,13 @@ export default function InstitutionDashboard() {
                       }}
                       className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
                     >
-                      <View className="w-8 h-8 rounded-lg bg-[#0F1C2C]/5 items-center justify-center mb-3">
-                        <Ionicons name={metric.icon as any} size={18} color="#0F1C2C" />
+                      <View className="w-8 h-8 rounded-lg items-center justify-center mb-3" style={{ backgroundColor: primaryColor + '0D' }}>
+                        <Ionicons name={metric.icon as any} size={18} color={primaryColor} />
                       </View>
                       <Text className="text-neutral-steel font-inter text-[11px]">
                         {metric.title}
                       </Text>
-                      <Text className="text-[#0F1C2C] font-poppins-bold text-lg mt-1">
+                      <Text className="font-poppins-bold text-lg mt-1" style={{ color: primaryColor }}>
                         {metric.value}
                       </Text>
                       <Text className="text-emerald-600 font-inter text-[10px] mt-1 font-semibold">
@@ -107,7 +113,7 @@ export default function InstitutionDashboard() {
 
         {/* Quick Actions (Bento Style) */}
         <View className="px-5 mb-6">
-          <Text className="text-[#0F1C2C] font-poppins-bold text-base mb-3 px-1">
+          <Text className="font-poppins-bold text-base mb-3 px-1" style={{ color: primaryColor }}>
             Quick Actions
           </Text>
           <View className="flex-row flex-wrap justify-between">
@@ -116,8 +122,8 @@ export default function InstitutionDashboard() {
               onPress={() => router.push("/institution/register?type=student" as any)}
               className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
-              <Ionicons name="person-add-outline" size={20} color="#735c00" />
-              <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
+              <Ionicons name="person-add-outline" size={20} color={secondaryColor} />
+              <Text className="font-poppins-semibold text-xs mt-2" style={{ color: primaryColor }}>
                 Add Student
               </Text>
               <Text className="text-[10px] text-neutral-steel mt-0.5">
@@ -130,8 +136,8 @@ export default function InstitutionDashboard() {
               onPress={() => router.push("/institution/register?type=teacher" as any)}
               className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
-              <Ionicons name="people-outline" size={20} color="#735c00" />
-              <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
+              <Ionicons name="people-outline" size={20} color={secondaryColor} />
+              <Text className="font-poppins-semibold text-xs mt-2" style={{ color: primaryColor }}>
                 Add Teacher
               </Text>
               <Text className="text-[10px] text-neutral-steel mt-0.5">
@@ -144,8 +150,8 @@ export default function InstitutionDashboard() {
               onPress={() => router.push("/institution/circulars" as any)}
               className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
-              <Ionicons name="megaphone-outline" size={20} color="#735c00" />
-              <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
+              <Ionicons name="megaphone-outline" size={20} color={secondaryColor} />
+              <Text className="font-poppins-semibold text-xs mt-2" style={{ color: primaryColor }}>
                 Send Notice
               </Text>
               <Text className="text-[10px] text-neutral-steel mt-0.5">
@@ -158,8 +164,8 @@ export default function InstitutionDashboard() {
               onPress={() => router.push("/institution/events" as any)}
               className="w-[48.5%] bg-white p-4 rounded-xl border border-gray-200/60 shadow-sm mb-3"
             >
-              <Ionicons name="calendar-outline" size={20} color="#735c00" />
-              <Text className="text-[#0F1C2C] font-poppins-semibold text-xs mt-2">
+              <Ionicons name="calendar-outline" size={20} color={secondaryColor} />
+              <Text className="font-poppins-semibold text-xs mt-2" style={{ color: primaryColor }}>
                 Schedule Event
               </Text>
               <Text className="text-[10px] text-neutral-steel mt-0.5">
@@ -171,20 +177,20 @@ export default function InstitutionDashboard() {
 
         {/* Growth & Daily Alerts */}
         <View className="px-5 mb-6">
-          <View className="bg-[#0F1C2C] rounded-3xl p-5 border-2 border-[#ffe088]/40 shadow-md">
+          <View className="rounded-3xl p-5 shadow-md" style={{ backgroundColor: primaryColor, borderWidth: 2, borderColor: secondaryColor + '66' }}>
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-white font-poppins-bold text-sm">
                 System Updates & Alerts
               </Text>
-              <View className="bg-[#ffe088] px-2 py-0.5 rounded-full">
-                <Text className="text-[#0F1C2C] font-opensans font-bold text-[8px] uppercase tracking-wider">
+              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: secondaryColor }}>
+                <Text className="font-opensans font-bold text-[8px] uppercase tracking-wider" style={{ color: primaryColor }}>
                   Live
                 </Text>
               </View>
             </View>
 
             {isLoading ? (
-              <ActivityIndicator size="small" color="#ffe088" className="my-6" />
+              <ActivityIndicator size="small" color={secondaryColor} className="my-6" />
             ) : recentCirculars.length === 0 ? (
               <Text className="text-gray-400 text-xs font-inter italic text-center py-4">No recent notice broadcasts.</Text>
             ) : (
@@ -195,7 +201,7 @@ export default function InstitutionDashboard() {
                       <Ionicons
                         name="ellipse"
                         size={8}
-                        color={circular.category === "Urgent" ? "#EF4444" : "#ffe088"}
+                        color={circular.category === "Urgent" ? "#EF4444" : secondaryColor}
                       />
                     </View>
                     <View className="flex-1">

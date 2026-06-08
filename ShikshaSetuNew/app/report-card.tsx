@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Header from "../components/student/Header";
 import BottomNavBar from "../components/student/BottomNavBar";
 import { useStudentReportCard } from "../hooks/useStudentReportCard";
+import { useAuth } from "../src/hooks/useAuth";
 
 export default function ReportCardScreen() {
   const router = useRouter();
@@ -17,11 +18,19 @@ export default function ReportCardScreen() {
     setSelectedAcademicYearId, 
     refetch 
   } = useStudentReportCard();
+  const { theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
+  const successColor = theme?.colors?.success ?? "#059669";
+  const dangerColor = theme?.colors?.danger ?? "#DC2626";
 
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F9F6EF" }}>
+    <View style={{ flex: 1, backgroundColor: creamColor }}>
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
       
       <Header />
@@ -29,11 +38,11 @@ export default function ReportCardScreen() {
       <View style={{ flex: 1 }}>
         {isLoading && !reportCard ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator size="large" color="#D4AF37" />
+            <ActivityIndicator size="large" color={secondaryColor} />
           </View>
         ) : error ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
-            <Ionicons name="warning-outline" size={48} color="#EF4444" />
+            <Ionicons name="warning-outline" size={48} color={dangerColor} />
             <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: "#111827", textAlign: "center", marginTop: 12 }}>
               Failed to load report card
             </Text>
@@ -42,18 +51,18 @@ export default function ReportCardScreen() {
             </Text>
             <TouchableOpacity
               onPress={refetch}
-              style={{ backgroundColor: "#D4AF37", paddingHorizontal: 28, paddingVertical: 12, borderRadius: 100 }}
+              style={{ backgroundColor: secondaryColor, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 100 }}
             >
-              <Text style={{ fontFamily: "Poppins-Bold", color: "#0D1B2A", fontSize: 13 }}>Try Again</Text>
+              <Text style={{ fontFamily: "Poppins-Bold", color: primaryColor, fontSize: 13 }}>Try Again</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <ScrollView className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
               <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 8 }}>
-                <Ionicons name="arrow-back" size={24} color="#0D1B2A" />
+                <Ionicons name="arrow-back" size={24} color={primaryColor} />
               </TouchableOpacity>
-              <Text className="font-poppins-bold text-2xl text-[#0D1B2A]">Report Card</Text>
+              <Text className="font-poppins-bold text-2xl" style={{ color: primaryColor }}>Report Card</Text>
             </View>
 
             {/* Academic Year Selector Chips */}
@@ -70,8 +79,8 @@ export default function ReportCardScreen() {
                       key={ay.id}
                       onPress={() => setSelectedAcademicYearId(ay.id)}
                       style={{
-                        backgroundColor: isSelected ? "#0D1B2A" : "white",
-                        borderColor: isSelected ? "#0D1B2A" : "#E5E7EB",
+                        backgroundColor: isSelected ? primaryColor : "white",
+                        borderColor: isSelected ? primaryColor : "#E5E7EB",
                         borderWidth: 1,
                         borderRadius: 100,
                         paddingHorizontal: 16,
@@ -95,7 +104,7 @@ export default function ReportCardScreen() {
 
             {/* Overall Score Card */}
             {reportCard && (
-              <View style={{ backgroundColor: "#0D1B2A", borderRadius: 24, padding: 20, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
+              <View style={{ backgroundColor: primaryColor, borderRadius: 24, padding: 20, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
                 <Text style={{ fontFamily: "Inter-Regular", fontSize: 12, color: "#9CA3AF" }}>Academic Year {reportCard.academicYearLabel}</Text>
                 
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
@@ -107,7 +116,7 @@ export default function ReportCardScreen() {
                   </View>
                   
                   <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#FFFFFF15", alignItems: "center", alignSelf: "center", justifyContent: "center" }}>
-                    <Text style={{ fontFamily: "Poppins-Bold", fontSize: 24, color: "#D4AF37" }}>
+                    <Text style={{ fontFamily: "Poppins-Bold", fontSize: 24, color: secondaryColor }}>
                       {reportCard.overallGrade}
                     </Text>
                   </View>
@@ -116,7 +125,7 @@ export default function ReportCardScreen() {
             )}
 
             {/* Subject Grades Table */}
-            <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: "#0D1B2A", marginBottom: 12 }}>Subject-wise Marks</Text>
+            <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: primaryColor, marginBottom: 12 }}>Subject-wise Marks</Text>
 
             {!reportCard || reportCard.subjects.length === 0 ? (
               <View style={{ backgroundColor: "white", padding: 24, borderRadius: 20, borderWidth: 1, borderColor: "#F3F4F6", alignItems: "center", justifyContent: "center", height: 160 }}>
@@ -127,9 +136,9 @@ export default function ReportCardScreen() {
             ) : (
               reportCard.subjects.map((sub, i) => {
                 const pct = sub.percentage;
-                let gradeColor = "#DC2626"; // F/D
-                if (pct >= 90) gradeColor = "#059669"; // A+
-                else if (pct >= 80) gradeColor = "#10B981"; // A
+                let gradeColor = dangerColor; // F/D
+                if (pct >= 90) gradeColor = successColor; // A+
+                else if (pct >= 80) gradeColor = theme?.colors?.success ?? "#10B981"; // A
                 else if (pct >= 70) gradeColor = "#2563EB"; // B
                 else if (pct >= 60) gradeColor = "#7C3AED"; // C
 

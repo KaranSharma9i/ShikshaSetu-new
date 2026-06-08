@@ -125,7 +125,12 @@ function DashboardSkeleton() {
 
 export default function Index() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, user, signOut, role } = useAuth();
+  const { isLoaded, isSignedIn, user, signOut, role, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
 
   const {
     student,
@@ -159,9 +164,9 @@ export default function Index() {
   if (!isLoaded || !isSignedIn) {
     return (
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#F9F6EF", justifyContent: "center", alignItems: "center" }}
+        style={{ flex: 1, backgroundColor: creamColor, justifyContent: "center", alignItems: "center" }}
       >
-        <ActivityIndicator size="large" color="#D4AF37" />
+        <ActivityIndicator size="large" color={secondaryColor} />
       </SafeAreaView>
     );
   }
@@ -170,9 +175,9 @@ export default function Index() {
   if (role && role !== "student") {
     return (
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#F9F6EF", justifyContent: "center", alignItems: "center" }}
+        style={{ flex: 1, backgroundColor: creamColor, justifyContent: "center", alignItems: "center" }}
       >
-        <ActivityIndicator size="large" color="#D4AF37" />
+        <ActivityIndicator size="large" color={secondaryColor} />
       </SafeAreaView>
     );
   }
@@ -192,7 +197,7 @@ export default function Index() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F9F6EF" }}>
+    <View style={{ flex: 1, backgroundColor: creamColor }}>
       {/* Status bar padding for Android */}
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
 
@@ -236,13 +241,13 @@ export default function Index() {
           <TouchableOpacity
             onPress={refetch}
             style={{
-              backgroundColor: "#D4AF37",
+              backgroundColor: secondaryColor,
               paddingHorizontal: 28,
               paddingVertical: 12,
               borderRadius: 100,
             }}
           >
-            <Text style={{ fontFamily: "Poppins-Bold", color: "#0D1B2A", fontSize: 13 }}>
+            <Text style={{ fontFamily: "Poppins-Bold", color: primaryColor, fontSize: 13 }}>
               Try Again
             </Text>
           </TouchableOpacity>
@@ -298,7 +303,7 @@ export default function Index() {
           <View style={{ paddingHorizontal: 20, paddingTop: student ? 20 : 10, marginBottom: 16 }}>
             <View
               style={{
-                backgroundColor: "#0D1B2A",
+                backgroundColor: primaryColor,
                 borderRadius: 24,
                 padding: 20,
                 overflow: "hidden",
@@ -335,8 +340,8 @@ export default function Index() {
                 {upcomingExam && (
                   <View
                     style={{
-                      backgroundColor: "#ffe08820",
-                      borderColor: "#ffe08840",
+                      backgroundColor: secondaryLightColor + "20",
+                      borderColor: secondaryLightColor + "40",
                       borderWidth: 1,
                       borderRadius: 12,
                       padding: 10,
@@ -345,12 +350,12 @@ export default function Index() {
                       maxWidth: 120,
                     }}
                   >
-                    <Ionicons name="time-outline" size={14} color="#D4AF37" />
+                    <Ionicons name="time-outline" size={14} color={secondaryColor} />
                     <Text
                       style={{
                         fontFamily: "Poppins-Bold",
                         fontSize: 9,
-                        color: "#D4AF37",
+                        color: secondaryColor,
                         textAlign: "center",
                         marginTop: 3,
                         textTransform: "uppercase",
@@ -419,7 +424,7 @@ export default function Index() {
                       gap: 5,
                     }}
                   >
-                    <Ionicons name={item.icon} size={12} color="#D4AF37" />
+                    <Ionicons name={item.icon} size={12} color={secondaryColor} />
                     <Text
                       style={{
                         fontFamily: "Inter-Medium",
@@ -533,12 +538,12 @@ export default function Index() {
                   gap: 8,
                 }}
               >
-                <Ionicons name="bar-chart-outline" size={18} color="#D4AF37" />
+                <Ionicons name="bar-chart-outline" size={18} color={secondaryColor} />
                 <Text
                   style={{
                     fontFamily: "Poppins-SemiBold",
                     fontSize: 14,
-                    color: "#0D1B2A",
+                    color: primaryColor,
                   }}
                 >
                   Academic Performance
@@ -558,7 +563,7 @@ export default function Index() {
                   label={stats.homeworkLabel}
                   size={90}
                   strokeWidth={9}
-                  color="#D4AF37"
+                  color={secondaryColor}
                 />
 
                 {/* Divider */}
@@ -682,7 +687,7 @@ export default function Index() {
                   style={{
                     fontFamily: "Inter-Medium",
                     fontSize: 12,
-                    color: "#D4AF37",
+                    color: secondaryColor,
                   }}
                 >
                   View All →
@@ -743,14 +748,14 @@ export default function Index() {
                         width: 34,
                         height: 34,
                         borderRadius: 9,
-                        backgroundColor: "#FFF9EC",
+                        backgroundColor: secondaryLightColor + "20",
                         alignItems: "center",
                         justifyContent: "center",
                         marginTop: 1,
                         flexShrink: 0,
                       }}
                     >
-                      <Ionicons name="newspaper-outline" size={16} color="#D4AF37" />
+                      <Ionicons name="newspaper-outline" size={16} color={secondaryColor} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text

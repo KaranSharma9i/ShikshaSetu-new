@@ -21,7 +21,12 @@ import ProfilePhotoUploader from "../../components/student/ProfilePhotoUploader"
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { userId, signOut } = useAuth();
+  const { userId, signOut, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#fed65b";
+  const creamColor = theme?.colors?.cream ?? "#fbf9f8";
 
   const [profile, setProfile] = useState<any>(null);
   const [institution, setInstitution] = useState<any>(null);
@@ -73,7 +78,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
     return (
-      <View className="flex-1 bg-[#fbf9f8]">
+      <View className="flex-1" style={{ backgroundColor: creamColor }}>
         {/* Header Placeholder */}
         <View 
           className="bg-white border-b border-[#E5E7EB] px-5 flex-row justify-between items-center z-50"
@@ -122,7 +127,7 @@ export default function ProfileScreen() {
   if (error) {
     const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
     return (
-      <View className="flex-1 bg-[#fbf9f8]">
+      <View className="flex-1" style={{ backgroundColor: creamColor }}>
         <View 
           className="bg-white border-b border-[#E5E7EB] px-5 flex-row items-center z-50"
           style={{
@@ -130,11 +135,11 @@ export default function ProfileScreen() {
             paddingBottom: 15,
           }}
         >
-          <Text className="font-poppins-bold text-lg text-[#0D1B2A]">Student Profile</Text>
+          <Text className="font-poppins-bold text-lg" style={{ color: primaryColor }}>Student Profile</Text>
         </View>
         <View className="flex-1 justify-center items-center p-6">
           <Ionicons name="alert-circle-outline" size={64} color="#BA1A1A" />
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A] mt-4 mb-2 text-center">
+          <Text className="font-poppins-semibold text-lg mt-4 mb-2 text-center" style={{ color: primaryColor }}>
             Failed to Load Profile
           </Text>
           <Text className="font-inter text-gray-500 text-center mb-6 px-4">
@@ -142,7 +147,8 @@ export default function ProfileScreen() {
           </Text>
           <TouchableOpacity
             onPress={fetchProfileData}
-            className="bg-[#0D1B2A] px-6 py-3 rounded-xl shadow-sm"
+            className="px-6 py-3 rounded-xl shadow-sm"
+            style={{ backgroundColor: primaryColor }}
             activeOpacity={0.8}
           >
             <Text className="font-poppins-medium text-white text-sm">Retry</Text>
@@ -155,7 +161,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#fbf9f8]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header 
         studentName={profile?.full_name} 
         profilePhotoUrl={profile?.profile_photo_url}
@@ -169,9 +175,9 @@ export default function ProfileScreen() {
         <View 
           className="bg-white p-6 rounded-2xl mx-4 mt-4 items-center border border-gray-100/50"
           style={{
-            shadowColor: "rgba(13, 27, 42, 0.05)",
+            shadowColor: primaryColor,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 1,
+            shadowOpacity: 0.05,
             shadowRadius: 20,
             elevation: 2,
           }}
@@ -187,14 +193,14 @@ export default function ProfileScreen() {
           />
 
           {/* Student Name */}
-          <Text className="font-poppins-bold text-[22px] text-[#0D1B2A] text-center">
+          <Text className="font-poppins-bold text-[22px] text-center" style={{ color: primaryColor }}>
             {profile?.full_name}
           </Text>
 
           {/* Badges Row */}
           <View className="flex-row justify-center items-center space-x-2 mt-3">
             {/* Grade Badge */}
-            <View className="bg-[#0D1B2A] px-3.5 py-1.5 rounded-full flex-row items-center">
+            <View className="px-3.5 py-1.5 rounded-full flex-row items-center" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="school" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
               <Text className="font-poppins-medium text-xs text-white">
                 {profile?.class_name || "Grade N/A"}
@@ -202,8 +208,8 @@ export default function ProfileScreen() {
             </View>
 
             {/* Roll No Badge */}
-            <View className="bg-[#fed65b] px-3.5 py-1.5 rounded-full flex-row items-center">
-              <Text className="font-poppins-medium text-xs text-[#745c00]">
+            <View className="px-3.5 py-1.5 rounded-full flex-row items-center" style={{ backgroundColor: secondaryLightColor }}>
+              <Text className="font-poppins-medium text-xs" style={{ color: theme?.colors?.secondary ?? '#745c00' }}>
                 Roll No: {profile?.roll_number || "N/A"}
               </Text>
             </View>
@@ -214,9 +220,9 @@ export default function ProfileScreen() {
         <View 
           className="bg-white px-5 py-2 rounded-2xl mx-4 mt-4 border border-gray-100/50"
           style={{
-            shadowColor: "rgba(13, 27, 42, 0.05)",
+            shadowColor: primaryColor,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 1,
+            shadowOpacity: 0.05,
             shadowRadius: 20,
             elevation: 2,
           }}
@@ -227,10 +233,10 @@ export default function ProfileScreen() {
             className="flex-row items-center py-4"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="bar-chart-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text className="font-poppins-medium text-[15px] flex-1" style={{ color: primaryColor }}>
               Report Card
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />
@@ -244,10 +250,10 @@ export default function ProfileScreen() {
             className="flex-row items-center py-4"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text className="font-poppins-medium text-[15px] flex-1" style={{ color: primaryColor }}>
               Class Schedule
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />
@@ -265,10 +271,10 @@ export default function ProfileScreen() {
             className="flex-row items-center py-4"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="umbrella-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text className="font-poppins-medium text-[15px] flex-1" style={{ color: primaryColor }}>
               Holidays
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />
@@ -282,10 +288,10 @@ export default function ProfileScreen() {
             className="flex-row items-center py-4"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text className="font-poppins-medium text-[15px] flex-1" style={{ color: primaryColor }}>
               Fee History & Receipts
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />
@@ -296,14 +302,14 @@ export default function ProfileScreen() {
         <View 
           className="bg-white p-5 rounded-2xl mx-4 mt-4 border border-gray-100/50"
           style={{
-            shadowColor: "rgba(13, 27, 42, 0.05)",
+            shadowColor: primaryColor,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 1,
+            shadowOpacity: 0.05,
             shadowRadius: 20,
             elevation: 2,
           }}
         >
-          <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A] mb-3">
+          <Text className="font-poppins-semibold text-[16px] mb-3" style={{ color: primaryColor }}>
             Account Settings
           </Text>
 
@@ -313,10 +319,10 @@ export default function ProfileScreen() {
             className="flex-row items-center py-3.5"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="person-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text className="font-poppins-medium text-[15px] flex-1" style={{ color: primaryColor }}>
               Update Personal Information
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />
@@ -330,10 +336,10 @@ export default function ProfileScreen() {
             className="flex-row items-center py-3.5"
             activeOpacity={0.7}
           >
-            <View className="w-10 h-10 rounded-xl bg-[#0D1B2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: primaryColor }}>
               <Ionicons name="key-outline" size={20} color="#FFFFFF" />
             </View>
-            <Text className="font-poppins-medium text-[15px] text-[#0D1B2A] flex-1">
+            <Text className="font-poppins-medium text-[15px] flex-1" style={{ color: primaryColor }}>
               Update Password
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#6B7280" />

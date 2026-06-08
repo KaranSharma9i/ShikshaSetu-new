@@ -1,5 +1,5 @@
 // WARNING: This script TRUNCATES all data. 
-// Only run on empty databases.
+// Only run on empty databases or during development reset.
 // Never run in production or when real data exists.
 
 const { Client } = require('pg');
@@ -9,12 +9,11 @@ const ws = require('ws');
 const crypto = require('crypto');
 
 const DATABASE_URL = process.env.DATABASE_URL;
-
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase environment variables');
+if (!DATABASE_URL || !supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing required environment variables (DATABASE_URL, EXPO_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)');
   process.exit(1);
 }
 
@@ -23,7 +22,9 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   realtime: { transport: ws }
 });
 
-// --- CONSTANTS FROM SPEC ---
+const force = process.argv.includes('--force');
+
+// --- CONSTANTS ---
 const SURNAMES = ['Sharma','Gupta','Singh','Yadav','Verma','Mishra','Tiwari','Pandey','Dubey','Shukla','Srivastava','Patel','Bajpai','Tripathi','Saxena','Dwivedi','Dixit','Kushwaha','Chauhan','Agarwal'];
 const MALE_FIRST = ['Ram','Shiv','Hari','Suresh','Dinesh','Rakesh','Mahesh','Naresh','Mukesh','Umesh','Ganesh','Rajesh','Santosh','Arvind','Vinod','Anil','Sunil','Pawan','Rohit','Deepak'];
 const FEMALE_FIRST = ['Sunita','Meena','Rekha','Savita','Anita','Kavita','Geeta','Pushpa','Lalita','Sudha','Renu','Saroj','Mamta','Pooja','Shanti','Kiran','Neha','Usha','Seema','Sita'];
@@ -35,13 +36,10 @@ const GUARDIAN_FIRST = ['Ramesh','Suresh','Dinesh','Rakesh','Mahesh','Rajesh','S
 const VILLAGES = ['Auraiya', 'Achhalda', 'Bidhuna', 'Rasulabad', 'Ajitmal', 'Dibiyapur', 'Phaphund', 'Saurikh'];
 const BLOOD_GROUPS = ['A+', 'B+', 'O+', 'AB+', 'A-', 'B-', 'O-', 'AB-'];
 
-// Roll number class code helper
-// Nursery -> 'N', LKG -> 'LKG', UKG -> 'UKG', Class 1 -> '1', Class 12 -> '12'
 function getClassCode(className) {
   if (className === 'Nursery') return 'N';
   if (className === 'LKG') return 'LKG';
   if (className === 'UKG') return 'UKG';
-  // 'Class X' -> 'X'
   return className.replace('Class ', '');
 }
 
@@ -70,33 +68,151 @@ async function bulkInsert(client, tableName, columns, rows) {
 
 async function seed() {
   console.log('Running safety checks...');
-  const { count: studentCount } = await supabase
-    .from('students')
-    .select('*', { count: 'exact', head: true });
+  const pgClient = new Client({ connectionString: DATABASE_URL });
+  await pgClient.connect();
 
-  const { data: authData } = await supabase.auth.admin.listUsers();
-  const authCount = authData?.users?.length ?? 0;
+  let studentCount = 0;
+  try {
+    const res = await pgClient.query('SELECT COUNT(*) as cnt FROM public.students');
+    studentCount = parseInt(res.rows[0].cnt);
+  } catch (err) {
+    console.log('Error checking student count:', err.message);
+  }
 
-  if (studentCount > 0) {
+  if (studentCount > 0 && !force) {
     console.error('SAFETY: Database has real data. Aborting seed to prevent data loss.');
     console.error(`Students: ${studentCount}`);
+    console.error('To override, run with --force: node scripts/seed_database.js --force');
+    await pgClient.end();
     process.exit(1);
   }
 
+  // --- PREPARE USER REGISTER LIST ---
+  // Seed precisely: 3 admins, 17 teachers, 130 students, and 2 drivers
+  const usersToCreate = [];
 
-  const client = new Client({ connectionString: DATABASE_URL });
-  await client.connect();
+  // 1. Admins (3)
+  const adminsData = [
+    { name: 'Dr. Shyam Sundar Pandey', email: 'adm1@gurukulsiksha.edu.in', role: 'institution_admin', login_id: 'GS-ADM-001' },
+    { name: 'Smt. Usha Rani Sharma', email: 'adm2@gurukulsiksha.edu.in', role: 'institution_admin', login_id: 'GS-ADM-002' },
+    { name: 'Shri Arvind Kumar Mishra', email: 'adm3@gurukulsiksha.edu.in', role: 'institution_admin', login_id: 'GS-ADM-003' }
+  ];
+  usersToCreate.push(...adminsData);
+
+  // 2. Teachers (17)
+  const teachersList = [
+    { name: 'Ramesh Kumar Sharma', gender: 'male', specialization: 'Mathematics', qualification: 'M.Sc., B.Ed.' },
+    { name: 'Sunita Devi Gupta', gender: 'female', specialization: 'Hindi', qualification: 'M.A. Hindi, B.Ed.' },
+    { name: 'Ajay Pratap Singh', gender: 'male', specialization: 'Science (Middle)', qualification: 'M.Sc. Physics, B.Ed.' },
+    { name: 'Meena Rani Mishra', gender: 'female', specialization: 'English', qualification: 'M.A. English, B.Ed.' },
+    { name: 'Vinod Kumar Tiwari', gender: 'male', specialization: 'Social Science', qualification: 'M.A. History, B.Ed.' },
+    { name: 'Rekha Devi Verma', gender: 'female', specialization: 'Mathematics', qualification: 'M.Sc. Maths, B.Ed.' },
+    { name: 'Santosh Kumar Yadav', gender: 'male', specialization: 'Physical Education', qualification: 'M.P.Ed.' },
+    { name: 'Priya Pandey', gender: 'female', specialization: 'Sanskrit', qualification: 'M.A. Sanskrit, B.Ed.' },
+    { name: 'Rajesh Nath Dubey', gender: 'male', specialization: 'Physics', qualification: 'M.Sc. Physics, B.Ed.' },
+    { name: 'Savita Singh Chauhan', gender: 'female', specialization: 'Chemistry', qualification: 'M.Sc. Chemistry, B.Ed.' },
+    { name: 'Dinesh Kumar Awasthi', gender: 'male', specialization: 'Biology', qualification: 'M.Sc. Biology, B.Ed.' },
+    { name: 'Anita Kumari Srivastava', gender: 'female', specialization: 'Computer Science', qualification: 'MCA, B.Ed.' },
+    { name: 'Manoj Kumar Patel', gender: 'male', specialization: 'History & Civics', qualification: 'M.A. History, B.Ed.' },
+    { name: 'Kavita Rani Shukla', gender: 'female', specialization: 'Geography', qualification: 'M.A. Geography, B.Ed.' },
+    { name: 'Suresh Chandra Bajpai', gender: 'male', specialization: 'Mathematics (Sr.)', qualification: 'M.Sc. Maths, M.Ed.' },
+    { name: 'Lalita Devi Tripathi', gender: 'female', specialization: 'English Core', qualification: 'M.A. English, M.Ed.' },
+    { name: 'Harish Kumar Saxena', gender: 'male', specialization: 'Accountancy', qualification: 'M.Com., B.Ed.' }
+  ];
+
+  for (let i = 0; i < teachersList.length; i++) {
+    const t = teachersList[i];
+    const sr = i + 1;
+    usersToCreate.push({
+      name: t.name,
+      email: `tch${sr}@gurukulsiksha.edu.in`,
+      role: 'teacher',
+      login_id: `GS-TCH-${String(sr).padStart(3, '0')}`,
+      gender: t.gender,
+      specialization: t.specialization,
+      qualification: t.qualification,
+      employee_code: `TCH${String(sr).padStart(3, '0')}`,
+      date_of_joining: new Date(2015 + Math.floor(sr / 4), (sr % 12), 1).toISOString().slice(0, 10)
+    });
+  }
+
+  // 3. Drivers (2)
+  const driversData = [
+    { name: 'Ramu Prasad Nishad', email: 'drv1@gurukulsiksha.edu.in', role: 'driver', login_id: 'GS-DRV-001', license: 'UP76-2018-0012345' },
+    { name: 'Chhote Lal Yadav', email: 'drv2@gurukulsiksha.edu.in', role: 'driver', login_id: 'GS-DRV-002', license: 'UP76-2016-0056789' }
+  ];
+  usersToCreate.push(...driversData.map(d => ({
+    name: d.name,
+    email: d.email,
+    role: 'driver',
+    login_id: d.login_id,
+    license: d.license
+  })));
+
+  // 4. Students (130)
+  for (let sr = 1; sr <= 130; sr++) {
+    const surname = STU_SURNAMES[(sr - 1) % 26];
+    const gender = sr % 2 === 1 ? 'male' : 'female';
+    const first = gender === 'male'
+      ? STU_MALE_FIRST[Math.floor((sr - 1) / 2) % 30]
+      : STU_FEMALE_FIRST[Math.floor((sr - 1) / 2) % 30];
+    const guardianFirst = GUARDIAN_FIRST[(sr - 1) % 30];
+    const village = VILLAGES[(sr - 1) % 8];
+    const plan_tier = sr % 10 === 0 ? 'PRO' : (sr % 10 > 0 && sr % 10 < 9 ? 'STANDARD' : 'FREE');
+    const tier_expires_at = plan_tier === 'FREE' ? null : '2027-03-31 00:00:00+05:30';
+
+    usersToCreate.push({
+      name: `${first} ${surname}`,
+      email: `stu${sr}@gurukulsiksha.edu.in`,
+      role: 'student',
+      login_id: `GS-STU-${String(sr).padStart(4, '0')}`,
+      gender,
+      guardian_name: `${guardianFirst} ${surname}`,
+      village,
+      student_code: `STU${String(sr).padStart(4, '0')}`,
+      plan_tier,
+      tier_expires_at
+    });
+  }
 
   try {
     // Clean auth.users first
-    console.log('Cleaning auth.users...');
-    await client.query('DELETE FROM auth.users;');
+    console.log('Cleaning auth.users table...');
+    await pgClient.query('DELETE FROM auth.users;');
 
-    await client.query('BEGIN');
+    // Pre-register all users in Supabase Auth to get UUIDs
+    console.log('Pre-registering users in Supabase Auth (152 total)...');
+    const authUserMap = {}; // email -> uuid
+    const batchSize = 10;
+    for (let i = 0; i < usersToCreate.length; i += batchSize) {
+      const batch = usersToCreate.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (user) => {
+        const { data, error } = await supabase.auth.admin.createUser({
+          email: user.email,
+          password: 'password123',
+          email_confirm: true,
+          user_metadata: { is_admin_registered: true }
+        });
+        if (error) {
+          console.error(`Error creating auth user ${user.email}:`, error.message);
+          throw error;
+        }
+        authUserMap[user.email] = data.user.id;
+      }));
+      await new Promise(r => setTimeout(r, 100));
+      console.log(`Auth users registered: ${Math.min(i + batchSize, usersToCreate.length)}/${usersToCreate.length}`);
+    }
+    console.log('All auth users successfully registered!');
+
+    // Start Postgres seeding
+    await pgClient.query('BEGIN');
     console.log('Transaction started...');
 
     console.log('Truncating all tables for a fresh start...');
     const tablesToTruncate = [
+      'wallet_transactions', 'student_wallets', 'student_daily_usage', 'ai_daily_quotas', 'ai_scores',
+      'homework_submissions', 'homework',
+      'marketing_metrics', 'marketing_leads', 'marketing_channels', 'marketing_campaigns',
       'circulars', 'holidays', 'exam_results', 'exams',
       'student_transport_assignments', 'transport_drivers', 'transport_vehicles', 'transport_routes',
       'fee_payments', 'fee_structures',
@@ -104,28 +220,50 @@ async function seed() {
       'teachers', 'users', 'subjects', 'classes', 'academic_years', 'institutions'
     ];
     for (const table of tablesToTruncate) {
-      await client.query(`TRUNCATE TABLE ${table} CASCADE;`);
+      await pgClient.query(`TRUNCATE TABLE ${table} CASCADE;`);
     }
 
     // 1. Institutions
-    const instRes = await client.query(`
-      INSERT INTO institutions (name, code, address, city, state, pincode, phone, email, logo_url, status, subscription_ends_at)
-      VALUES ('Gurukul Shikshalaya', 'GS-AUR-001', 'Civil Lines, Near Collectorate, Auraiya', 'Auraiya', 'Uttar Pradesh', '206122', '+91-5683-220101', 'info@gurukulsiksha.edu.in', 'https://assets.margam.app/demo/gurukul-logo.png', 'active', '2026-03-31 00:00:00+05:30')
+    const themeData = {
+      colors: {
+        primary: "#0D1B2A",
+        primaryAlt: "#162A56",
+        secondary: "#D4AF37",
+        secondaryLight: "#F2C14E",
+        charcoal: "#333333",
+        steelGray: "#6B7280",
+        lightGray: "#E5E7EB",
+        cream: "#F7F3EB",
+        white: "#FFFFFF",
+        success: "#22C55E",
+        warning: "#EAB308",
+        danger: "#EF4444"
+      },
+      fonts: {
+        heading: "Poppins",
+        body: "Inter",
+        caption: "OpenSans"
+      }
+    };
+
+    const instRes = await pgClient.query(`
+      INSERT INTO institutions (name, code, address, city, state, pincode, phone, email, logo_url, tagline, status, subscription_ends_at, theme)
+      VALUES ('Gurukul Shikshalaya', 'GS-AUR-001', 'Civil Lines, Near Collectorate, Auraiya', 'Auraiya', 'Uttar Pradesh', '206122', '+91-5683-220101', 'info@gurukulsiksha.edu.in', 'https://assets.margam.app/demo/gurukul-logo.png', 'Digital Backbone of Institutions', 'active', '2026-03-31 00:00:00+05:30', $1)
       RETURNING id;
-    `);
+    `, [JSON.stringify(themeData)]);
     const institutionId = instRes.rows[0].id;
-    console.log('Institution seeded.');
+    console.log('Institution seeded:', institutionId);
 
     // 2. Academic Year
-    const ayRes = await client.query(`
+    const ayRes = await pgClient.query(`
       INSERT INTO academic_years (institution_id, label, starts_on, ends_on, is_current)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id;
     `, [institutionId, '2025-26', '2025-04-01', '2026-03-31', true]);
     const academicYearId = ayRes.rows[0].id;
-    console.log('Academic year seeded.');
+    console.log('Academic year seeded:', academicYearId);
 
-    // 3. Classes — grade_number 1–15 (constraint updated in migration)
+    // 3. Classes
     const classData = [
       ['Nursery', 1], ['LKG', 2], ['UKG', 3], ['Class 1', 4], ['Class 2', 5],
       ['Class 3', 6], ['Class 4', 7], ['Class 5', 8], ['Class 6', 9], ['Class 7', 10],
@@ -133,7 +271,7 @@ async function seed() {
     ];
     const classIdMap = {};
     for (const [name, grade] of classData) {
-      const res = await client.query(
+      const res = await pgClient.query(
         `INSERT INTO classes (institution_id, name, grade_number) VALUES ($1, $2, $3) RETURNING id;`,
         [institutionId, name, grade]
       );
@@ -155,7 +293,7 @@ async function seed() {
     ];
     const subjectIdMap = {};
     for (const [name, code] of subjectsData) {
-      const res = await client.query(
+      const res = await pgClient.query(
         `INSERT INTO subjects (institution_id, name, code) VALUES ($1, $2, $3) RETURNING id;`,
         [institutionId, name, code]
       );
@@ -163,145 +301,154 @@ async function seed() {
     }
     console.log('Subjects seeded.');
 
-    // 5. Users — Non-teaching staff (Institution Admin)
-    for (let sr = 1; sr <= 20; sr++) {
-      let fullName;
-      if (sr === 1) fullName = 'Dr. Shyam Sundar Pandey';
-      else if (sr === 2) fullName = 'Smt. Usha Rani Sharma';
-      else if (sr === 3) fullName = 'Shri Arvind Kumar Mishra';
-      else {
-        const gender = sr % 2 === 0 ? 'male' : 'female';
-        const first = gender === 'male' ? MALE_FIRST[Math.floor(sr / 2) % 20] : FEMALE_FIRST[Math.floor(sr / 2) % 20];
-        const surname = SURNAMES[sr % 20];
-        fullName = `${first} ${surname}`;
-      }
-await client.query(`
-  INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
-  VALUES ($1, $2, $3, $4, 'institution_admin', 'active', $5)
-`, [`GS-ADM-${String(sr).padStart(3, '0')}`, fullName, `adm${sr}@gurukulsiksha.edu.in`, `+91-98970-${String(sr).padStart(5, '0')}`, institutionId]);
+    // 5. Users
+    const userRows = [];
+    for (const u of usersToCreate) {
+      const authId = authUserMap[u.email];
+      userRows.push({
+        id: authId,
+        institution_id: institutionId,
+        role: u.role,
+        login_id: u.login_id,
+        full_name: u.name,
+        email: u.email,
+        phone: u.phone || `+91-98970-${Math.floor(10000 + Math.random() * 90000)}`,
+        status: 'active'
+      });
     }
-    console.log('Non-teaching staff seeded.');
+    console.log('Inserting public.users...');
+    await bulkInsert(pgClient, 'users', ['id', 'institution_id', 'role', 'login_id', 'full_name', 'email', 'phone', 'status'], userRows);
 
-    // 6 & 7. Users (Teachers) and Teacher Profiles
-    const teachersData = [
-      ['Ramesh Kumar Sharma', 'male', 'Mathematics', 'M.Sc., B.Ed.'],
-      ['Sunita Devi Gupta', 'female', 'Hindi', 'M.A. Hindi, B.Ed.'],
-      ['Ajay Pratap Singh', 'male', 'Science (Middle)', 'M.Sc. Physics, B.Ed.'],
-      ['Meena Rani Mishra', 'female', 'English', 'M.A. English, B.Ed.'],
-      ['Vinod Kumar Tiwari', 'male', 'Social Science', 'M.A. History, B.Ed.'],
-      ['Rekha Devi Verma', 'female', 'Mathematics', 'M.Sc. Maths, B.Ed.'],
-      ['Santosh Kumar Yadav', 'male', 'Physical Education', 'M.P.Ed.'],
-      ['Priya Pandey', 'female', 'Sanskrit', 'M.A. Sanskrit, B.Ed.'],
-      ['Rajesh Nath Dubey', 'male', 'Physics', 'M.Sc. Physics, B.Ed.'],
-      ['Savita Singh Chauhan', 'female', 'Chemistry', 'M.Sc. Chemistry, B.Ed.'],
-      ['Dinesh Kumar Awasthi', 'male', 'Biology', 'M.Sc. Biology, B.Ed.'],
-      ['Anita Kumari Srivastava', 'female', 'Computer Science', 'MCA, B.Ed.'],
-      ['Manoj Kumar Patel', 'male', 'History & Civics', 'M.A. History, B.Ed.'],
-      ['Kavita Rani Shukla', 'female', 'Geography', 'M.A. Geography, B.Ed.'],
-      ['Suresh Chandra Bajpai', 'male', 'Mathematics (Sr.)', 'M.Sc. Maths, M.Ed.'],
-      ['Lalita Devi Tripathi', 'female', 'English Core', 'M.A. English, M.Ed.'],
-      ['Harish Kumar Saxena', 'male', 'Accountancy', 'M.Com., B.Ed.'],
-      ['Pushpa Singh', 'female', 'Business Studies', 'MBA, B.Ed.'],
-      ['Umesh Kumar Dwivedi', 'male', 'Economics', 'M.A. Economics, B.Ed.'],
-      ['Geeta Rani Agarwal', 'female', 'Hindi', 'M.A. Hindi, B.Ed.'],
-      ['Rajeev Ranjan Mishra', 'male', 'Physics (Sr.)', 'M.Sc. Physics, M.Ed.'],
-      ['Sudha Devi Pandey', 'female', 'Chemistry (Sr.)', 'M.Sc. Chemistry, M.Ed.'],
-      ['Ashok Kumar Dixit', 'male', 'EVS / General Science', 'M.Sc. Env. Science, B.Ed.'],
-      ['Neha Tripathi', 'female', 'Art & Craft', 'B.F.A., B.Ed.'],
-      ['Sanjay Kumar Singh', 'male', 'Computer Science (Sr.)', 'M.Tech. CS'],
-      ['Renu Yadav', 'female', 'Mathematics (Primary)', 'B.Sc., B.Ed.'],
-      ['Pankaj Kumar Shukla', 'male', 'English (Primary)', 'M.A. English, B.Ed.'],
-      ['Saroj Devi Kushwaha', 'female', 'Social Science', 'M.A. Pol. Science, B.Ed.'],
-      ['Devendra Pratap Rao', 'male', 'Biology (Sr.)', 'M.Sc. Zoology, M.Ed.'],
-      ['Mamta Agarwal', 'female', 'Informatics Practices', 'B.Tech. IT, B.Ed.']
-    ];
+    // 6. Teachers
+    const teacherIdMap = {}; // login_id -> teachers.id (UUID)
+    const teacherRows = [];
+    const teacherUsers = usersToCreate.filter(u => u.role === 'teacher');
+    for (const t of teacherUsers) {
+      const authId = authUserMap[t.email];
+      const teacherId = crypto.randomUUID();
+      teacherIdMap[t.login_id] = teacherId;
 
-    const teacherLoginIdMap = {}; // loginId -> userId
-
-    for (let i = 0; i < teachersData.length; i++) {
-      const [name, gender, spec, qual] = teachersData[i];
-      const sr = i + 1;
-      const loginId = `GS-TCH-${String(sr).padStart(3, '0')}`;
-      const empCode = `TCH${String(sr).padStart(3, '0')}`;
-
-      // date_of_joining: TCH001 = 2010-06-01, increment 4 months per teacher
-      const baseDate = new Date('2010-06-01');
-      baseDate.setMonth(baseDate.getMonth() + (sr - 1) * 4);
-      const doj = baseDate.toISOString().slice(0, 10);
-
-      const uRes = await client.query(`
-        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
-VALUES ($1, $2, $3, $4, 'teacher', 'active', $5)
-RETURNING id;
-`, [loginId, name, `tch${sr}@gurukulsiksha.edu.in`, `+91-94150-${String(sr).padStart(5, '0')}`, institutionId]);
-      const userId = uRes.rows[0].id;
-
-      await client.query(`
-        INSERT INTO teachers (user_id, employee_code, specialization, qualification, gender, date_of_joining, emergency_contact, address, institution_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id;
-      `, [userId, empCode, spec, qual, gender, doj, `+91-94150-${String(sr + 100).padStart(5, '0')}`, 'Auraiya, Uttar Pradesh', institutionId]);
-
-      teacherLoginIdMap[loginId] = userId;
+      teacherRows.push({
+        id: teacherId,
+        user_id: authId,
+        institution_id: institutionId,
+        employee_code: t.employee_code,
+        date_of_birth: '1980-01-01',
+        gender: t.gender,
+        qualification: t.qualification,
+        specialization: t.specialization,
+        date_of_joining: t.date_of_joining,
+        address: 'Auraiya, Uttar Pradesh',
+        emergency_contact: `+91-94150-00000`
+      });
     }
-    console.log('Teachers seeded.');
+    console.log('Inserting teachers...');
+    await bulkInsert(pgClient, 'teachers', ['id', 'user_id', 'institution_id', 'employee_code', 'date_of_birth', 'gender', 'qualification', 'specialization', 'date_of_joining', 'address', 'emergency_contact'], teacherRows);
 
-    // 8. Sections
+    // 7. Sections (exactly 17 sections, mapped 1-to-1 with the 17 teachers)
     const sectionLayout = [
       { class: 'Nursery',  secs: ['A'] },
       { class: 'LKG',      secs: ['A'] },
-      { class: 'UKG',      secs: ['A', 'B'] },
-      { class: 'Class 1',  secs: ['A', 'B'] },
-      { class: 'Class 2',  secs: ['A', 'B'] },
-      { class: 'Class 3',  secs: ['A', 'B'] },
-      { class: 'Class 4',  secs: ['A', 'B'] },
-      { class: 'Class 5',  secs: ['A', 'B'] },
-      { class: 'Class 6',  secs: ['A', 'B'] },
-      { class: 'Class 7',  secs: ['A', 'B'] },
-      { class: 'Class 8',  secs: ['A', 'B'] },
-      { class: 'Class 9',  secs: ['A', 'B', 'C'] },
-      { class: 'Class 10', secs: ['A', 'B', 'C'] },
-      { class: 'Class 11', secs: ['A', 'B', 'C', 'D'] },
-      { class: 'Class 12', secs: ['A', 'B', 'C', 'D'] },
+      { class: 'UKG',      secs: ['A'] },
+      { class: 'Class 1',  secs: ['A'] },
+      { class: 'Class 2',  secs: ['A'] },
+      { class: 'Class 3',  secs: ['A'] },
+      { class: 'Class 4',  secs: ['A'] },
+      { class: 'Class 5',  secs: ['A'] },
+      { class: 'Class 6',  secs: ['A'] },
+      { class: 'Class 7',  secs: ['A'] },
+      { class: 'Class 8',  secs: ['A'] },
+      { class: 'Class 9',  secs: ['A'] },
+      { class: 'Class 10', secs: ['A'] },
+      { class: 'Class 11', secs: ['A', 'B'] },
+      { class: 'Class 12', secs: ['A', 'B'] },
     ];
     const classTeacherMap = {
-      'Nursery-A': 'GS-TCH-024', 'LKG-A': 'GS-TCH-026', 'UKG-A': 'GS-TCH-027', 'UKG-B': 'GS-TCH-023',
-      'Class 1-A': 'GS-TCH-004', 'Class 1-B': 'GS-TCH-020', 'Class 2-A': 'GS-TCH-002', 'Class 2-B': 'GS-TCH-028',
-      'Class 3-A': 'GS-TCH-008', 'Class 3-B': 'GS-TCH-016', 'Class 4-A': 'GS-TCH-006', 'Class 4-B': 'GS-TCH-026',
-      'Class 5-A': 'GS-TCH-027', 'Class 5-B': 'GS-TCH-023', 'Class 6-A': 'GS-TCH-003', 'Class 6-B': 'GS-TCH-005',
-      'Class 7-A': 'GS-TCH-012', 'Class 7-B': 'GS-TCH-028', 'Class 8-A': 'GS-TCH-001', 'Class 8-B': 'GS-TCH-013',
-      'Class 9-A': 'GS-TCH-009', 'Class 9-B': 'GS-TCH-010', 'Class 9-C': 'GS-TCH-011', 'Class 10-A': 'GS-TCH-014',
-      'Class 10-B': 'GS-TCH-019', 'Class 10-C': 'GS-TCH-025', 'Class 11-A': 'GS-TCH-021', 'Class 11-B': 'GS-TCH-022',
-      'Class 11-C': 'GS-TCH-017', 'Class 11-D': 'GS-TCH-018', 'Class 12-A': 'GS-TCH-015', 'Class 12-B': 'GS-TCH-029',
-      'Class 12-C': 'GS-TCH-030', 'Class 12-D': 'GS-TCH-007',
+      'Nursery-A': 'GS-TCH-001',
+      'LKG-A': 'GS-TCH-002',
+      'UKG-A': 'GS-TCH-003',
+      'Class 1-A': 'GS-TCH-004',
+      'Class 2-A': 'GS-TCH-005',
+      'Class 3-A': 'GS-TCH-006',
+      'Class 4-A': 'GS-TCH-007',
+      'Class 5-A': 'GS-TCH-008',
+      'Class 6-A': 'GS-TCH-009',
+      'Class 7-A': 'GS-TCH-010',
+      'Class 8-A': 'GS-TCH-011',
+      'Class 9-A': 'GS-TCH-012',
+      'Class 10-A': 'GS-TCH-013',
+      'Class 11-A': 'GS-TCH-014',
+      'Class 11-B': 'GS-TCH-015',
+      'Class 12-A': 'GS-TCH-016',
+      'Class 12-B': 'GS-TCH-017',
     };
+
     const sectionIdMap = {};        // 'Class 9-A' -> sectionId
     const sectionClassIdMap = {};   // sectionId   -> classId
+
     for (const item of sectionLayout) {
       for (const secName of item.secs) {
         const key = `${item.class}-${secName}`;
         const teacherLoginId = classTeacherMap[key];
-        const teacherId = teacherLoginIdMap[teacherLoginId];
-        const res = await client.query(`
+        const teacherUserId = authUserMap[teacherLoginId + '@gurukulsiksha.edu.in'];
+
+        const res = await pgClient.query(`
           INSERT INTO sections (class_id, academic_year_id, name, capacity, class_teacher_id)
           VALUES ($1, $2, $3, $4, $5)
           RETURNING id;
-        `, [classIdMap[item.class], academicYearId, secName, 60, teacherId]);
-        sectionIdMap[key] = res.rows[0].id;
-        sectionClassIdMap[res.rows[0].id] = classIdMap[item.class];
+        `, [classIdMap[item.class], academicYearId, secName, 40, teacherUserId]);
+        
+        const sectionId = res.rows[0].id;
+        sectionIdMap[key] = sectionId;
+        sectionClassIdMap[sectionId] = classIdMap[item.class];
       }
     }
     console.log('Sections seeded.');
 
-    // 9. Class Subjects
-    const mapping = [
+    // 8. Class Subjects (Teacher matches specialization keyword)
+    const pgTeachers = teacherUsers.map(t => ({
+      userId: authUserMap[t.email],
+      specialization: t.specialization
+    }));
+
+    function getTeacherForSubject(subCode) {
+      const findTeacher = (specKeyword) => pgTeachers.find(t => t.specialization.toLowerCase().includes(specKeyword.toLowerCase()));
+      
+      if (['MAT-SR', 'MAT', 'PP-MAT'].includes(subCode)) {
+        if (subCode === 'MAT-SR') return findTeacher('mathematics (sr.)') || findTeacher('mathematics');
+        const mathTeachers = pgTeachers.filter(t => t.specialization.toLowerCase().includes('mathematics'));
+        if (mathTeachers.length > 0) return mathTeachers[Math.floor(Math.random() * mathTeachers.length)];
+      }
+      if (['HIN', 'PP-HIN'].includes(subCode)) return findTeacher('hindi');
+      if (['ENG', 'PP-ENG', 'ENG-CORE'].includes(subCode)) {
+        if (subCode === 'ENG-CORE') return findTeacher('english core') || findTeacher('english');
+        return findTeacher('english');
+      }
+      if (['SCI', 'EVS'].includes(subCode)) return findTeacher('science') || findTeacher('evs');
+      if (['PHY', 'PHY-SR'].includes(subCode)) return findTeacher('physics') || findTeacher('physics (sr.)');
+      if (['CHE', 'CHE-SR'].includes(subCode)) return findTeacher('chemistry') || findTeacher('chemistry (sr.)');
+      if (['BIO', 'BIO-SR'].includes(subCode)) return findTeacher('biology') || findTeacher('biology (sr.)');
+      if (['CS', 'IP'].includes(subCode)) return findTeacher('computer') || findTeacher('informatics');
+      if (subCode === 'SST') return findTeacher('social');
+      if (subCode === 'SAN') return findTeacher('sanskrit');
+      if (subCode === 'HIS') return findTeacher('history');
+      if (subCode === 'GEO') return findTeacher('geography');
+      if (['PE', 'PA'].includes(subCode)) return findTeacher('physical');
+      if (['ACC', 'BST', 'ECO'].includes(subCode)) return findTeacher('accountancy') || findTeacher('business') || findTeacher('economics');
+      
+      return pgTeachers[0];
+    }
+
+    const classSubjectsMapping = [
       { group: ['Nursery', 'LKG', 'UKG'],                                subjects: ['PP-ENG', 'PP-HIN', 'PP-MAT', 'PP-GK', 'ART', 'PA'] },
       { group: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'], subjects: ['ENG', 'HIN', 'MAT', 'EVS', 'GK', 'CS', 'ART', 'PE'] },
       { group: ['Class 6', 'Class 7', 'Class 8'],                        subjects: ['ENG', 'HIN', 'MAT', 'SCI', 'SST', 'SAN', 'CS', 'PE'] },
       { group: ['Class 9', 'Class 10'],                                   subjects: ['ENG', 'HIN', 'MAT', 'PHY', 'CHE', 'BIO', 'HIS', 'GEO', 'CS', 'PE'] },
       { group: ['Class 11', 'Class 12'], science: ['PHY-SR', 'CHE-SR', 'BIO-SR', 'MAT-SR', 'ENG-CORE', 'IP'], commerce: ['ACC', 'BST', 'ECO', 'MAT-SR', 'ENG-CORE'] }
     ];
-    for (const entry of mapping) {
+
+    const classSubjectsRows = [];
+    for (const entry of classSubjectsMapping) {
       for (const className of entry.group) {
         const sections = sectionLayout.find(s => s.class === className).secs;
         for (const secName of sections) {
@@ -309,202 +456,130 @@ RETURNING id;
           const secId = sectionIdMap[secKey];
           let subs = entry.subjects || [];
           if (entry.science && entry.commerce) {
-            subs = ['A', 'B'].includes(secName) ? entry.science : entry.commerce;
+            subs = secName === 'A' ? entry.science : entry.commerce;
           }
           for (const subCode of subs) {
-            await client.query(
-              `INSERT INTO class_subjects (section_id, subject_id, academic_year_id, max_marks) VALUES ($1, $2, $3, 100);`,
-              [secId, subjectIdMap[subCode], academicYearId]
-            );
+            const teacher = getTeacherForSubject(subCode);
+            classSubjectsRows.push({
+              section_id: secId,
+              subject_id: subjectIdMap[subCode],
+              academic_year_id: academicYearId,
+              teacher_id: teacher ? teacher.userId : null,
+              max_marks: 100
+            });
           }
         }
       }
     }
-    console.log('Class Subjects seeded.');
+    console.log('Inserting class subjects...');
+    await bulkInsert(pgClient, 'class_subjects', ['section_id', 'subject_id', 'academic_year_id', 'teacher_id', 'max_marks'], classSubjectsRows);
 
-    // 10. Timetable — same slot pattern applied to all sections (only slots that the section teaches)
-    const ttPattern = [
-      { day: 'Monday',    slots: ['PHY', 'CHE', 'ENG', 'MAT', 'HIN', 'BIO'] },
-      { day: 'Tuesday',   slots: ['MAT', 'PHY', 'HIN', 'CS',  'GEO', 'ENG'] },
-      { day: 'Wednesday', slots: ['CHE', 'BIO', 'MAT', 'HIS', 'PHY', 'CS']  },
-      { day: 'Thursday',  slots: ['ENG', 'MAT', 'GEO', 'PHY', 'CHE', 'HIN'] },
-      { day: 'Friday',    slots: ['HIN', 'HIS', 'ENG', 'BIO', 'MAT', 'PE']  },
-      { day: 'Saturday',  slots: ['PHY', 'CHE', 'MAT', 'ENG', null,  null]  },
-    ];
+    // 9. Timetable (Seeded dynamically based on section subjects)
     const slotTimes = [
       { start: '08:00', end: '08:45' }, { start: '08:50', end: '09:35' }, { start: '09:40', end: '10:25' },
       { start: '10:40', end: '11:25' }, { start: '11:30', end: '12:15' }, { start: '12:20', end: '13:05' }
     ];
-    // Fetch all class subjects to build a lookup map in JavaScript
-    const csLookupRes = await client.query(
+
+    const csLookupRes = await pgClient.query(
       `SELECT id, section_id, subject_id FROM class_subjects WHERE academic_year_id = $1`,
       [academicYearId]
     );
-    const csLookupMap = {};
-    for (const row of csLookupRes.rows) {
-      csLookupMap[`${row.section_id}_${row.subject_id}`] = row.id;
-    }
 
     const timetableRows = [];
-
     for (const secKey in sectionIdMap) {
       const secId = sectionIdMap[secKey];
-      for (let d = 0; d < ttPattern.length; d++) {
-        const day = ttPattern[d].day.toLowerCase();
-        for (let p = 0; p < 6; p++) {
-          const subCode = ttPattern[d].slots[p];
-          if (subCode) {
-            const subId = subjectIdMap[subCode];
-            if (subId) {
-              const csId = csLookupMap[`${secId}_${subId}`];
-              if (csId) {
-                timetableRows.push({
-                  section_id: secId,
-                  class_subject_id: csId,
-                  day,
-                  period_number: p + 1,
-                  starts_at: slotTimes[p].start,
-                  ends_at: slotTimes[p].end,
-                  academic_year_id: academicYearId
-                });
-              }
-            }
-          }
+      const sectionSubjects = csLookupRes.rows.filter(row => row.section_id === secId);
+      if (sectionSubjects.length === 0) continue;
+      
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      for (const day of days) {
+        const periods = day === 'saturday' ? 4 : 6;
+        for (let p = 0; p < periods; p++) {
+          const cs = sectionSubjects[(day.charCodeAt(0) + p) % sectionSubjects.length];
+          timetableRows.push({
+            section_id: secId,
+            class_subject_id: cs.id,
+            day,
+            period_number: p + 1,
+            starts_at: slotTimes[p].start,
+            ends_at: slotTimes[p].end,
+            academic_year_id: academicYearId
+          });
         }
       }
     }
-
     console.log('Inserting timetable bulk...');
-    await bulkInsert(client, 'timetable', ['section_id', 'class_subject_id', 'day', 'period_number', 'starts_at', 'ends_at', 'academic_year_id'], timetableRows);
-    console.log('Timetable seeded.');
+    await bulkInsert(pgClient, 'timetable', ['section_id', 'class_subject_id', 'day', 'period_number', 'starts_at', 'ends_at', 'academic_year_id'], timetableRows);
 
-    // 11 & 12. Students (Reduced to 200 total)
-    const studentDist = [
-      { class: 'Nursery',  secs: ['A'],            count: 5 },
-      { class: 'LKG',      secs: ['A'],             count: 5 },
-      { class: 'UKG',      secs: ['A', 'B'],        count: 5 },
-      { class: 'Class 1',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 2',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 3',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 4',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 5',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 6',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 7',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 8',  secs: ['A', 'B'],        count: 6 },
-      { class: 'Class 9',  secs: ['A', 'B', 'C'],   count: 6 },
-      { class: 'Class 10', secs: ['A', 'B', 'C'],   count: 6 },
-      { class: 'Class 11', secs: ['A', 'B', 'C', 'D'], count: 6 },
-      { class: 'Class 12', secs: ['A', 'B', 'C', 'D'], count: 6 },
-    ];
-
-    let totalStudentsCreated = 0;
-    const allStudentIds = []; // { userId, studentId, secId, srInSec, className, secName, village }
-
-    const userRows = [];
+    // 10. Students, Enrollments, Wallets
+    const studentUsers = usersToCreate.filter(u => u.role === 'student');
     const studentRows = [];
     const enrollmentRows = [];
+    const studentWalletRows = [];
+    const studentIds = [];
+    const sectionKeys = Object.keys(sectionIdMap);
 
-    const VILLAGE_ROUTE_MAP = {
-      'Achhalda':  'Route C - East Zone',
-      'Bidhuna':   'Route D - West Zone',
-      'Rasulabad': 'Route B - South Zone',
-      'Ajitmal':   'Route B - South Zone',
-      'Dibiyapur': 'Route A - North Zone',
-      'Phaphund':  'Route A - North Zone',
-      'Saurikh':   'Route F - Rural Zone',
-    };
+    for (let i = 0; i < studentUsers.length; i++) {
+      const s = studentUsers[i];
+      const authId = authUserMap[s.email];
+      const studentId = crypto.randomUUID();
+      studentIds.push(studentId);
 
-    for (const entry of studentDist) {
-      const gradeNum = classData.find(c => c[0] === entry.class)[1];
-      const dobYear = 2022 - gradeNum;
+      const secKey = sectionKeys[i % sectionKeys.length];
+      const secId = sectionIdMap[secKey];
 
-      for (const secName of entry.secs) {
-        const secKey = `${entry.class}-${secName}`;
-        const secId = sectionIdMap[secKey];
+      const dobYear = 2022 - classData.find(c => c[0] === secKey.split('-')[0])[1];
+      const dob = `${dobYear}-07-15`;
 
-        let count = entry.count;
-        if (entry.class === 'Class 12' && secName === 'D') {
-          count = 200 - totalStudentsCreated;
-          if (count < 0) count = 0;
-        }
+      const rollNumber = `${getClassCode(secKey.split('-')[0])}-${secKey.split('-')[1]}-${String(Math.floor(i / sectionKeys.length) + 1).padStart(2, '0')}`;
 
-        for (let i = 1; i <= count; i++) {
-          totalStudentsCreated++;
-          const sr = totalStudentsCreated;
-          const surname = STU_SURNAMES[(sr - 1) % 26];
-          const gender = sr % 2 === 1 ? 'male' : 'female';
-          const first = gender === 'male'
-            ? STU_MALE_FIRST[Math.floor((sr - 1) / 2) % 30]
-            : STU_FEMALE_FIRST[Math.floor((sr - 1) / 2) % 30];
-          const guardianFirst = GUARDIAN_FIRST[(sr - 1) % 30];
-          const village = VILLAGES[(sr - 1) % 8];
+      studentRows.push({
+        id: studentId,
+        user_id: authId,
+        institution_id: institutionId,
+        student_code: s.student_code,
+        date_of_birth: dob,
+        gender: s.gender,
+        guardian_name: s.guardian_name,
+        guardian_phone: `+91-9795${String(i+1).padStart(6, '0')}`,
+        guardian_email: `guardian.${s.student_code.toLowerCase()}@example.com`,
+        blood_group: BLOOD_GROUPS[i % BLOOD_GROUPS.length],
+        address: s.village,
+        admission_date: '2025-04-05',
+        plan_tier: s.plan_tier,
+        tier_expires_at: s.tier_expires_at
+      });
 
-          const userId = crypto.randomUUID();
-          const studentId = crypto.randomUUID();
+      enrollmentRows.push({
+        student_id: studentId,
+        section_id: secId,
+        academic_year_id: academicYearId,
+        roll_number: rollNumber,
+        enrolled_on: '2025-04-05',
+        is_active: true
+      });
 
-          const loginId = `GS-STU-${String(sr).padStart(4, '0')}`;
-          const fullName = `${first} ${surname}`;
-          const email = `stu${sr}@gurukulsiksha.edu.in`;
-          const phone = `+91-9795${String(sr).padStart(6, '0')}`;
+      let balancePaisa = 0;
+      if (s.plan_tier === 'PRO') balancePaisa = 100000;
+      else if (s.plan_tier === 'STANDARD') balancePaisa = 50000;
 
-          userRows.push({
-            id: userId,
-            login_id: loginId,
-            full_name: fullName,
-            email,
-            phone,
-            role: 'student',
-            status: 'active',
-            institution_id: institutionId
-          });
-
-          const dob = `${dobYear}-${String((sr % 12) + 1).padStart(2, '0')}-${String((sr % 28) + 1).padStart(2, '0')}`;
-          const code = getClassCode(entry.class);
-          const roll = (entry.class === 'Nursery' || entry.class === 'LKG' || entry.class === 'UKG')
-            ? `${code}-${secName}-${String(i).padStart(2, '0')}`
-            : `${code}${secName}-${String(i).padStart(2, '0')}`;
-
-          studentRows.push({
-            id: studentId,
-            user_id: userId,
-            student_code: `STU${String(sr).padStart(4, '0')}`,
-            guardian_name: `${guardianFirst} ${surname}`,
-            date_of_birth: dob,
-            gender,
-            blood_group: BLOOD_GROUPS[sr % 8],
-            address: village,
-            admission_date: '2025-04-05',
-            guardian_phone: phone,
-            institution_id: institutionId
-          });
-
-          enrollmentRows.push({
-            student_id: studentId,
-            section_id: secId,
-            academic_year_id: academicYearId,
-            enrolled_on: '2025-04-05',
-            is_active: true,
-            roll_number: roll
-          });
-
-
-
-          allStudentIds.push({ userId, studentId, secId, srInSec: i, className: entry.class, secName, village });
-        }
-      }
+      studentWalletRows.push({
+        student_id: studentId,
+        institution_id: institutionId,
+        balance_paisa: balancePaisa
+      });
     }
 
-    console.log('Inserting users bulk...');
-    await bulkInsert(client, 'users', ['id', 'login_id', 'full_name', 'email', 'phone', 'role', 'status', 'institution_id'], userRows);
-    console.log('Inserting students bulk...');
-    await bulkInsert(client, 'students', ['id', 'user_id', 'student_code', 'guardian_name', 'date_of_birth', 'gender', 'blood_group', 'address', 'admission_date', 'guardian_phone', 'institution_id'], studentRows);
-    console.log(`Students seeded: ${totalStudentsCreated} rows.`);
+    console.log('Inserting students...');
+    await bulkInsert(pgClient, 'students', ['id', 'user_id', 'institution_id', 'student_code', 'date_of_birth', 'gender', 'guardian_name', 'guardian_phone', 'guardian_email', 'blood_group', 'address', 'admission_date', 'plan_tier', 'tier_expires_at'], studentRows);
+    
+    console.log('Inserting enrollments...');
+    await bulkInsert(pgClient, 'enrollments', ['student_id', 'section_id', 'academic_year_id', 'roll_number', 'enrolled_on', 'is_active'], enrollmentRows);
+    
+    console.log('Inserting student wallets...');
+    await bulkInsert(pgClient, 'student_wallets', ['student_id', 'institution_id', 'balance_paisa'], studentWalletRows);
 
-    console.log('Inserting enrollments bulk...');
-    await bulkInsert(client, 'enrollments', ['student_id', 'section_id', 'academic_year_id', 'enrolled_on', 'is_active', 'roll_number'], enrollmentRows);
-    console.log('Enrollments seeded.');
-
-    // 14. Fee Structures
+    // 11. Fee structures
     const groupFees = [
       { classes: ['Nursery', 'LKG', 'UKG'],
         fees: { 'Tuition Fee': 8000, 'Development Fund': 1000, 'Library Fee': 300, 'Examination Fee': 500, 'Sports Fee': 300, 'Transport Fee': 5000 } },
@@ -517,307 +592,283 @@ RETURNING id;
       { classes: ['Class 11', 'Class 12'],
         fees: { 'Tuition Fee': 22000, 'Development Fund': 3500, 'Computer Lab Fee': 3000, 'Library Fee': 700, 'Examination Fee': 2000, 'Sports Fee': 700, 'Transport Fee': 6000 } },
     ];
+    
+    const feeStructureIdMap = {};
     for (const group of groupFees) {
       for (const className of group.classes) {
+        const classId = classIdMap[className];
         for (const [feeName, amount] of Object.entries(group.fees)) {
-          // FIX: Added ON CONFLICT DO NOTHING — fee_structures has UNIQUE(institution_id, academic_year_id, class_id, fee_name)
-          await client.query(
-            `INSERT INTO fee_structures (institution_id, academic_year_id, class_id, fee_name, amount, due_date) VALUES ($1, $2, $3, $4, $5, '2025-04-30') ON CONFLICT DO NOTHING;`,
-            [institutionId, academicYearId, classIdMap[className], feeName, amount]
+          const res = await pgClient.query(
+            `INSERT INTO fee_structures (institution_id, academic_year_id, class_id, fee_name, amount, due_date)
+             VALUES ($1, $2, $3, $4, $5, '2025-04-30')
+             ON CONFLICT DO NOTHING
+             RETURNING id;`,
+            [institutionId, academicYearId, classId, feeName, amount]
           );
+          if (res.rows[0]) {
+            feeStructureIdMap[`${classId}_${feeName}`] = res.rows[0].id;
+          }
         }
       }
     }
     console.log('Fee Structures seeded.');
 
-    // ─────────────────────────────────────────────────────────────
-    // 18–21. TRANSPORT — correct FK dependency order:
-    //   1. users (role='driver')
-    //   2. transport_routes
-    //   3. transport_vehicles  (route_id NOT NULL)
-    //   4. transport_drivers   (vehicle_id)
-    //   5. student_transport_assignments
-    // ─────────────────────────────────────────────────────────────
-
-    // 18. Driver Users
-    const driversData = [
-      ['Ramu Prasad Nishad',   '+91-9453101001', 'UP76-2018-0012345', '2028-06-30'],
-      ['Chhote Lal Yadav',     '+91-9453101002', 'UP76-2016-0056789', '2026-11-15'],
-      ['Sonu Kumar Lodhi',     '+91-9453101003', 'UP76-2019-0098765', '2029-03-20'],
-      ['Kallu Singh Rawat',    '+91-9453101004', 'UP76-2015-0043210', '2025-09-10'],
-      ['Babulal Maurya',       '+91-9453101005', 'UP76-2020-0067890', '2030-01-05'],
-      ['Sukhdev Prajapati',    '+91-9453101006', 'UP76-2017-0034567', '2027-08-22'],
-    ];
-    // Will be populated in order: driverUserIds[i] corresponds to driversData[i]
-    const driverUserIds = [];
-
-    for (let i = 0; i < driversData.length; i++) {
-      const [name, phone] = driversData[i];
-      const sr = i + 1;
-      const uRes = await client.query(`
-        INSERT INTO users (login_id, full_name, email, phone, role, status, institution_id)
-VALUES ($1, $2, $3, $4, 'driver', 'active', $5)
-        RETURNING id;
-      `, [
-        `GS-DRV-${String(sr).padStart(3, '0')}`,
-        name,
-        `drv${sr}@gurukulsiksha.edu.in`,
-        phone,
-        institutionId
-      ]);
-      driverUserIds.push(uRes.rows[0].id);
+    // 12. Fee Payments
+    const feePaymentsRows = [];
+    for (let i = 0; i < 10; i++) {
+      const studentId = studentIds[i];
+      const enroll = enrollmentRows[i];
+      const classId = sectionClassIdMap[enroll.section_id];
+      const feeStructId = feeStructureIdMap[`${classId}_Tuition Fee`];
+      if (feeStructId) {
+        feePaymentsRows.push({
+          fee_structure_id: feeStructId,
+          student_id: studentId,
+          amount_paid: 4000,
+          payment_date: new Date().toISOString(),
+          payment_method: 'UPI',
+          notes: 'Partial payment of Q1 tuition fee'
+        });
+      }
     }
-    console.log('Driver users seeded.');
+    await bulkInsert(pgClient, 'fee_payments', ['fee_structure_id', 'student_id', 'amount_paid', 'payment_date', 'payment_method', 'notes'], feePaymentsRows);
+    console.log('Fee payments seeded.');
 
-    // 19. Transport Routes (must exist before vehicles)
-    // Map of route name -> { vehicle reg, driver index }
-    const routesData = [
-      { name: 'Route A - North Zone', start: 'Dibiyapur',   end: 'School', distance: 12, vehicleReg: 'UP76-AB-1234', driverIdx: 0 },
-      { name: 'Route B - South Zone', start: 'Ajitmal',     end: 'School', distance: 15, vehicleReg: 'UP76-AB-5678', driverIdx: 1 },
-      { name: 'Route C - East Zone',  start: 'Achhalda',    end: 'School', distance: 10, vehicleReg: 'UP76-CD-2341', driverIdx: 2 },
-      { name: 'Route D - West Zone',  start: 'Bidhuna',     end: 'School', distance: 18, vehicleReg: 'UP76-CD-6782', driverIdx: 3 },
-      { name: 'Route E - City Zone',  start: 'Sadar Bazar', end: 'School', distance: 5,  vehicleReg: 'UP76-EF-4321', driverIdx: 4 },
-      { name: 'Route F - Rural Zone', start: 'Saurikh',     end: 'School', distance: 22, vehicleReg: 'UP76-EF-8765', driverIdx: 5 },
-    ];
-    const routeIdMap = {}; // route name -> routeId
+    // 13. Transport Routes, Vehicles, Drivers, and Assignments
+    const route1Res = await pgClient.query(`
+      INSERT INTO transport_routes (institution_id, name, start_location, end_location, distance)
+      VALUES ($1, 'Route A - North Zone', 'Dibiyapur', 'School', 12)
+      RETURNING id;
+    `, [institutionId]);
+    const route1Id = route1Res.rows[0].id;
 
-    for (const r of routesData) {
-      const res = await client.query(`
-        INSERT INTO transport_routes (institution_id, name, start_location, end_location, distance)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id;
-      `, [institutionId, r.name, r.start, r.end, r.distance]);
-      routeIdMap[r.name] = res.rows[0].id;
-    }
+    const route2Res = await pgClient.query(`
+      INSERT INTO transport_routes (institution_id, name, start_location, end_location, distance)
+      VALUES ($1, 'Route B - South Zone', 'Ajitmal', 'School', 15)
+      RETURNING id;
+    `, [institutionId]);
+    const route2Id = route2Res.rows[0].id;
     console.log('Transport routes seeded.');
 
-    // 20. Vehicles — route_id NOT NULL, so must seed after routes
-    const vehiclesData = [
-      { reg: 'UP76-AB-1234', model: 'Tata Starbus 52',        cap: 52, status: 'active',      insExp: '2026-03-31', fitExp: '2026-01-15', routeName: 'Route A - North Zone' },
-      { reg: 'UP76-AB-5678', model: 'Tata Starbus 52',        cap: 52, status: 'active',      insExp: '2026-03-31', fitExp: '2026-01-15', routeName: 'Route B - South Zone' },
-      { reg: 'UP76-CD-2341', model: 'Ashok Leyland Lynx 40',  cap: 40, status: 'active',      insExp: '2025-12-31', fitExp: '2025-10-20', routeName: 'Route C - East Zone'  },
-      { reg: 'UP76-CD-6782', model: 'Ashok Leyland Lynx 40',  cap: 40, status: 'active',      insExp: '2026-03-31', fitExp: '2026-02-10', routeName: 'Route D - West Zone'  },
-      { reg: 'UP76-EF-4321', model: 'Force Traveller 26',     cap: 26, status: 'active',      insExp: '2026-06-30', fitExp: '2026-04-05', routeName: 'Route E - City Zone'  },
-      { reg: 'UP76-EF-8765', model: 'Force Traveller 26',     cap: 26, status: 'maintenance', insExp: '2025-11-30', fitExp: '2025-09-01', routeName: 'Route F - Rural Zone' },
-    ];
-    const vehicleIdMap = {}; // vehicle_number -> vehicleId
+    const veh1Res = await pgClient.query(`
+      INSERT INTO transport_vehicles (institution_id, route_id, vehicle_number, vehicle_type, capacity)
+      VALUES ($1, $2, 'UP76-AB-1234', 'Tata Starbus 52', 52)
+      RETURNING id;
+    `, [institutionId, route1Id]);
+    const veh1Id = veh1Res.rows[0].id;
 
-    for (const v of vehiclesData) {
-      const routeId = routeIdMap[v.routeName];
-      const res = await client.query(`
-        INSERT INTO transport_vehicles (institution_id, route_id, vehicle_number, vehicle_type, capacity)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id;
-      `, [institutionId, routeId, v.reg, v.model, v.cap]);
-      vehicleIdMap[v.reg] = res.rows[0].id;
-    }
+    const veh2Res = await pgClient.query(`
+      INSERT INTO transport_vehicles (institution_id, route_id, vehicle_number, vehicle_type, capacity)
+      VALUES ($1, $2, 'UP76-AB-5678', 'Tata Starbus 52', 52)
+      RETURNING id;
+    `, [institutionId, route2Id]);
+    const veh2Id = veh2Res.rows[0].id;
     console.log('Transport vehicles seeded.');
 
-    // 21. Transport Drivers — vehicle_id references vehicles
-    for (let i = 0; i < driversData.length; i++) {
-      const [, , lic] = driversData[i];
-      const vehicleReg = routesData[i].vehicleReg;
-      const vehicleId = vehicleIdMap[vehicleReg];
-      const userId = driverUserIds[i];
+    await pgClient.query(`
+      INSERT INTO transport_drivers (institution_id, user_id, license_number, vehicle_id)
+      VALUES ($1, $2, 'UP76-2018-0012345', $3);
+    `, [institutionId, authUserMap['drv1@gurukulsiksha.edu.in'], veh1Id]);
 
-      await client.query(`
-        INSERT INTO transport_drivers (institution_id, user_id, license_number, vehicle_id)
-        VALUES ($1, $2, $3, $4);
-      `, [institutionId, userId, lic, vehicleId]);
-    }
+    await pgClient.query(`
+      INSERT INTO transport_drivers (institution_id, user_id, license_number, vehicle_id)
+      VALUES ($1, $2, 'UP76-2016-0056789', $3);
+    `, [institutionId, authUserMap['drv2@gurukulsiksha.edu.in'], veh2Id]);
     console.log('Transport drivers seeded.');
 
-    const transportRows = [];
+    const transAssignments = [];
+    const VILLAGE_ROUTE_MAP = {
+      'Dibiyapur': { routeId: route1Id, vehicleId: veh1Id },
+      'Phaphund':  { routeId: route1Id, vehicleId: veh1Id },
+      'Ajitmal':   { routeId: route2Id, vehicleId: veh2Id },
+      'Rasulabad': { routeId: route2Id, vehicleId: veh2Id }
+    };
 
-    for (const s of allStudentIds) {
-      if (s.village === 'Auraiya') continue; // Auraiya students walk
-      const routeName = VILLAGE_ROUTE_MAP[s.village];
-      if (!routeName) continue;
-      const routeId = routeIdMap[routeName];
-      // Find the vehicle assigned to this route
-      const vehicleReg = routesData.find(r => r.name === routeName)?.vehicleReg;
-      const vehicleId = vehicleIdMap[vehicleReg];
-      transportRows.push({
-        student_id: s.studentId,
-        route_id: routeId,
-        vehicle_id: vehicleId,
-        start_date: '2025-04-05'
-      });
-    }
-
-    console.log('Inserting student transport assignments bulk...');
-    await bulkInsert(client, 'student_transport_assignments', ['student_id', 'route_id', 'vehicle_id', 'start_date'], transportRows);
-    console.log('Student transport assignments seeded.');
-
-    // ─────────────────────────────────────────────────────────────
-    // 22. Exams — UNIQUE (institution_id, academic_year_id, class_id, subject_id, exam_name, exam_date)
-    // So one exam per (class × subject × exam event), not per section.
-    // ─────────────────────────────────────────────────────────────
-    const examEvents = [
-      { name: 'Unit Test 1', type: 'unit_test', startDate: '2025-07-14', endDate: '2025-07-19', date: '2025-07-14', max: 25, pass: 9,  start: '09:00', end: '10:30' },
-      { name: 'Half Yearly', type: 'midterm',   startDate: '2025-09-22', endDate: '2025-10-03', date: '2025-09-22', max: 80, pass: 27, start: '09:00', end: '12:00' },
-      { name: 'Unit Test 2', type: 'unit_test', startDate: '2025-12-08', endDate: '2025-12-13', date: '2025-12-08', max: 25, pass: 9,  start: '09:00', end: '10:30' },
-      { name: 'Annual Exam', type: 'final',     startDate: '2026-02-16', endDate: '2026-03-05', date: '2026-02-16', max: 80, pass: 27, start: '09:00', end: '12:00' },
-    ];
-
-    // examIdMapFull[examName][classId][subjectId] = examId
-    const examIdMapFull = {};
-
-    for (const event of examEvents) {
-      examIdMapFull[event.name] = {};
-
-      // Get distinct (class_id, subject_id) combinations from class_subjects via sections
-      const distinctRes = await client.query(`
-        SELECT DISTINCT s.class_id, cs.subject_id
-        FROM class_subjects cs
-        JOIN sections s ON s.id = cs.section_id
-        WHERE cs.academic_year_id = $1
-      `, [academicYearId]);
-
-      for (const row of distinctRes.rows) {
-        const { class_id, subject_id } = row;
-        // FIX: Added ON CONFLICT DO NOTHING — exams has UNIQUE(institution_id, academic_year_id, class_id, subject_id, exam_name, exam_date)
-        // Also handle re-runs: fetch existing exam id if conflict occurs
-        const res = await client.query(`
-          INSERT INTO exams (institution_id, academic_year_id, class_id, subject_id, exam_name, exam_type, exam_date, start_time, end_time, total_marks, passing_marks)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          ON CONFLICT (institution_id, academic_year_id, class_id, subject_id, exam_name, exam_date) DO UPDATE SET exam_type = EXCLUDED.exam_type
-          RETURNING id;
-        `, [institutionId, academicYearId, class_id, subject_id, event.name, event.type, event.date, event.start, event.end, event.max, event.pass]);
-
-        if (!examIdMapFull[event.name][class_id]) {
-          examIdMapFull[event.name][class_id] = {};
-        }
-        examIdMapFull[event.name][class_id][subject_id] = res.rows[0].id;
+    for (let i = 0; i < studentRows.length; i++) {
+      const student = studentRows[i];
+      const routeInfo = VILLAGE_ROUTE_MAP[student.address];
+      if (routeInfo) {
+        transAssignments.push({
+          student_id: student.id,
+          route_id: routeInfo.routeId,
+          vehicle_id: routeInfo.vehicleId,
+          start_date: '2025-04-05'
+        });
       }
+    }
+    console.log('Inserting student transport assignments...');
+    await bulkInsert(pgClient, 'student_transport_assignments', ['student_id', 'route_id', 'vehicle_id', 'start_date'], transAssignments);
+
+    // 14. Exams & Results
+    const examEvents = [
+      { name: 'Unit Test 1', type: 'unit_test', date: '2025-07-14', max: 25, pass: 9, start: '09:00', end: '10:30' },
+      { name: 'Half Yearly', type: 'midterm',   date: '2025-09-22', max: 80, pass: 27, start: '09:00', end: '12:00' }
+    ];
+    
+    const examIds = [];
+    const class9Id = classIdMap['Class 9'];
+    const mathSubId = subjectIdMap['MAT'];
+    
+    for (const event of examEvents) {
+      const res = await pgClient.query(`
+        INSERT INTO exams (institution_id, academic_year_id, class_id, subject_id, exam_name, exam_type, exam_date, start_time, end_time, total_marks, passing_marks)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING id;
+      `, [institutionId, academicYearId, class9Id, mathSubId, event.name, event.type, event.date, event.start, event.end, event.max, event.pass]);
+      examIds.push({ id: res.rows[0].id, name: event.name });
     }
     console.log('Exams seeded.');
 
-    // 24. Exam Results — Only for Unit Test 1 and Half Yearly
-    const resultsToSeed = ['Unit Test 1', 'Half Yearly'];
-    for (const examName of resultsToSeed) {
-      const classSubjectExamMap = examIdMapFull[examName];
-
-      // For each section, for each subject taught in that section, get the exam id and insert results
-      for (const secKey in sectionIdMap) {
-        const secId = sectionIdMap[secKey];
-        const classId = sectionClassIdMap[secId];
-
-        // Get subjects for this section
-        const csRows = await client.query(
-          `SELECT subject_id FROM class_subjects WHERE section_id = $1 AND academic_year_id = $2`,
-          [secId, academicYearId]
-        );
-
-        // Get students enrolled in this section
-        const studentsInSec = await client.query(
-          `SELECT student_id FROM enrollments WHERE section_id = $1`,
-          [secId]
-        );
-
-        const values = [];
-        const params = [];
-        let pIndex = 1;
-
-        for (const csRow of csRows.rows) {
-          const subjectId = csRow.subject_id;
-          const examId = classSubjectExamMap?.[classId]?.[subjectId];
-          if (!examId) continue;
-
-          let srCount = 0;
-          for (const s of studentsInSec.rows) {
-            srCount++;
-            const isAbsent = (examName === 'Unit Test 1' ? srCount % 20 === 0 : srCount % 25 === 0);
-            const marks = isAbsent ? null : (examName === 'Unit Test 1' ? (10 + (srCount % 16)) : (35 + (srCount % 46)));
-
-            values.push(`($${pIndex}, $${pIndex+1}, $${pIndex+2})`);
-            params.push(examId, s.student_id, marks);
-            pIndex += 3;
-          }
-        }
-
-        if (values.length > 0) {
-          const queryText = `INSERT INTO exam_results (exam_id, student_id, marks_obtained) VALUES ${values.join(', ')} ON CONFLICT (exam_id, student_id) DO NOTHING;`;
-          await client.query(queryText, params);
-        }
+    const class9SecId = sectionIdMap['Class 9-A'];
+    const class9Students = enrollmentRows.filter(e => e.section_id === class9SecId).map(e => e.student_id);
+    
+    const examResultsRows = [];
+    for (const exam of examIds) {
+      for (let i = 0; i < class9Students.length; i++) {
+        const studentId = class9Students[i];
+        const marks = exam.name === 'Unit Test 1' ? (15 + (i % 10)) : (45 + (i % 30));
+        examResultsRows.push({
+          exam_id: exam.id,
+          student_id: studentId,
+          marks_obtained: marks
+        });
       }
     }
-    console.log('Exam Results seeded.');
+    console.log('Inserting exam results...');
+    await bulkInsert(pgClient, 'exam_results', ['exam_id', 'student_id', 'marks_obtained'], examResultsRows);
 
-    // 25. Holidays — institution_id and academic_year_id are NOT NULL
+    // 15. Holidays & Circulars
     const holidaysData = [
       ['2025-08-15', 'Independence Day'],
       ['2025-08-16', 'Janmashtami'],
       ['2025-10-02', 'Gandhi Jayanti / Dussehra'],
       ['2025-10-20', 'Diwali'],
-      ['2025-10-21', 'Diwali (Second Day)'],
-      ['2025-11-05', 'Govardhan Puja'],
-      ['2025-11-15', 'Guru Nanak Jayanti'],
       ['2025-12-25', 'Christmas Day'],
-      ['2026-01-14', 'Makar Sankranti'],
-      ['2026-01-26', 'Republic Day'],
-      ['2026-03-17', 'Holi'],
-      ['2026-03-30', 'Eid ul-Fitr'],
-      ['2026-03-31', 'Year closing day'],
+      ['2026-01-26', 'Republic Day']
     ];
     for (const [date, name] of holidaysData) {
-      // FIX: Added ON CONFLICT DO NOTHING — holidays has UNIQUE(institution_id, date)
-      await client.query(
-        `INSERT INTO holidays (institution_id, academic_year_id, date, name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;`,
+      await pgClient.query(
+        `INSERT INTO holidays (institution_id, academic_year_id, date, name, event_type, status)
+         VALUES ($1, $2, $3, $4, 'holiday', 'published') ON CONFLICT DO NOTHING;`,
         [institutionId, academicYearId, date, name]
       );
     }
     console.log('Holidays seeded.');
 
-    // 26. Circulars — correct columns: content (not body), publish_date (not published_at)
     const circularsData = [
-      ['Welcome to New Academic Year 2025-26',   'Warm welcome from Principal Dr. Shyam Sundar Pandey. School timings, uniform rules, fee schedule overview.', '2025-04-01'],
-      ['Annual Sports Day – 15 November 2025',   'All students to participate. Practice schedule from 1 Nov. Parents invited.',                                  '2025-10-15'],
-      ['Half Yearly Exam Schedule Released',      'Dates: 22 Sep – 3 Oct 2025. Syllabus attached. Bring admit card daily.',                                      '2025-09-01'],
-      ['Fee Payment Reminder – Quarter 2',        'Q2 fees due by 31 July 2025. Pay at school office (cash / UPI). Late fee ₹50/day after due date.',            '2025-07-15'],
-      ['Republic Day Celebration – 26 January 2026', 'Programme at school ground 9:00 AM. Cultural performances by students. All staff to report by 8:00 AM.',  '2026-01-20'],
+      ['Welcome to New Academic Year 2025-26', 'Warm welcome from Principal. School timings and uniform rules.', '2025-04-01', 'general'],
+      ['Annual Sports Day – 15 November 2025', 'All students to participate. Practice starts soon.', '2025-10-15', 'event'],
+      ['Half Yearly Exam Schedule Released', 'Dates: 22 Sep – 3 Oct 2025. Syllabus attached.', '2025-09-01', 'academic']
     ];
-    for (const [title, content, date] of circularsData) {
-      // FIX: Added ON CONFLICT DO NOTHING — circulars has UNIQUE(institution_id, title, publish_date)
-      await client.query(
-        `INSERT INTO circulars (title, content, publish_date, institution_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;`,
-        [title, content, date, institutionId]
+    for (const [title, content, date, category] of circularsData) {
+      await pgClient.query(
+        `INSERT INTO circulars (title, content, publish_date, institution_id, category, target_roles)
+         VALUES ($1, $2, $3, $4, $5, ARRAY['institution_admin'::text, 'teacher'::text, 'student'::text]) ON CONFLICT DO NOTHING;`,
+        [title, content, date, institutionId, category]
       );
     }
     console.log('Circulars seeded.');
 
-    await client.query('COMMIT');
-    console.log('\n✅ Database successfully seeded! (Postgres tables)');
+    // 16. Homework & Homework Submissions
+    const homeworkData = [
+      { secKey: 'Class 9-A', subCode: 'MAT', tchLoginId: 'GS-TCH-001', title: 'Linear Equations in Two Variables', desc: 'Solve all questions in Exercise 4.2 of the Mathematics textbook.' },
+      { secKey: 'Class 10-A', subCode: 'ENG', tchLoginId: 'GS-TCH-004', title: 'A Letter to God - Comprehension', desc: 'Read the story and answer the short questions in your notebook.' },
+      { secKey: 'Class 11-A', subCode: 'PHY-SR', tchLoginId: 'GS-TCH-009', title: 'Newton\'s Laws of Motion', desc: 'Derive the equations of motion and solve numerical problems 1 to 5.' },
+      { secKey: 'Class 12-A', subCode: 'BIO-SR', tchLoginId: 'GS-TCH-011', title: 'Structure of DNA', desc: 'Draw a neat labeled diagram of the double helix structure of DNA.' }
+    ];
 
-    // Now, create auth users in Supabase Auth
-    console.log('Fetching seeded users to register in Supabase Auth...');
-    const usersRes = await client.query('SELECT email FROM public.users WHERE email IS NOT NULL');
-    const users = usersRes.rows;
-    console.log(`Found ${users.length} users to register.`);
-
-    for (let i = 0; i < users.length; i += 10) {
-      const batch = users.slice(i, i + 10);
-      await Promise.all(batch.map(user => 
-        supabase.auth.admin.createUser({
-          email: user.email,
-          password: 'password123',
-          email_confirm: true,
-          user_metadata: { is_admin_registered: true }
-        })
-      ));
-      await new Promise(r => setTimeout(r, 500));
-      console.log(`Auth users created: ${Math.min(i + 10, users.length)}/${users.length}`);
+    const homeworkIds = [];
+    for (const hw of homeworkData) {
+      const secId = sectionIdMap[hw.secKey];
+      const classId = sectionClassIdMap[secId];
+      const subId = subjectIdMap[hw.subCode];
+      const teacherProfileId = teacherIdMap[hw.tchLoginId];
+      
+      const res = await pgClient.query(`
+        INSERT INTO homework (institution_id, academic_year_id, class_id, subject_id, teacher_id, section_id, title, description, assign_date, due_date, total_marks, difficulty, status, ai_generated)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '2025-10-10', '2025-10-17', 10, 'Medium', 'active', false)
+        RETURNING id;
+      `, [institutionId, academicYearId, classId, subId, teacherProfileId, secId, hw.title, hw.desc]);
+      
+      homeworkIds.push({ id: res.rows[0].id, secId });
     }
+    console.log('Homework seeded.');
 
-    console.log('All auth users successfully registered and synced!');
+    const submissionRows = [];
+    for (const hw of homeworkIds) {
+      const studentsInSection = enrollmentRows.filter(e => e.section_id === hw.secId).map(e => e.student_id);
+      
+      for (let j = 0; j < studentsInSection.length; j++) {
+        const studentId = studentsInSection[j];
+        const isScored = j % 2 === 0;
+        const status = isScored ? 'scored' : 'submitted';
+        const aiScore = isScored ? (6.0 + (j % 5) * 0.8) : null;
+        
+        const studentObj = studentRows.find(s => s.id === studentId);
+        const tier = studentObj ? studentObj.plan_tier : 'STANDARD';
+        
+        let aiFeedback = null;
+        if (isScored) {
+          if (tier === 'PRO') {
+            aiFeedback = {
+              completeness: 8.5,
+              concept_clarity: 8.0,
+              presentation: 7.5,
+              insights: ["Excellent logic structure.", "Work on hand-writing and readability."],
+              wrong_answers: [],
+              partial_answers: [{"question_number": 3, "description": "Partially correct solution."}]
+            };
+          } else {
+            aiFeedback = {
+              completeness: 8.0,
+              concept_clarity: 7.0,
+              presentation: 8.0
+            };
+          }
+        }
+        
+        submissionRows.push({
+          homework_id: hw.id,
+          student_id: studentId,
+          submitted_at: '2025-10-12 14:00:00+05:30',
+          marks_obtained: isScored ? (aiScore ? aiScore : null) : null,
+          ai_feedback: aiFeedback ? JSON.stringify(aiFeedback) : null,
+          status,
+          ai_score: aiScore,
+          scored_at: isScored ? '2025-10-12 14:05:00+05:30' : null,
+          attachment_urls: ['https://assets.margam.app/demo/student_sub_1.jpg']
+        });
+      }
+    }
+    console.log('Inserting homework submissions...');
+    await bulkInsert(pgClient, 'homework_submissions', ['homework_id', 'student_id', 'submitted_at', 'marks_obtained', 'ai_feedback', 'status', 'ai_score', 'scored_at', 'attachment_urls'], submissionRows);
+
+    // 17. Historical AI Scores (ai_scores) for Class 9-A students
+    const aiScoresRows = [];
+    for (let i = 0; i < class9Students.length; i++) {
+      const studentId = class9Students[i];
+      const dates = ['2025-10-01', '2025-10-05', '2025-10-10'];
+      for (let d = 0; d < dates.length; d++) {
+        aiScoresRows.push({
+          student_id: studentId,
+          score: 6.5 + (i % 4) * 0.8 + d * 0.3,
+          date: dates[d]
+        });
+      }
+    }
+    console.log('Inserting historical AI scores...');
+    await bulkInsert(pgClient, 'ai_scores', ['student_id', 'score', 'date'], aiScoresRows);
+
+    await pgClient.query('COMMIT');
+    console.log('\n✅ Database successfully reset and seeded!');
 
   } catch (err) {
-    await client.query('ROLLBACK');
+    await pgClient.query('ROLLBACK');
     console.error('❌ Error seeding database:', err.message);
     console.error(err);
     throw err;
   } finally {
-    await client.end();
+    await pgClient.end();
   }
 }
 

@@ -54,7 +54,12 @@ function formatDate(dateStr: string): string {
 
 export default function HomeworkScreen() {
   const router = useRouter();
-  const { userId, isSignedIn, isLoaded } = useAuth();
+  const { userId, isSignedIn, isLoaded, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
   
   const [studentProfile, setStudentProfile] = useState<any>(null);
   const [homeworks, setHomeworks] = useState<HomeworkItem[]>([]);
@@ -163,14 +168,14 @@ export default function HomeworkScreen() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <View className="flex-1 bg-[#fbf9f8] justify-center items-center">
-        <ActivityIndicator size="large" color="#D4AF37" />
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#fbf9f8]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
       
       {/* Header */}
@@ -183,7 +188,7 @@ export default function HomeworkScreen() {
       <View className="flex-1">
         {/* Title and Summary bar */}
         <View className="px-5 pt-5 pb-3">
-          <Text className="font-poppins-bold text-2xl text-[#0D1B2A]">My Homework</Text>
+          <Text className="font-poppins-bold text-2xl" style={{ color: primaryColor }}>My Homework</Text>
           <Text className="font-inter text-gray-500 text-xs mt-0.5">
             Class {studentProfile?.class_name || "—"} · Section {studentProfile?.section_name || "—"}
           </Text>
@@ -201,9 +206,8 @@ export default function HomeworkScreen() {
               <TouchableOpacity
                 key={tab.id}
                 onPress={() => setActiveTab(tab.id as any)}
-                className={`flex-1 py-2.5 rounded-lg items-center ${
-                  activeTab === tab.id ? "bg-[#0D1B2A]" : "bg-transparent"
-                }`}
+                className="flex-1 py-2.5 rounded-lg items-center"
+                style={activeTab === tab.id ? { backgroundColor: primaryColor } : { backgroundColor: "transparent" }}
                 activeOpacity={0.8}
               >
                 <Text
@@ -221,7 +225,7 @@ export default function HomeworkScreen() {
         {/* List of Homework */}
         {isLoading ? (
           <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#0D1B2A" />
+            <ActivityIndicator size="large" color={primaryColor} />
             <Text className="font-inter text-gray-500 text-xs mt-3">Loading assignments...</Text>
           </View>
         ) : filteredHomeworks.length === 0 ? (
@@ -233,7 +237,7 @@ export default function HomeworkScreen() {
             <View className="w-16 h-16 bg-gray-100 rounded-2xl justify-center items-center mb-4">
               <Ionicons name="document-text-outline" size={28} color="#9CA3AF" />
             </View>
-            <Text className="font-poppins-semibold text-[#0D1B2A] text-center text-sm">
+            <Text className="font-poppins-semibold text-center text-sm" style={{ color: primaryColor }}>
               No homework found
             </Text>
             <Text className="font-inter text-gray-400 text-center text-xs mt-1">
@@ -263,7 +267,7 @@ export default function HomeworkScreen() {
                   className="bg-white rounded-2xl mb-4 border border-gray-100 shadow-sm overflow-hidden flex-row"
                   activeOpacity={0.9}
                   style={{
-                    shadowColor: "#0d1b2a",
+                    shadowColor: primaryColor,
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.04,
                     shadowRadius: 8,
@@ -311,7 +315,7 @@ export default function HomeworkScreen() {
                     </View>
 
                     {/* Title */}
-                    <Text className="font-poppins-semibold text-sm text-[#0D1B2A] leading-tight mb-3" numberOfLines={2}>
+                    <Text className="font-poppins-semibold text-sm leading-tight mb-3" style={{ color: primaryColor }} numberOfLines={2}>
                       {hw.title}
                     </Text>
 
@@ -391,7 +395,7 @@ export default function HomeworkScreen() {
           animationType="slide"
           onRequestClose={() => setSelectedHw(null)}
         >
-          <View style={{ flex: 1, backgroundColor: "rgba(13, 27, 42, 0.45)", justifyContent: "flex-end" }}>
+          <View style={{ flex: 1, backgroundColor: primaryColor + "73", justifyContent: "flex-end" }}>
             <View 
               className="bg-white rounded-t-[28px] px-6 pt-5 pb-8 max-h-[85%]"
               style={{
@@ -433,13 +437,13 @@ export default function HomeworkScreen() {
                   className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={18} color="#0D1B2A" />
+                  <Ionicons name="close" size={18} color={primaryColor} />
                 </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} className="mb-4">
                 {/* Title */}
-                <Text className="font-poppins-semibold text-lg text-[#0D1B2A] leading-snug mb-3">
+                <Text className="font-poppins-semibold text-lg leading-snug mb-3" style={{ color: primaryColor }}>
                   {selectedHw.title}
                 </Text>
 
@@ -449,7 +453,7 @@ export default function HomeworkScreen() {
                     <Text className="font-opensans text-[9px] font-bold text-gray-400 uppercase tracking-wider">
                       Assign Date
                     </Text>
-                    <Text className="font-inter text-xs text-[#0D1B2A] font-semibold mt-0.5">
+                    <Text className="font-inter text-xs font-semibold mt-0.5" style={{ color: primaryColor }}>
                       {formatDate(selectedHw.assign_date)}
                     </Text>
                   </View>
@@ -477,7 +481,7 @@ export default function HomeworkScreen() {
                 <Text className="font-poppins-semibold text-xs text-gray-400 uppercase tracking-wider mb-1.5">
                   Instructions
                 </Text>
-                <Text className="font-inter text-[#0D1B2A] text-sm leading-relaxed mb-5 bg-[#fbf9f8] p-3 rounded-xl border border-gray-100">
+                <Text className="font-inter text-sm leading-relaxed mb-5 p-3 rounded-xl border border-gray-100" style={{ color: primaryColor, backgroundColor: creamColor }}>
                   {selectedHw.description || "No description provided."}
                 </Text>
 
@@ -497,7 +501,7 @@ export default function HomeworkScreen() {
                           <Ionicons name="document-text" size={20} color="#DC2626" />
                         </View>
                         <View>
-                          <Text className="font-inter-medium text-xs text-[#0D1B2A]">
+                          <Text className="font-inter-medium text-xs" style={{ color: primaryColor }}>
                             Question_Paper.pdf
                           </Text>
                           <Text className="font-inter text-[10px] text-gray-400 mt-0.5">
@@ -526,7 +530,7 @@ export default function HomeworkScreen() {
                             <Ionicons name="document" size={20} color="#7C3AED" />
                           </View>
                           <View className="flex-1">
-                            <Text className="font-inter-medium text-xs text-[#0D1B2A]" numberOfLines={1}>
+                            <Text className="font-inter-medium text-xs" style={{ color: primaryColor }} numberOfLines={1}>
                               {selectedHw.submission.file_url ? selectedHw.submission.file_url.split('/').pop() : "Solution_Document.pdf"}
                             </Text>
                             <Text className="font-inter text-[10px] text-gray-400 mt-0.5">
@@ -547,8 +551,8 @@ export default function HomeworkScreen() {
                         <View className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm mb-4">
                           <View className="flex-row justify-between items-center mb-3">
                             <View className="flex-row items-center space-x-2">
-                              <Ionicons name="ribbon" size={18} color="#D4AF37" />
-                              <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                              <Ionicons name="ribbon" size={18} color={secondaryColor} />
+                              <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                                 Score Card & Feedback
                               </Text>
                             </View>
@@ -563,7 +567,7 @@ export default function HomeworkScreen() {
                               {/* Overall Feedback text */}
                               {selectedHw.submission.ai_feedback.overallFeedback && (
                                 <View className="bg-gray-50 p-3 rounded-xl mb-3 border border-gray-50">
-                                  <Text className="font-inter text-[#0D1B2A] text-xs leading-relaxed">
+                                  <Text className="font-inter text-xs leading-relaxed" style={{ color: primaryColor }}>
                                     "{selectedHw.submission.ai_feedback.overallFeedback}"
                                   </Text>
                                 </View>
@@ -632,8 +636,8 @@ export default function HomeworkScreen() {
                         <View className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
                           <View className="flex-row items-center justify-between pb-3 border-b border-gray-100 mb-3">
                             <View className="flex-row items-center space-x-3">
-                              <Ionicons name="document-attach-outline" size={20} color="#0D1B2A" />
-                              <Text className="font-inter-semibold text-xs text-[#0D1B2A]" numberOfLines={1}>
+                              <Ionicons name="document-attach-outline" size={20} color={primaryColor} />
+                              <Text className="font-inter-semibold text-xs" style={{ color: primaryColor }} numberOfLines={1}>
                                 {simulatedFile}
                               </Text>
                             </View>
@@ -649,7 +653,8 @@ export default function HomeworkScreen() {
                           <TouchableOpacity
                             onPress={handleSubmittingSolution}
                             disabled={submitting}
-                            className="bg-[#0D1B2A] py-3.5 rounded-xl items-center flex-row justify-center space-x-2"
+                            className="py-3.5 rounded-xl items-center flex-row justify-center space-x-2"
+                            style={{ backgroundColor: primaryColor }}
                             activeOpacity={0.8}
                           >
                             {submitting ? (
@@ -669,12 +674,13 @@ export default function HomeworkScreen() {
                         <TouchableOpacity
                           onPress={handleSimulateFileSelect}
                           disabled={isUploading}
-                          className="bg-[#fbf9f8] border-2 border-dashed border-gray-200 rounded-2xl p-6 justify-center items-center"
+                          className="border-2 border-dashed border-gray-200 rounded-2xl p-6 justify-center items-center"
+                          style={{ backgroundColor: creamColor }}
                           activeOpacity={0.7}
                         >
                           {isUploading ? (
                             <View className="items-center">
-                              <ActivityIndicator size="small" color="#0D1B2A" />
+                              <ActivityIndicator size="small" color={primaryColor} />
                               <Text className="font-inter text-[11px] text-gray-500 mt-2">
                                 Attaching file...
                               </Text>
@@ -682,7 +688,7 @@ export default function HomeworkScreen() {
                           ) : (
                             <View className="items-center">
                               <Ionicons name="cloud-upload" size={32} color="#9CA3AF" />
-                              <Text className="font-poppins-semibold text-xs text-[#0D1B2A] mt-2">
+                              <Text className="font-poppins-semibold text-xs mt-2" style={{ color: primaryColor }}>
                                 Upload solution file
                               </Text>
                               <Text className="font-inter text-[10px] text-gray-400 mt-1">

@@ -119,7 +119,10 @@ interface StudentItem {
 
 export default function StudentListScreen() {
   const router = useRouter();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   // Loading and Error states
   const [loading, setLoading] = useState(true);
@@ -235,25 +238,25 @@ export default function StudentListScreen() {
     if (score === null) {
       return (
         <View className="bg-gray-100 px-2 py-1 rounded-[6px] items-center justify-center min-w-[40px]">
-          <Text className="font-poppins-bold text-[13px] text-[#0D1B2A]">—</Text>
+          <Text className="font-poppins-bold text-[13px]" style={{ color: primaryColor }}>—</Text>
         </View>
       );
     }
 
-    let bg = "bg-[#F0EDED]";
-    let text = "text-[#0D1B2A]";
+    let bgStyle: any = { backgroundColor: "#F0EDED" };
+    let textStyle: any = { color: primaryColor };
 
     if (score >= 8.0) {
-      bg = "bg-[#D4AF37]"; // Gold
-      text = "text-[#0D1B2A]";
+      bgStyle = { backgroundColor: secondaryColor };
+      textStyle = { color: primaryColor };
     } else if (score < 6.0) {
-      bg = "bg-[#FFE0E0]"; // Red bg
-      text = "text-[#DC2626]";
+      bgStyle = { backgroundColor: "#FFE0E0" };
+      textStyle = { color: "#DC2626" };
     }
 
     return (
-      <View style={{ borderRadius: 6 }} className={`${bg} px-2.5 py-1 items-center justify-center min-w-[40px]`}>
-        <Text className={`font-poppins-bold text-[13px] ${text}`}>
+      <View style={[{ borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, alignItems: "center", justifyContent: "center", minWidth: 40 }, bgStyle]}>
+        <Text className="font-poppins-bold text-[13px]" style={textStyle}>
           {score.toFixed(1)}
         </Text>
       </View>
@@ -278,7 +281,7 @@ export default function StudentListScreen() {
   );
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {/* Header */}
       <Header title="Students" showBack={false} />
 
@@ -286,9 +289,9 @@ export default function StudentListScreen() {
       {loading && classes.length === 0 ? (
         <StudentListSkeleton />
       ) : classes.length === 0 ? (
-        <View className="flex-1 justify-center items-center p-6 bg-[#F7F3EB]">
-          <Ionicons name="people-outline" size={48} color="#D4AF37" />
-          <Text className="font-poppins-bold text-base text-[#0D1B2A] mt-3">
+        <View className="flex-1 justify-center items-center p-6" style={{ backgroundColor: creamColor }}>
+          <Ionicons name="people-outline" size={48} color={secondaryColor} />
+          <Text className="font-poppins-bold text-base mt-3" style={{ color: primaryColor }}>
             No students assigned yet
           </Text>
           <Text className="font-inter text-xs text-gray-500 text-center mt-1.5">
@@ -325,15 +328,15 @@ export default function StudentListScreen() {
                         paddingHorizontal: 16,
                         paddingVertical: 8,
                         borderRadius: 9999,
-                        backgroundColor: isSelected ? "#D4AF37" : "#FFFFFF",
+                        backgroundColor: isSelected ? secondaryColor : "#FFFFFF",
                         borderWidth: isSelected ? 0 : 1,
-                        borderColor: "#0D1B2A",
+                        borderColor: primaryColor,
                       }}
                     >
                       <Text
                         style={{
                           fontSize: 13,
-                          color: "#0D1B2A",
+                          color: primaryColor,
                         }}
                         className={isSelected ? "font-poppins-semibold" : "font-poppins-medium"}
                       >
@@ -384,20 +387,20 @@ export default function StudentListScreen() {
                         fontFamily: "OpenSans-Bold",
                         fontSize: 9,
                         fontWeight: "700",
-                        color: "#D4AF37",
+                        color: secondaryColor,
                         letterSpacing: 0.5,
                       }}
                     >
                       CLASS AVERAGE
                     </Text>
-                    <Ionicons name="star" size={16} color="#D4AF37" />
+                    <Ionicons name="star" size={16} color={secondaryColor} />
                   </View>
                   <Text
                     style={{
                       fontFamily: "Poppins-Bold",
                       fontSize: 16,
                       fontWeight: "700",
-                      color: "#0D1B2A",
+                      color: primaryColor,
                       marginTop: 6,
                     }}
                   >
@@ -427,20 +430,20 @@ export default function StudentListScreen() {
                         fontFamily: "OpenSans-Bold",
                         fontSize: 9,
                         fontWeight: "700",
-                        color: "#D4AF37",
+                        color: secondaryColor,
                         letterSpacing: 0.5,
                       }}
                     >
                       AI TALENT SCORE
                     </Text>
-                    <Ionicons name="bulb" size={16} color="#D4AF37" />
+                    <Ionicons name="bulb" size={16} color={secondaryColor} />
                   </View>
                   <Text
                     style={{
                       fontFamily: "Poppins-Bold",
                       fontSize: 16,
                       fontWeight: "700",
-                      color: "#0D1B2A",
+                      color: primaryColor,
                       marginTop: 6,
                     }}
                   >
@@ -470,20 +473,20 @@ export default function StudentListScreen() {
                         fontFamily: "OpenSans-Bold",
                         fontSize: 9,
                         fontWeight: "700",
-                        color: "#D4AF37",
+                        color: secondaryColor,
                         letterSpacing: 0.5,
                       }}
                     >
                       ATTENDANCE
                     </Text>
-                    <Ionicons name="checkbox" size={16} color="#D4AF37" />
+                    <Ionicons name="checkbox" size={16} color={secondaryColor} />
                   </View>
                   <Text
                     style={{
                       fontFamily: "Poppins-Bold",
                       fontSize: 16,
                       fontWeight: "700",
-                      color: "#0D1B2A",
+                      color: primaryColor,
                       marginTop: 6,
                     }}
                   >
@@ -534,7 +537,7 @@ export default function StudentListScreen() {
                   </View>
                 ) : students.length === 0 ? (
                   <View className="bg-white rounded-2xl p-8 items-center justify-center border border-gray-100 shadow-sm mt-2">
-                    <Ionicons name="people-outline" size={48} color="#D4AF37" />
+                    <Ionicons name="people-outline" size={48} color={secondaryColor} />
                     <Text className="font-inter-medium text-[#44474C] text-sm mt-3 text-center">
                       No students in this class
                     </Text>
@@ -570,8 +573,8 @@ export default function StudentListScreen() {
                               className="w-10 h-10 rounded-full border border-gray-100"
                             />
                           ) : (
-                            <View className="w-10 h-10 rounded-full bg-[#0D1B2A] items-center justify-center border border-gray-200">
-                              <Text className="font-poppins-bold text-[16px] text-[#D4AF37]">
+                            <View className="w-10 h-10 rounded-full items-center justify-center border border-gray-200" style={{ backgroundColor: primaryColor }}>
+                              <Text className="font-poppins-bold text-[16px]" style={{ color: secondaryColor }}>
                                 {getInitials(student.full_name)}
                               </Text>
                             </View>
@@ -579,7 +582,8 @@ export default function StudentListScreen() {
 
                           <View className="flex-1 pr-1">
                             <Text
-                              className="font-inter-semibold text-sm text-[#0D1B2A] leading-tight"
+                              className="font-inter-semibold text-sm leading-tight"
+                              style={{ color: primaryColor }}
                               numberOfLines={1}
                             >
                               {student.full_name}
@@ -595,7 +599,7 @@ export default function StudentListScreen() {
 
                         {/* Marks */}
                         <View style={{ flex: 1.2 }} className="items-end pr-2">
-                          <Text className="font-inter-bold text-[15px] text-[#0D1B2A] text-right">
+                          <Text className="font-inter-bold text-[15px] text-right" style={{ color: primaryColor }}>
                             {student.marks !== null ? `${student.marks}%` : "—"}
                           </Text>
                         </View>
@@ -631,13 +635,13 @@ export default function StudentListScreen() {
                         style={{
                           borderRadius: 8,
                           borderWidth: 1,
-                          borderColor: "#0D1B2A",
+                          borderColor: primaryColor,
                           backgroundColor: currentPage === 1 ? "rgba(13,27,42,0.05)" : "#FFFFFF",
                           opacity: currentPage === 1 ? 0.4 : 1,
                         }}
                         className="px-3 py-2 items-center justify-center"
                       >
-                        <Text className="font-inter-medium text-[13px] text-[#0D1B2A]">Prev</Text>
+                        <Text className="font-inter-medium text-[13px]" style={{ color: primaryColor }}>Prev</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -647,14 +651,14 @@ export default function StudentListScreen() {
                         style={{
                           borderRadius: 8,
                           borderWidth: 1,
-                          borderColor: "#0D1B2A",
+                          borderColor: primaryColor,
                           backgroundColor:
                             currentPage === totalPages ? "rgba(13,27,42,0.05)" : "#FFFFFF",
                           opacity: currentPage === totalPages ? 0.4 : 1,
                         }}
                         className="px-3 py-2 items-center justify-center"
                       >
-                        <Text className="font-inter-medium text-[13px] text-[#0D1B2A]">Next</Text>
+                        <Text className="font-inter-medium text-[13px]" style={{ color: primaryColor }}>Next</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

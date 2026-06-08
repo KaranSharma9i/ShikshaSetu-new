@@ -41,7 +41,10 @@ interface StudentItem {
 
 export default function BulkMarksScreen() {
   const router = useRouter();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   // Screen level loading
   const [loading, setLoading] = useState(true);
@@ -453,7 +456,8 @@ export default function BulkMarksScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-[#F7F3EB]"
+      style={{ backgroundColor: creamColor }}
+      className="flex-1"
     >
       <Header title="Enter Marks" showBack={true} onBack={() => router.back()} />
 
@@ -489,7 +493,7 @@ export default function BulkMarksScreen() {
 
       {loading && students.length === 0 ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#D4AF37" />
+          <ActivityIndicator size="large" color={secondaryColor} />
           <Text className="font-poppins-semibold text-xs text-gray-400 mt-2">
             Loading...
           </Text>
@@ -504,8 +508,8 @@ export default function BulkMarksScreen() {
           {/* STEP 1: Class-Section Selector */}
           <View className="mb-4 z-50">
             <Text
-              style={{ fontFamily: "Poppins-SemiBold" }}
-              className="text-[15px] font-bold text-[#0D1B2A] mb-1.5"
+              style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+              className="text-[15px] font-bold mb-1.5"
             >
               Select Class
             </Text>
@@ -521,18 +525,15 @@ export default function BulkMarksScreen() {
               }`}
             >
               <Text
-                className={
-                  selectedClass
-                    ? "text-[#0D1B2A] font-inter text-sm font-medium"
-                    : "text-gray-400 font-inter text-sm"
-                }
+                style={{ color: selectedClass ? primaryColor : "#9CA3AF" }}
+                className="font-inter text-sm font-medium"
               >
                 {selectedClass ? selectedClass.label : "Select Class"}
               </Text>
               <Feather
                 name="chevron-down"
                 size={18}
-                color={isClassDropdownOpen ? "#D4AF37" : "#0D1B2A"}
+                color={isClassDropdownOpen ? secondaryColor : primaryColor}
               />
             </TouchableOpacity>
 
@@ -546,7 +547,7 @@ export default function BulkMarksScreen() {
                       onPress={() => handleClassSelect(cls)}
                       className="px-4 py-3 border-b border-gray-100 last:border-b-0"
                     >
-                      <Text className="text-[#0D1B2A] font-inter text-sm font-medium">
+                      <Text style={{ color: primaryColor }} className="font-inter text-sm font-medium">
                         {cls.label}
                       </Text>
                     </TouchableOpacity>
@@ -560,8 +561,8 @@ export default function BulkMarksScreen() {
           {selectedClass && (
             <View className="mb-4 z-40">
               <Text
-                style={{ fontFamily: "Poppins-SemiBold" }}
-                className="text-[15px] font-bold text-[#0D1B2A] mb-1.5"
+                style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                className="text-[15px] font-bold mb-1.5"
               >
                 Select Exam
               </Text>
@@ -586,11 +587,8 @@ export default function BulkMarksScreen() {
                     }`}
                   >
                     <Text
-                      className={
-                        selectedExam
-                          ? "text-[#0D1B2A] font-inter text-sm font-medium"
-                          : "text-gray-400 font-inter text-sm"
-                      }
+                      style={{ color: selectedExam ? primaryColor : "#9CA3AF" }}
+                      className="font-inter text-sm font-medium"
                       numberOfLines={1}
                     >
                       {selectedExam
@@ -600,7 +598,7 @@ export default function BulkMarksScreen() {
                     <Feather
                       name="chevron-down"
                       size={18}
-                      color={isExamDropdownOpen ? "#D4AF37" : "#0D1B2A"}
+                      color={isExamDropdownOpen ? secondaryColor : primaryColor}
                     />
                   </TouchableOpacity>
 
@@ -615,7 +613,8 @@ export default function BulkMarksScreen() {
                             className="px-4 py-3 border-b border-gray-100 last:border-b-0"
                           >
                             <Text
-                              className="text-[#0D1B2A] font-inter text-sm font-medium"
+                              style={{ color: primaryColor }}
+                              className="font-inter text-sm font-medium"
                               numberOfLines={1}
                             >
                               {exam.exam_name} — {exam.subject_name} ({exam.formatted_date})
@@ -656,7 +655,7 @@ export default function BulkMarksScreen() {
               {/* Students List */}
               {students.length === 0 ? (
                 <View className="bg-white rounded-2xl p-6 items-center justify-center border border-gray-100 shadow-sm">
-                  <Feather name="users" size={32} color="#D4AF37" />
+                  <Feather name="users" size={32} color={secondaryColor} />
                   <Text className="font-inter text-gray-400 text-xs mt-2 text-center">
                     No active students enrolled in this section.
                   </Text>
@@ -695,8 +694,8 @@ export default function BulkMarksScreen() {
                         {/* Name Column */}
                         <View style={{ flex: 2 }} className="pr-2">
                           <Text
-                            style={{ fontFamily: "Inter-Medium" }}
-                            className="text-[#0D1B2A] text-sm font-semibold leading-tight"
+                            style={{ fontFamily: "Inter-Medium", color: primaryColor }}
+                            className="text-sm font-semibold leading-tight"
                             numberOfLines={2}
                           >
                             {rollPrefix}
@@ -716,7 +715,7 @@ export default function BulkMarksScreen() {
                               borderRadius: 8,
                               fontFamily: "Poppins-Bold",
                               fontSize: 16,
-                              color: "#0D1B2A",
+                              color: primaryColor,
                               backgroundColor: "#FFFFFF",
                             }}
                             placeholder="—"
@@ -747,13 +746,13 @@ export default function BulkMarksScreen() {
                   onPress={saveMarks}
                   activeOpacity={0.85}
                   style={{
-                    backgroundColor: "#0D1B2A",
+                    backgroundColor: primaryColor,
                     height: 56,
                     borderRadius: 14,
                     alignItems: "center",
                     justifyContent: "center",
                     opacity: saveDisabled ? 0.5 : 1,
-                    shadowColor: "#0D1B2A",
+                    shadowColor: primaryColor,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.15,
                     shadowRadius: 10,
@@ -762,10 +761,10 @@ export default function BulkMarksScreen() {
                   className="w-full flex-row"
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color="#D4AF37" className="mr-2" />
+                    <ActivityIndicator size="small" color={secondaryColor} className="mr-2" />
                   ) : null}
                   <Text
-                    style={{ fontFamily: "Poppins-SemiBold", color: "#D4AF37" }}
+                    style={{ fontFamily: "Poppins-SemiBold", color: secondaryColor }}
                     className="text-[16px] font-bold"
                   >
                     {saving ? "Saving..." : "Save Marks"}

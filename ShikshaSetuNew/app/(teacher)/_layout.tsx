@@ -5,7 +5,7 @@ import { useAuth } from "@/src/hooks/useAuth";
 import BottomNavBar from "@/components/teacher/BottomNavBar";
 
 export default function TeacherLayout() {
-  const { isSignedIn, isLoaded, role, session } = useAuth();
+  const { isSignedIn, isLoaded, role, session, theme } = useAuth();
   const router = useRouter();
   const hasRedirected = useRef(false);
 
@@ -43,10 +43,10 @@ export default function TeacherLayout() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: "#F7F3EB",
+          backgroundColor: theme?.colors?.cream ?? "#F7F3EB",
         }}
       >
-        <ActivityIndicator color="#D4AF37" size="large" />
+        <ActivityIndicator color={theme?.colors?.secondary ?? "#D4AF37"} size="large" />
       </View>
     );
   }

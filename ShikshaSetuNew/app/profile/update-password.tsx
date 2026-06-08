@@ -18,7 +18,12 @@ import BottomNavBar from "../../components/student/BottomNavBar";
 
 export default function UpdatePasswordScreen() {
   const router = useRouter();
-  useAuth();
+  const { theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#fbf9f8";
+
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   // Form states
@@ -105,7 +110,7 @@ export default function UpdatePasswordScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#fbf9f8]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {/* Custom Header */}
       <View 
         className="bg-white border-b border-[#E5E7EB] px-5 flex-row items-center justify-between z-50"
@@ -120,9 +125,9 @@ export default function UpdatePasswordScreen() {
             className="mr-3 p-1"
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#0D1B2A" />
+            <Ionicons name="arrow-back" size={24} color={primaryColor} />
           </TouchableOpacity>
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A]">
+          <Text className="font-poppins-semibold text-lg" style={{ color: primaryColor }}>
             Update Password
           </Text>
         </View>
@@ -138,9 +143,9 @@ export default function UpdatePasswordScreen() {
         <View 
           className="bg-white px-5 py-6 rounded-2xl mx-4 mt-6 border border-gray-100/50"
           style={{
-            shadowColor: "rgba(13, 27, 42, 0.05)",
+            shadowColor: primaryColor,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 1,
+            shadowOpacity: 0.05,
             shadowRadius: 20,
             elevation: 2,
           }}
@@ -156,8 +161,9 @@ export default function UpdatePasswordScreen() {
             </Text>
             <View 
               className={`bg-white border rounded-lg px-4 py-3 flex-row items-center ${
-                focusedField === "current" ? "border-[#0D1B2A]" : "border-gray-200"
+                focusedField === "current" ? "" : "border-gray-200"
               }`}
+              style={focusedField === "current" ? { borderColor: primaryColor } : {}}
             >
               <TextInput
                 value={currentPassword}
@@ -172,7 +178,8 @@ export default function UpdatePasswordScreen() {
                 autoCorrect={false}
                 onFocus={() => setFocusedField("current")}
                 onBlur={() => setFocusedField(null)}
-                className="flex-1 font-inter text-[15px] text-[#0D1B2A] p-0"
+                className="flex-1 font-inter text-[15px] p-0"
+                style={{ color: primaryColor }}
               />
               <TouchableOpacity onPress={() => setShowCurrent(!showCurrent)} className="p-1">
                 <Feather name={showCurrent ? "eye" : "eye-off"} size={16} color="#9CA3AF" />
@@ -187,8 +194,9 @@ export default function UpdatePasswordScreen() {
             </Text>
             <View 
               className={`bg-white border rounded-lg px-4 py-3 flex-row items-center ${
-                focusedField === "new" ? "border-[#0D1B2A]" : "border-gray-200"
+                focusedField === "new" ? "" : "border-gray-200"
               }`}
+              style={focusedField === "new" ? { borderColor: primaryColor } : {}}
             >
               <TextInput
                 value={newPassword}
@@ -203,7 +211,8 @@ export default function UpdatePasswordScreen() {
                 autoCorrect={false}
                 onFocus={() => setFocusedField("new")}
                 onBlur={() => setFocusedField(null)}
-                className="flex-1 font-inter text-[15px] text-[#0D1B2A] p-0"
+                className="flex-1 font-inter text-[15px] p-0"
+                style={{ color: primaryColor }}
               />
               <TouchableOpacity onPress={() => setShowNew(!showNew)} className="p-1">
                 <Feather name={showNew ? "eye" : "eye-off"} size={16} color="#9CA3AF" />
@@ -218,8 +227,9 @@ export default function UpdatePasswordScreen() {
             </Text>
             <View 
               className={`bg-white border rounded-lg px-4 py-3 flex-row items-center ${
-                focusedField === "confirm" ? "border-[#0D1B2A]" : "border-gray-200"
+                focusedField === "confirm" ? "" : "border-gray-200"
               }`}
+              style={focusedField === "confirm" ? { borderColor: primaryColor } : {}}
             >
               <TextInput
                 value={confirmPassword}
@@ -234,7 +244,8 @@ export default function UpdatePasswordScreen() {
                 autoCorrect={false}
                 onFocus={() => setFocusedField("confirm")}
                 onBlur={() => setFocusedField(null)}
-                className="flex-1 font-inter text-[15px] text-[#0D1B2A] p-0"
+                className="flex-1 font-inter text-[15px] p-0"
+                style={{ color: primaryColor }}
               />
               <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} className="p-1">
                 <Feather name={showConfirm ? "eye" : "eye-off"} size={16} color="#9CA3AF" />
@@ -253,9 +264,8 @@ export default function UpdatePasswordScreen() {
         <TouchableOpacity
           onPress={handleSave}
           disabled={isSaving}
-          className={`mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row ${
-            currentPassword && newPassword && confirmPassword && !isSaving ? "bg-[#0D1B2A]" : "bg-gray-300"
-          }`}
+          className="mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row"
+          style={currentPassword && newPassword && confirmPassword && !isSaving ? { backgroundColor: primaryColor } : { backgroundColor: "#D1D5DB" }}
           activeOpacity={0.8}
         >
           {isSaving ? (

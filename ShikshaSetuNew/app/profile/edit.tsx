@@ -22,7 +22,12 @@ import ProfilePhotoUploader from "../../components/student/ProfilePhotoUploader"
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { userId } = useAuth();
+  const { userId, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#fbf9f8";
+
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   const [profile, setProfile] = useState<any>(null);
@@ -90,14 +95,14 @@ export default function EditProfileScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#fbf9f8] justify-center items-center">
-        <ActivityIndicator size="large" color="#0D1B2A" />
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={primaryColor} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#fbf9f8]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {/* Custom Header */}
       <View 
         className="bg-white border-b border-[#E5E7EB] px-5 flex-row items-center justify-between z-50"
@@ -112,9 +117,9 @@ export default function EditProfileScreen() {
             className="mr-3 p-1"
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#0D1B2A" />
+            <Ionicons name="arrow-back" size={24} color={primaryColor} />
           </TouchableOpacity>
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A]">
+          <Text className="font-poppins-semibold text-lg" style={{ color: primaryColor }}>
             Edit Profile
           </Text>
         </View>
@@ -126,7 +131,7 @@ export default function EditProfileScreen() {
           activeOpacity={0.7}
         >
           <Text 
-            style={{ color: isDirty && !isSaving ? "#D4AF37" : "#E5E7EB" }}
+            style={{ color: isDirty && !isSaving ? secondaryColor : "#E5E7EB" }}
             className="font-poppins-semibold text-base"
           >
             Save
@@ -155,9 +160,9 @@ export default function EditProfileScreen() {
         <View 
           className="bg-white px-5 py-6 rounded-2xl mx-4 mt-2 border border-gray-100/50"
           style={{
-            shadowColor: "rgba(13, 27, 42, 0.05)",
+            shadowColor: primaryColor,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 1,
+            shadowOpacity: 0.05,
             shadowRadius: 20,
             elevation: 2,
           }}
@@ -192,9 +197,10 @@ export default function EditProfileScreen() {
               placeholderTextColor="#9CA3AF"
               onFocus={() => setFocusedField("phone")}
               onBlur={() => setFocusedField(null)}
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] ${
-                focusedField === "phone" ? "border-[#0D1B2A]" : "border-gray-200"
+              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] ${
+                focusedField === "phone" ? "" : "border-gray-200"
               }`}
+              style={[{ color: primaryColor }, focusedField === "phone" ? { borderColor: primaryColor } : {}]}
             />
           </View>
 
@@ -213,9 +219,10 @@ export default function EditProfileScreen() {
               onFocus={() => setFocusedField("address")}
               onBlur={() => setFocusedField(null)}
               textAlignVertical="top"
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] h-20 ${
-                focusedField === "address" ? "border-[#0D1B2A]" : "border-gray-200"
+              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] h-20 ${
+                focusedField === "address" ? "" : "border-gray-200"
               }`}
+              style={[{ color: primaryColor }, focusedField === "address" ? { borderColor: primaryColor } : {}]}
             />
           </View>
 
@@ -236,9 +243,10 @@ export default function EditProfileScreen() {
               placeholderTextColor="#9CA3AF"
               onFocus={() => setFocusedField("guardianName")}
               onBlur={() => setFocusedField(null)}
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] ${
-                focusedField === "guardianName" ? "border-[#0D1B2A]" : "border-gray-200"
+              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] ${
+                focusedField === "guardianName" ? "" : "border-gray-200"
               }`}
+              style={[{ color: primaryColor }, focusedField === "guardianName" ? { borderColor: primaryColor } : {}]}
             />
           </View>
 
@@ -253,11 +261,12 @@ export default function EditProfileScreen() {
               keyboardType="phone-pad"
               placeholder="+91 XXXXX XXXXX"
               placeholderTextColor="#9CA3AF"
-              onFocus={() => setFocusedField("focusedField")}
+              onFocus={() => setFocusedField("guardianPhone")}
               onBlur={() => setFocusedField(null)}
-              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] text-[#0D1B2A] ${
-                focusedField === "guardianPhone" ? "border-[#0D1B2A]" : "border-gray-200"
+              className={`bg-white border rounded-lg px-4 py-3 font-inter text-[15px] ${
+                focusedField === "guardianPhone" ? "" : "border-gray-200"
               }`}
+              style={[{ color: primaryColor }, focusedField === "guardianPhone" ? { borderColor: primaryColor } : {}]}
             />
           </View>
 
@@ -295,9 +304,8 @@ export default function EditProfileScreen() {
         <TouchableOpacity
           onPress={handleSave}
           disabled={!isDirty || isSaving}
-          className={`mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row ${
-            isDirty && !isSaving ? "bg-[#0D1B2A]" : "bg-gray-300"
-          }`}
+          className="mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row"
+          style={isDirty && !isSaving ? { backgroundColor: primaryColor } : { backgroundColor: "#D1D5DB" }}
           activeOpacity={0.8}
         >
           {isSaving ? (

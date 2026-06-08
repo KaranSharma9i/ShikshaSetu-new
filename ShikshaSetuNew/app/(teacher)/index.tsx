@@ -67,8 +67,10 @@ function SkeletonBox({
 }
 
 function DashboardSkeleton() {
+  const { theme } = useAuth();
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
   return (
-    <View style={{ flex: 1, backgroundColor: "#F9F6EF", padding: 20 }}>
+    <View style={{ flex: 1, backgroundColor: creamColor, padding: 20 }}>
       {/* Hero card skeleton */}
       <SkeletonBox width="100%" height={160} borderRadius={20} style={{ marginBottom: 16 }} />
       {/* Metric cards skeleton */}
@@ -86,8 +88,13 @@ function DashboardSkeleton() {
 
 export default function TeacherDashboard() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, role } = useAuth();
+  const { isLoaded, isSignedIn, role, theme } = useAuth();
   const { stats, classTeacherInfo, isLoading, error, refetch } = useTeacherDashboard();
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
 
   // Redirect check
   useEffect(() => {
@@ -98,8 +105,8 @@ export default function TeacherDashboard() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F9F6EF" }}>
-        <ActivityIndicator size="large" color="#D4AF37" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </View>
     );
   }
@@ -107,8 +114,8 @@ export default function TeacherDashboard() {
   // Redirect non-teachers
   if (role && role !== "teacher") {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F9F6EF" }}>
-        <ActivityIndicator size="large" color="#D4AF37" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </View>
     );
   }
@@ -162,7 +169,7 @@ export default function TeacherDashboard() {
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F9F6EF" }}>
+    <View style={{ flex: 1, backgroundColor: creamColor }}>
       {/* Status bar padding for Android */}
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
 
@@ -174,7 +181,7 @@ export default function TeacherDashboard() {
       ) : error ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
           <Ionicons name="warning-outline" size={48} color="#EF4444" />
-          <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: "#0D1B2A", marginTop: 12 }}>
+          <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: primaryColor, marginTop: 12 }}>
             Couldn't load dashboard
           </Text>
           <Text style={{ fontFamily: "Inter-Regular", fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 6, marginBottom: 20 }}>
@@ -182,9 +189,9 @@ export default function TeacherDashboard() {
           </Text>
           <TouchableOpacity
             onPress={refetch}
-            style={{ backgroundColor: "#D4AF37", paddingHorizontal: 28, paddingVertical: 12, borderRadius: 100 }}
+            style={{ backgroundColor: secondaryColor, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 100 }}
           >
-            <Text style={{ fontFamily: "Poppins-Bold", color: "#0D1B2A", fontSize: 13 }}>
+            <Text style={{ fontFamily: "Poppins-Bold", color: primaryColor, fontSize: 13 }}>
               Try Again
             </Text>
           </TouchableOpacity>
@@ -199,7 +206,7 @@ export default function TeacherDashboard() {
           <View style={{ paddingHorizontal: 20, paddingTop: 20, marginBottom: 16 }}>
             <View
               style={{
-                backgroundColor: "#0D1B2A",
+                backgroundColor: primaryColor,
                 borderRadius: 24,
                 padding: 20,
                 overflow: "hidden",
@@ -248,7 +255,7 @@ export default function TeacherDashboard() {
                         gap: 5,
                       }}
                     >
-                      <Ionicons name="school-outline" size={12} color="#D4AF37" />
+                      <Ionicons name="school-outline" size={12} color={secondaryColor} />
                       <Text
                         style={{
                           fontFamily: "Inter-Medium",
@@ -298,13 +305,13 @@ export default function TeacherDashboard() {
                 style={{
                   fontFamily: "Poppins-Bold",
                   fontSize: 32,
-                  color: "#0D1B2A",
+                  color: primaryColor,
                 }}
               >
                 {avgMarks !== null ? `${avgMarks}%` : "—"}
               </Text>
               <View style={{ height: 8, width: "100%", backgroundColor: "#F3F4F6", borderRadius: 9999, marginTop: 12, overflow: "hidden" }}>
-                <View style={{ width: `${avgMarks || 0}%`, backgroundColor: "#D4AF37", height: "100%", borderRadius: 9999 }} />
+                <View style={{ width: `${avgMarks || 0}%`, backgroundColor: secondaryColor, height: "100%", borderRadius: 9999 }} />
               </View>
             </View>
 
@@ -343,7 +350,7 @@ export default function TeacherDashboard() {
                   style={{
                     fontFamily: "Poppins-Bold",
                     fontSize: 32,
-                    color: "#0D1B2A",
+                    color: primaryColor,
                   }}
                 >
                   {avgAiScore}/10
@@ -356,9 +363,9 @@ export default function TeacherDashboard() {
                 percentage={avgAiScore * 10}
                 size={80}
                 strokeWidth={8}
-                color="#D4AF37"
+                color={secondaryColor}
               >
-                <Text style={{ fontFamily: "Poppins-Bold", fontSize: 14, color: "#0D1B2A" }}>
+                <Text style={{ fontFamily: "Poppins-Bold", fontSize: 14, color: primaryColor }}>
                   {avgAiScore}
                 </Text>
               </CircularProgress>
@@ -395,7 +402,7 @@ export default function TeacherDashboard() {
                 style={{
                   fontFamily: "Poppins-Bold",
                   fontSize: 32,
-                  color: "#0D1B2A",
+                  color: primaryColor,
                 }}
               >
                 {pendingHomeworkCount}
@@ -503,7 +510,7 @@ export default function TeacherDashboard() {
                   style={{
                     fontFamily: "Inter-Medium",
                     fontSize: 12,
-                    color: "#D4AF37",
+                    color: secondaryColor,
                   }}
                 >
                   See All →
@@ -574,12 +581,12 @@ export default function TeacherDashboard() {
                           width: 34,
                           height: 34,
                           borderRadius: 9999,
-                          backgroundColor: "#FFF9EC",
+                          backgroundColor: secondaryLightColor + "20",
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
-                        <Text style={{ fontFamily: "Poppins-Bold", fontSize: 11, color: "#D4AF37" }}>
+                        <Text style={{ fontFamily: "Poppins-Bold", fontSize: 11, color: secondaryColor }}>
                           {getInitials(student.name)}
                         </Text>
                       </View>
@@ -610,7 +617,7 @@ export default function TeacherDashboard() {
                       style={{
                         fontFamily: "Poppins-Bold",
                         fontSize: 14,
-                        color: "#D4AF37",
+                        color: secondaryColor,
                       }}
                     >
                       {student.score !== null ? `${student.score}%` : "—"}

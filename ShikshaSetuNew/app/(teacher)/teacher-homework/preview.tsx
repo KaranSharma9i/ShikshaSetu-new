@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import { supabase } from "@/src/lib/supabase";
 import Header from "@/components/teacher/Header";
 import { generateHomework, publishHomework } from "@/src/repositories/teacherRepository";
+import { useAuth } from "@/src/hooks/useAuth";
 import { Colors, Spacing, Radius, Shadow, FontSize, ButtonTokens } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -42,6 +43,11 @@ interface GeneratedContent {
 export default function HomeworkPreview() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#FFF3CD";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
   const params = useLocalSearchParams<{
     homework_id: string;
     generated_content: string;
@@ -313,8 +319,8 @@ export default function HomeworkPreview() {
       return (
         <View key={sect.type} style={styles.sectionContainer}>
           {/* Section Header */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionHeaderContent}>
+          <View style={[styles.sectionHeader, { borderLeftColor: secondaryColor, backgroundColor: theme?.colors?.cream ?? "#E6ECF2" }]}>
+            <Text style={[styles.sectionHeaderContent, { color: primaryColor }]}>
               {sect.title}
             </Text>
           </View>
@@ -332,7 +338,7 @@ export default function HomeworkPreview() {
                 disabled={isEditing}
                 style={[
                   styles.questionCard,
-                  isEditing ? styles.questionCardEditing : styles.questionCardDefault,
+                  isEditing ? [styles.questionCardEditing, { borderColor: secondaryColor }] : styles.questionCardDefault,
                   showOpacity && { opacity: 0.6 },
                 ]}
               >
@@ -340,14 +346,14 @@ export default function HomeworkPreview() {
                   // Editing Mode View
                   <View style={styles.editForm}>
                     <View style={styles.editCardHeader}>
-                      <View style={styles.questionNumberBadge}>
-                        <Text style={styles.questionNumberText}>{q.question_number}</Text>
+                      <View style={[styles.questionNumberBadge, { backgroundColor: secondaryColor }]}>
+                        <Text style={[styles.questionNumberText, { color: primaryColor }]}>{q.question_number}</Text>
                       </View>
                       <Text style={styles.questionTypeLabel}>{sect.type}</Text>
                     </View>
 
                     <TextInput
-                      style={styles.editQuestionInput}
+                      style={[styles.editQuestionInput, { color: primaryColor }]}
                       value={editText}
                       onChangeText={setEditText}
                       multiline
@@ -356,9 +362,9 @@ export default function HomeworkPreview() {
 
                     {q.type === 'MCQ' && editOptions.map((opt, optIdx) => (
                       <View key={optIdx} style={styles.editOptionRow}>
-                        <Text style={styles.optionPrefix}>{String.fromCharCode(65 + optIdx)}.</Text>
+                        <Text style={[styles.optionPrefix, { color: primaryColor }]}>{String.fromCharCode(65 + optIdx)}.</Text>
                         <TextInput
-                          style={styles.editOptionInput}
+                          style={[styles.editOptionInput, { color: primaryColor }]}
                           value={opt}
                           onChangeText={(text) => {
                             const newOpts = [...editOptions];
@@ -373,15 +379,15 @@ export default function HomeworkPreview() {
                     <View style={styles.editFormActions}>
                       <TouchableOpacity
                         onPress={handleCancel}
-                        style={[styles.editButton, styles.cancelButton]}
+                        style={[styles.editButton, styles.cancelButton, { borderColor: primaryColor }]}
                       >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                        <Text style={[styles.cancelButtonText, { color: primaryColor }]}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={handleDone}
-                        style={[styles.editButton, styles.doneButton]}
+                        style={[styles.editButton, styles.doneButton, { backgroundColor: secondaryColor }]}
                       >
-                        <Text style={styles.doneButtonText}>Done</Text>
+                        <Text style={[styles.doneButtonText, { color: primaryColor }]}>Done</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -389,17 +395,17 @@ export default function HomeworkPreview() {
                   // Read Only View
                   <View>
                     <View style={styles.cardHeader}>
-                      <View style={styles.questionNumberBadge}>
-                        <Text style={styles.questionNumberText}>{q.question_number}</Text>
+                      <View style={[styles.questionNumberBadge, { backgroundColor: secondaryColor }]}>
+                        <Text style={[styles.questionNumberText, { color: primaryColor }]}>{q.question_number}</Text>
                       </View>
                       <Text style={styles.questionTypeLabel}>{q.type}</Text>
                     </View>
-                    <Text style={styles.questionText}>{q.question}</Text>
+                    <Text style={[styles.questionText, { color: primaryColor }]}>{q.question}</Text>
                     {q.type === 'MCQ' && q.options && (
                       <View style={styles.optionsList}>
                         {q.options.map((opt, optIdx) => (
-                          <View key={optIdx} style={styles.optionRow}>
-                            <Text style={styles.optionText}>{opt}</Text>
+                          <View key={optIdx} style={[styles.optionRow, { backgroundColor: creamColor, borderColor: secondaryLightColor }]}>
+                            <Text style={[styles.optionText, { color: primaryColor }]}>{opt}</Text>
                           </View>
                         ))}
                       </View>
@@ -415,7 +421,7 @@ export default function HomeworkPreview() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: creamColor }]}>
       <Header title="Preview Assignment" showBack={true} onBack={() => router.back()} />
 
       <ScrollView
@@ -433,12 +439,12 @@ export default function HomeworkPreview() {
             <Text style={styles.summarySubtitle}>
               {grade} — {subject}
             </Text>
-            <View style={styles.aiBadge}>
-              <Feather name="cpu" size={10} color={Colors.textGold} style={styles.aiIcon} />
-              <Text style={styles.aiBadgeText}>AI Generated</Text>
+            <View style={[styles.aiBadge, { backgroundColor: secondaryLightColor }]}>
+              <Feather name="cpu" size={10} color={secondaryColor} style={styles.aiIcon} />
+              <Text style={[styles.aiBadgeText, { color: secondaryColor }]}>AI Generated</Text>
             </View>
           </View>
-          <Text style={styles.summaryTitle}>{title}</Text>
+          <Text style={[styles.summaryTitle, { color: primaryColor }]}>{title}</Text>
           <View style={styles.summaryBottomRow}>
             <View style={styles.metricItem}>
               <Feather name="calendar" size={14} color="#6B7280" style={styles.metricIcon} />
@@ -455,11 +461,11 @@ export default function HomeworkPreview() {
 
         {/* Edit Mode Banner */}
         {bannerVisible && (
-          <View style={styles.bannerContainer}>
-            <Feather name="edit-2" size={16} color={Colors.textGold} style={styles.bannerIcon} />
-            <Text style={styles.bannerText}>Tap any question to edit it before publishing.</Text>
+          <View style={[styles.bannerContainer, { backgroundColor: secondaryLightColor }]}>
+            <Feather name="edit-2" size={16} color={secondaryColor} style={styles.bannerIcon} />
+            <Text style={[styles.bannerText, { color: secondaryColor }]}>Tap any question to edit it before publishing.</Text>
             <TouchableOpacity onPress={() => setBannerVisible(false)} style={styles.bannerCloseButton}>
-              <Feather name="x" size={16} color={Colors.textGold} />
+              <Feather name="x" size={16} color={secondaryColor} />
             </TouchableOpacity>
           </View>
         )}
@@ -477,26 +483,26 @@ export default function HomeworkPreview() {
       >
         <TouchableOpacity
           onPress={handleRegenerate}
-          style={styles.regenerateButton}
+          style={[styles.regenerateButton, { borderColor: primaryColor }]}
           disabled={isRegenerating || isPublishing}
           activeOpacity={0.7}
         >
           {isRegenerating ? (
-            <ActivityIndicator size="small" color={ButtonTokens.secondary.textColor} />
+            <ActivityIndicator size="small" color={primaryColor} />
           ) : (
-            <Text style={styles.regenerateButtonText}>Regenerate</Text>
+            <Text style={[styles.regenerateButtonText, { color: primaryColor }]}>Regenerate</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handlePublish}
-          style={styles.publishButton}
+          style={[styles.publishButton, { backgroundColor: secondaryColor }]}
           disabled={isPublishing || isRegenerating}
           activeOpacity={0.8}
         >
           {isPublishing ? (
-            <ActivityIndicator size="small" color={ButtonTokens.gold.textColor} />
+            <ActivityIndicator size="small" color={primaryColor} />
           ) : (
-            <Text style={styles.publishButtonText}>Publish Assignment</Text>
+            <Text style={[styles.publishButtonText, { color: primaryColor }]}>Publish Assignment</Text>
           )}
         </TouchableOpacity>
       </View>

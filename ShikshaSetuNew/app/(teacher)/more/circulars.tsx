@@ -76,7 +76,10 @@ interface CircularItem {
 
 export default function CircularsScreen() {
   const router = useRouter();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +143,7 @@ export default function CircularsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="Circulars" showBack={true} onBack={() => router.back()} />
 
       {loading ? (
@@ -163,10 +166,10 @@ export default function CircularsScreen() {
         >
           {circulars.length === 0 ? (
             <View className="items-center justify-center py-16">
-              <Feather name="bell" size={48} color="#D4AF37" />
+              <Feather name="bell" size={48} color={secondaryColor} />
               <Text
-                style={{ fontFamily: "Poppins-SemiBold" }}
-                className="text-sm font-bold text-[#0D1B2A] mt-4"
+                style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                className="text-sm font-bold mt-4"
               >
                 No circulars yet
               </Text>
@@ -199,15 +202,15 @@ export default function CircularsScreen() {
                       {item.category ? (
                         <View
                           style={{
-                            backgroundColor: "#D4AF37",
+                            backgroundColor: secondaryColor,
                             borderRadius: 9999,
                             paddingHorizontal: 8,
                             paddingVertical: 2,
                           }}
                         >
                           <Text
-                            style={{ fontFamily: "OpenSans-Bold" }}
-                            className="text-[11px] font-bold text-[#0D1B2A]"
+                            style={{ fontFamily: "OpenSans-Bold", color: primaryColor }}
+                            className="text-[11px] font-bold"
                           >
                             {item.category}
                           </Text>
@@ -225,8 +228,8 @@ export default function CircularsScreen() {
 
                     {/* Title */}
                     <Text
-                      style={{ fontFamily: "Poppins-SemiBold" }}
-                      className="text-[15px] font-bold text-[#0D1B2A] mt-2 leading-tight"
+                      style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                      className="text-[15px] font-bold mt-2 leading-tight"
                     >
                       {item.title}
                     </Text>
@@ -247,7 +250,7 @@ export default function CircularsScreen() {
                         className="mt-3 align-self-start"
                       >
                         <Text
-                          style={{ fontFamily: "Inter-SemiBold", color: "#D4AF37" }}
+                          style={{ fontFamily: "Inter-SemiBold", color: secondaryColor }}
                           className="text-[13px] font-bold"
                         >
                           {isExpanded ? "Read Less" : "Read More"}

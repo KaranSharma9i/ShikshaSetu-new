@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Header from "../components/student/Header";
 import BottomNavBar from "../components/student/BottomNavBar";
 import { useStudentFees } from "../hooks/useStudentFees";
+import { useAuth } from "../src/hooks/useAuth";
 
 function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString("en-IN")}`;
@@ -23,11 +24,19 @@ function formatDate(dateStr: string | null): string {
 export default function FeesScreen() {
   const router = useRouter();
   const { fees, totalDue, totalPaid, totalPending, isLoading, error, refetch } = useStudentFees();
+  const { theme } = useAuth();
+
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
+  const successColor = theme?.colors?.success ?? "#059669";
+  const dangerColor = theme?.colors?.danger ?? "#DC2626";
 
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F9F6EF" }}>
+    <View style={{ flex: 1, backgroundColor: creamColor }}>
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
       
       <Header />
@@ -35,11 +44,11 @@ export default function FeesScreen() {
       <View style={{ flex: 1 }}>
         {isLoading ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator size="large" color="#D4AF37" />
+            <ActivityIndicator size="large" color={secondaryColor} />
           </View>
         ) : error ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
-            <Ionicons name="warning-outline" size={48} color="#EF4444" />
+            <Ionicons name="warning-outline" size={48} color={dangerColor} />
             <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: "#111827", textAlign: "center", marginTop: 12 }}>
               Failed to load fees
             </Text>
@@ -48,22 +57,22 @@ export default function FeesScreen() {
             </Text>
             <TouchableOpacity
               onPress={refetch}
-              style={{ backgroundColor: "#D4AF37", paddingHorizontal: 28, paddingVertical: 12, borderRadius: 100 }}
+              style={{ backgroundColor: secondaryColor, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 100 }}
             >
-              <Text style={{ fontFamily: "Poppins-Bold", color: "#0D1B2A", fontSize: 13 }}>Try Again</Text>
+              <Text style={{ fontFamily: "Poppins-Bold", color: primaryColor, fontSize: 13 }}>Try Again</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <ScrollView className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
               <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 8 }}>
-                <Ionicons name="arrow-back" size={24} color="#0D1B2A" />
+                <Ionicons name="arrow-back" size={24} color={primaryColor} />
               </TouchableOpacity>
-              <Text className="font-poppins-bold text-2xl text-[#0D1B2A]">Fees Portal</Text>
+              <Text className="font-poppins-bold text-2xl" style={{ color: primaryColor }}>Fees Portal</Text>
             </View>
 
             {/* Total Balance Card */}
-            <View style={{ backgroundColor: "#0D1B2A", borderRadius: 24, padding: 20, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
+            <View style={{ backgroundColor: primaryColor, borderRadius: 24, padding: 20, marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
               <Text style={{ fontFamily: "Inter-Regular", fontSize: 12, color: "#9CA3AF" }}>Total Outstanding Balance</Text>
               <Text style={{ fontFamily: "Poppins-Bold", fontSize: 32, color: "#FFFFFF", marginTop: 4 }}>
                 {formatRupees(totalPending)}
@@ -80,7 +89,7 @@ export default function FeesScreen() {
                 </View>
                 <View>
                   <Text style={{ fontFamily: "Inter-Regular", fontSize: 11, color: "#9CA3AF" }}>Total Paid</Text>
-                  <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 15, color: "#10B981", marginTop: 2 }}>
+                  <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 15, color: successColor, marginTop: 2 }}>
                     {formatRupees(totalPaid)}
                   </Text>
                 </View>
@@ -88,7 +97,7 @@ export default function FeesScreen() {
             </View>
 
             {/* Fee Items List */}
-            <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: "#0D1B2A", marginBottom: 12 }}>Fee Breakdown</Text>
+            <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 16, color: primaryColor, marginBottom: 12 }}>Fee Breakdown</Text>
             
             {fees.length === 0 ? (
               <View style={{ backgroundColor: "white", padding: 24, borderRadius: 20, borderWidth: 1, borderColor: "#F3F4F6", borderStyle: "solid", alignItems: "center", justifyContent: "center", height: 160 }}>
@@ -164,8 +173,8 @@ export default function FeesScreen() {
                       
                       {!isPaid && (
                         <View style={{ alignItems: "flex-end" }}>
-                          <Text style={{ fontFamily: "Inter-Regular", fontSize: 10, color: "#DC2626" }}>Pending Amount</Text>
-                          <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 14, color: "#DC2626", marginTop: 2 }}>
+                          <Text style={{ fontFamily: "Inter-Regular", fontSize: 10, color: dangerColor }}>Pending Amount</Text>
+                          <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 14, color: dangerColor, marginTop: 2 }}>
                             {formatRupees(fee.amount - fee.amount_paid)}
                           </Text>
                         </View>
@@ -173,8 +182,8 @@ export default function FeesScreen() {
                       
                       {isPaid && (
                         <View style={{ alignItems: "flex-end" }}>
-                          <Text style={{ fontFamily: "Inter-Regular", fontSize: 10, color: "#059669" }}>Paid Amount</Text>
-                          <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 14, color: "#059669", marginTop: 2 }}>
+                          <Text style={{ fontFamily: "Inter-Regular", fontSize: 10, color: successColor }}>Paid Amount</Text>
+                          <Text style={{ fontFamily: "Poppins-SemiBold", fontSize: 14, color: successColor, marginTop: 2 }}>
                             {formatRupees(fee.amount_paid)}
                           </Text>
                         </View>

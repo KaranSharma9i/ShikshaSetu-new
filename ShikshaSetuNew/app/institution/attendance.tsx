@@ -33,7 +33,13 @@ type TabName = "student" | "staff" | "daily";
 
 export default function AttendanceAnalysisScreen() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, role, userId, institutionId, fullName } = useAuth();
+  const { isLoaded, isSignedIn, role, userId, institutionId, fullName, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const creamColor = theme?.colors?.cream ?? "#F5F0E8";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
   
   const {
     breakdown: dailyBreakdown,
@@ -341,28 +347,28 @@ export default function AttendanceAnalysisScreen() {
             {/* Month Heading */}
             <View className="flex-row justify-between items-center mb-4">
               <TouchableOpacity onPress={prevMonth} className="p-1">
-                <Ionicons name="chevron-back" size={20} color="#0D1B2A" />
+                <Ionicons name="chevron-back" size={20} color={primaryColor} />
               </TouchableOpacity>
-              <Text className="font-poppins-bold text-base text-[#0D1B2A]">
+              <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>
                 {getMonthName(currentMonth)} {resolvedYear}
               </Text>
               <TouchableOpacity onPress={nextMonth} className="p-1">
-                <Ionicons name="chevron-forward" size={20} color="#0D1B2A" />
+                <Ionicons name="chevron-forward" size={20} color={primaryColor} />
               </TouchableOpacity>
             </View>
 
             {/* Legend */}
             <View className="flex-row justify-end items-center space-x-4 mb-4">
               <View className="flex-row items-center space-x-1">
-                <View className="w-2.5 h-2.5 rounded-full bg-[#C9A84C]" />
+                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: secondaryColor }} />
                 <Text className="text-[10px] font-inter text-[#75777D]">Holiday</Text>
               </View>
               <View className="flex-row items-center space-x-1">
-                <View className="w-2.5 h-2.5 rounded-full bg-[#0D1B2A]" />
+                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
                 <Text className="text-[10px] font-inter text-[#75777D]">School Day</Text>
               </View>
               <View className="flex-row items-center space-x-1">
-                <View className="w-2.5 h-2.5 rounded-full bg-[#F5F0E8] border border-gray-300" />
+                <View className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: creamColor }} />
                 <Text className="text-[10px] font-inter text-[#75777D]">Weekend/Future</Text>
               </View>
             </View>
@@ -388,33 +394,38 @@ export default function AttendanceAnalysisScreen() {
                 const isToday = cell.date === "2026-05-25";
 
                 let cellClass = "w-[14.28%] aspect-square justify-center items-center mb-1 relative";
-                let textClass = "font-inter text-xs text-[#0D1B2A]";
+                let textClass = "font-inter text-xs";
+                let textStyle: any = { color: primaryColor };
                 let bgCircle = null;
 
                 if (cell.type === "weekend") {
-                  textClass = "font-inter text-xs text-[#BCBEC4]";
+                  textStyle = { color: "#BCBEC4" };
                 } else if (cell.type === "holiday") {
-                  textClass = "font-poppins-bold text-xs text-white";
-                  bgCircle = <View className="absolute inset-1 rounded-full bg-[#C9A84C] justify-center items-center z-[-1]" />;
+                  textClass = "font-poppins-bold text-xs";
+                  textStyle = { color: "white" };
+                  bgCircle = <View className="absolute inset-1 rounded-full justify-center items-center z-[-1]" style={{ backgroundColor: secondaryColor }} />;
                 } else if (cell.type === "present") {
-                  textClass = "font-poppins-bold text-xs text-white";
-                  bgCircle = <View className="absolute inset-1 rounded-full bg-[#0D1B2A] justify-center items-center z-[-1]" />;
+                  textClass = "font-poppins-bold text-xs";
+                  textStyle = { color: "white" };
+                  bgCircle = <View className="absolute inset-1 rounded-full justify-center items-center z-[-1]" style={{ backgroundColor: primaryColor }} />;
                 } else if (cell.type === "absent") {
                   // Low class average day highlight (red outline/circle)
                   textClass = "font-poppins-bold text-xs text-red-600";
-                  bgCircle = <View className="absolute inset-1 rounded-full border-2 border-red-500 bg-red-50 justify-center items-center z-[-1]" />;
+                  textStyle = { color: dangerColor };
+                  bgCircle = <View className="absolute inset-1 rounded-full border-2 bg-red-50 justify-center items-center z-[-1]" style={{ borderColor: dangerColor }} />;
                 }
 
                 if (isToday) {
                   // Highlight today with gold outline
-                  bgCircle = <View className="absolute inset-1 rounded-full border-[2.5px] border-[#C9A84C] justify-center items-center z-[-1]" />;
-                  textClass = "font-poppins-bold text-xs text-[#0D1B2A]";
+                  bgCircle = <View className="absolute inset-1 rounded-full border-[2.5px] justify-center items-center z-[-1]" style={{ borderColor: secondaryColor }} />;
+                  textClass = "font-poppins-bold text-xs";
+                  textStyle = { color: primaryColor };
                 }
 
                 return (
                   <View key={cell.date} className={cellClass}>
                     {bgCircle}
-                    <Text className={textClass}>{dayNum}</Text>
+                    <Text className={textClass} style={textStyle}>{dayNum}</Text>
                   </View>
                 );
               })}
@@ -469,14 +480,14 @@ export default function AttendanceAnalysisScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F5F0E8]">
+    <SafeAreaView style={{ flex: 1, backgroundColor: creamColor }}>
       {/* Header */}
       <View className="bg-white border-b border-gray-100 px-5 flex-row justify-between items-center py-4">
         <TouchableOpacity
           onPress={() => router.replace("/institution" as any)}
           className="p-2 rounded-full bg-gray-50 border border-gray-200"
         >
-          <Ionicons name="arrow-back" size={18} color="#0D1B2A" />
+          <Ionicons name="arrow-back" size={18} color={primaryColor} />
         </TouchableOpacity>
         
         <Text className="font-poppins-bold text-base text-black">Student Attendance</Text>
@@ -488,7 +499,7 @@ export default function AttendanceAnalysisScreen() {
           {profilePhoto ? (
             <Image source={{ uri: profilePhoto }} className="w-full h-full" />
           ) : (
-            <View className="w-full h-full items-center justify-center bg-[#0D1B2A]">
+            <View className="w-full h-full items-center justify-center" style={{ backgroundColor: primaryColor }}>
               <Text className="font-poppins-bold text-xs text-white">
                 {fullName ? getInitials(fullName) : "T"}
               </Text>
@@ -499,15 +510,16 @@ export default function AttendanceAnalysisScreen() {
 
       {/* Tab Selector Pill Toggle */}
       <View 
-        className="bg-[#EBE5D9] p-1.5 rounded-full mx-5 my-4 flex-row border"
-        style={{ borderColor: "rgba(229, 231, 235, 0.5)" }}
+        className="p-1.5 rounded-full mx-5 my-4 flex-row border"
+        style={{ backgroundColor: creamColor, borderColor: "rgba(229, 231, 235, 0.5)" }}
       >
         <TouchableOpacity
           onPress={() => {
             setActiveTab("staff");
             setSearchVal("");
           }}
-          className={`flex-1 py-3 rounded-full items-center ${activeTab === "staff" ? "bg-[#0D1B2A]" : "bg-transparent"}`}
+          className="flex-1 py-3 rounded-full items-center"
+          style={{ backgroundColor: activeTab === "staff" ? primaryColor : "transparent" }}
         >
           <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "staff" ? "text-white" : "text-[#75777D]"}`}>
             Staff
@@ -518,7 +530,8 @@ export default function AttendanceAnalysisScreen() {
             setActiveTab("student");
             setSearchVal("");
           }}
-          className={`flex-1 py-3 rounded-full items-center ${activeTab === "student" ? "bg-[#0D1B2A]" : "bg-transparent"}`}
+          className="flex-1 py-3 rounded-full items-center"
+          style={{ backgroundColor: activeTab === "student" ? primaryColor : "transparent" }}
         >
           <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "student" ? "text-white" : "text-[#75777D]"}`}>
             Student
@@ -529,7 +542,8 @@ export default function AttendanceAnalysisScreen() {
             setActiveTab("daily");
             setSearchVal("");
           }}
-          className={`flex-1 py-3 rounded-full items-center ${activeTab === "daily" ? "bg-[#0D1B2A]" : "bg-transparent"}`}
+          className="flex-1 py-3 rounded-full items-center"
+          style={{ backgroundColor: activeTab === "daily" ? primaryColor : "transparent" }}
         >
           <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "daily" ? "text-white" : "text-[#75777D]"}`}>
             Daily
@@ -546,7 +560,7 @@ export default function AttendanceAnalysisScreen() {
         {activeTab === "student" && (
           <View>
             {/* Class Selector Label */}
-            <Text className="font-poppins-bold text-xs text-[#0D1B2A] mb-2 uppercase tracking-widest">
+            <Text className="font-poppins-bold text-xs mb-2 uppercase tracking-widest" style={{ color: primaryColor }}>
               Select Class & Section
             </Text>
             
@@ -563,13 +577,13 @@ export default function AttendanceAnalysisScreen() {
                   <TouchableOpacity
                     key={sec.id}
                     onPress={() => setSelectedSectionId(sec.id)}
-                    className={`px-4 py-2.5 rounded-xl mr-2.5 border ${
-                      isSelected
-                        ? "bg-[#0D1B2A] border-[#0D1B2A]"
-                        : "bg-white border-gray-300"
-                    }`}
+                    className="px-4 py-2.5 rounded-xl mr-2.5 border"
+                    style={{
+                      backgroundColor: isSelected ? primaryColor : "white",
+                      borderColor: isSelected ? primaryColor : "#D1D5DB"
+                    }}
                   >
-                    <Text className={`font-poppins-semibold text-xs ${isSelected ? "text-white" : "text-[#0D1B2A]"}`}>
+                    <Text className="font-poppins-semibold text-xs" style={{ color: isSelected ? "white" : primaryColor }}>
                       {sec.name}
                     </Text>
                   </TouchableOpacity>
@@ -582,7 +596,8 @@ export default function AttendanceAnalysisScreen() {
               <View style={styles.searchBarShadow} className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
                 <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
                 <TextInput
-                  className="flex-grow font-inter text-xs text-[#0D1B2A] py-0 outline-none"
+                  className="flex-grow font-inter text-xs py-0 outline-none"
+                  style={{ color: primaryColor }}
                   placeholder="Search students..."
                   placeholderTextColor="#75777D"
                   value={searchVal}
@@ -602,8 +617,8 @@ export default function AttendanceAnalysisScreen() {
               <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
                 <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
                   <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
-                  <Text className="font-poppins-semibold text-sm text-[#0D1B2A] mt-2 text-center">{error}</Text>
-                  <TouchableOpacity onPress={() => loadAttendanceData()} className="mt-4 px-6 py-2 bg-[#0D1B2A] rounded-xl">
+                  <Text className="font-poppins-semibold text-sm mt-2 text-center" style={{ color: primaryColor }}>{error}</Text>
+                  <TouchableOpacity onPress={() => loadAttendanceData()} className="mt-4 px-6 py-2 rounded-xl" style={{ backgroundColor: primaryColor }}>
                     <Text className="text-white font-poppins-semibold text-xs">Retry</Text>
                   </TouchableOpacity>
                 </View>
@@ -617,19 +632,19 @@ export default function AttendanceAnalysisScreen() {
                 {studentSummary && (
                   <View className="flex-row space-x-3 mt-4">
                     {/* Left Card: Monthly Average */}
-                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: "#0D1B2A", borderRadius: 24 }]}>
-                      <View className="bg-[#0D1B2A] p-4 rounded-3xl border border-slate-800 flex-1">
+                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: primaryColor, borderRadius: 24 }]}>
+                      <View className="p-4 rounded-3xl border border-slate-800 flex-1" style={{ backgroundColor: primaryColor }}>
                         <Text
                           className="font-poppins-bold text-[9px] uppercase tracking-widest"
                           style={{ color: "rgba(255, 255, 255, 0.7)" }}
                         >
                           Monthly Avg
                         </Text>
-                        <Text className="font-poppins-bold text-2xl text-[#C9A84C] mt-2">
+                        <Text className="font-poppins-bold text-2xl mt-2" style={{ color: secondaryColor }}>
                           {studentSummary.monthlyAvg}%
                         </Text>
                         <View className="flex-row items-center space-x-1 mt-1">
-                          <Ionicons name="trending-up" size={12} color="#4CAF50" />
+                           <Ionicons name="trending-up" size={12} color="#4CAF50" />
                           <Text className="font-inter-semibold text-[9px] text-[#4CAF50] font-bold">
                             +1.2% vs average
                           </Text>
@@ -643,7 +658,7 @@ export default function AttendanceAnalysisScreen() {
                         <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
                           Critical Days
                         </Text>
-                        <Text className="font-poppins-bold text-2xl text-[#EF4444] mt-2">
+                        <Text className="font-poppins-bold text-2xl mt-2" style={{ color: dangerColor }}>
                           {String(studentSummary.criticalDays).padStart(2, "0")}
                         </Text>
                         <Text className="font-inter text-[9px] text-[#75777D] mt-1">
@@ -657,11 +672,11 @@ export default function AttendanceAnalysisScreen() {
                 {/* Student List Section */}
                 <View className="mt-6">
                   <View className="flex-row justify-between items-center mb-3">
-                    <Text className="font-poppins-bold text-sm text-[#0D1B2A]">
+                    <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>
                       Student List
                     </Text>
                     <TouchableOpacity onPress={() => console.log("Navigating to view all students")}>
-                      <Text className="font-poppins-bold text-xs text-[#C9A84C]">
+                      <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                         View All
                       </Text>
                     </TouchableOpacity>
@@ -676,20 +691,20 @@ export default function AttendanceAnalysisScreen() {
                     filteredStudents.map((item, index) => {
                       const percent = item.attendancePercent;
                       let badgeStyle = {};
-                      let badgeTextClass = "";
+                      let badgeTextColor = "#75777D";
 
                       if (item.status === "excellent") {
                         badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
-                        badgeTextClass = "text-[#4CAF50]";
+                        badgeTextColor = "#4CAF50";
                       } else if (item.status === "leadership") {
                         badgeStyle = { borderColor: "#bfdbfe", backgroundColor: "rgba(219, 234, 254, 0.5)" };
-                        badgeTextClass = "text-[#2196F3]";
+                        badgeTextColor = "#2196F3";
                       } else if (item.status === "warning") {
-                        badgeStyle = { borderColor: "rgba(201, 168, 76, 0.3)", backgroundColor: "rgba(201, 168, 76, 0.05)" };
-                        badgeTextClass = "text-[#C9A84C]";
+                        badgeStyle = { borderColor: `${secondaryColor}4D`, backgroundColor: `${secondaryColor}0D` };
+                        badgeTextColor = secondaryColor;
                       } else if (item.status === "critical") {
                         badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
-                        badgeTextClass = "text-red-500";
+                        badgeTextColor = dangerColor;
                       }
 
                       return (
@@ -703,7 +718,7 @@ export default function AttendanceAnalysisScreen() {
                                   </Text>
                                 </View>
                                 <View className="flex-1">
-                                  <Text className="font-poppins-bold text-xs text-[#0D1B2A] leading-tight">
+                                  <Text className="font-poppins-bold text-xs leading-tight" style={{ color: primaryColor }}>
                                     {item.studentName}
                                   </Text>
                                   <Text className="text-[10px] font-inter text-[#75777D] mt-0.5">
@@ -717,7 +732,7 @@ export default function AttendanceAnalysisScreen() {
                                 className="px-2.5 py-1 rounded-lg border"
                                 style={badgeStyle}
                               >
-                                <Text className={`font-poppins-bold text-[8.5px] uppercase tracking-wider ${badgeTextClass}`}>
+                                <Text className="font-poppins-bold text-[8.5px] uppercase tracking-wider" style={{ color: badgeTextColor }}>
                                   {item.status}
                                 </Text>
                               </View>
@@ -726,9 +741,9 @@ export default function AttendanceAnalysisScreen() {
                             {/* Gold Progress Bar */}
                             <View className="flex-row items-center space-x-2 mt-3">
                               <View className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <View className="h-full bg-[#C9A84C] rounded-full" style={{ width: `${percent}%` }} />
+                                <View className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: secondaryColor }} />
                               </View>
-                              <Text className="font-poppins-bold text-[10px] text-[#0D1B2A]">
+                              <Text className="font-poppins-bold text-[10px]" style={{ color: primaryColor }}>
                                 {percent}%
                               </Text>
                             </View>
@@ -741,13 +756,13 @@ export default function AttendanceAnalysisScreen() {
 
                 {/* Insight Card */}
                 {studentSummary && (
-                  <View style={[styles.insightShadow, { backgroundColor: "#FAF2DF", borderRadius: 24, marginTop: 20 }]}>
-                    <View className="bg-[#FAF2DF] p-5 rounded-3xl border border-[#C9A84C]/20 flex-row space-x-3 items-start">
-                      <View className="bg-[#C9A84C] p-2 rounded-xl">
+                  <View style={[styles.insightShadow, { backgroundColor: `${secondaryColor}15`, borderRadius: 24, marginTop: 20 }]}>
+                    <View className="p-5 rounded-3xl border flex-row space-x-3 items-start" style={{ backgroundColor: `${secondaryColor}15`, borderColor: `${secondaryColor}33` }}>
+                      <View className="p-2 rounded-xl" style={{ backgroundColor: secondaryColor }}>
                         <Ionicons name="bulb" size={16} color="white" />
                       </View>
                       <View className="flex-1">
-                        <Text className="font-poppins-bold text-xs text-[#735c00]">
+                        <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                           Attendance Insight
                         </Text>
                         <Text className="font-inter text-xs text-slate-700 leading-relaxed mt-1">
@@ -766,7 +781,7 @@ export default function AttendanceAnalysisScreen() {
         {activeTab === "staff" && (
           <View>
             {/* Department Selector Label */}
-            <Text className="font-poppins-bold text-xs text-[#0D1B2A] mb-2 uppercase tracking-widest">
+            <Text className="font-poppins-bold text-xs mb-2 uppercase tracking-widest" style={{ color: primaryColor }}>
               Select Department
             </Text>
             
@@ -779,13 +794,13 @@ export default function AttendanceAnalysisScreen() {
             >
               <TouchableOpacity
                 onPress={() => setSelectedDept("All")}
-                className={`px-4 py-2.5 rounded-xl mr-2.5 border ${
-                  selectedDept === "All"
-                    ? "bg-[#0D1B2A] border-[#0D1B2A]"
-                    : "bg-white border-gray-300"
-                }`}
+                className="px-4 py-2.5 rounded-xl mr-2.5 border"
+                style={{
+                  backgroundColor: selectedDept === "All" ? primaryColor : "white",
+                  borderColor: selectedDept === "All" ? primaryColor : "#D1D5DB"
+                }}
               >
-                <Text className={`font-poppins-semibold text-xs ${selectedDept === "All" ? "text-white" : "text-[#0D1B2A]"}`}>
+                <Text className="font-poppins-semibold text-xs" style={{ color: selectedDept === "All" ? "white" : primaryColor }}>
                   All
                 </Text>
               </TouchableOpacity>
@@ -795,13 +810,13 @@ export default function AttendanceAnalysisScreen() {
                   <TouchableOpacity
                     key={dept}
                     onPress={() => setSelectedDept(dept)}
-                    className={`px-4 py-2.5 rounded-xl mr-2.5 border ${
-                      isSelected
-                        ? "bg-[#0D1B2A] border-[#0D1B2A]"
-                        : "bg-white border-gray-300"
-                    }`}
+                    className="px-4 py-2.5 rounded-xl mr-2.5 border"
+                    style={{
+                      backgroundColor: isSelected ? primaryColor : "white",
+                      borderColor: isSelected ? primaryColor : "#D1D5DB"
+                    }}
                   >
-                    <Text className={`font-poppins-semibold text-xs ${isSelected ? "text-white" : "text-[#0D1B2A]"}`}>
+                    <Text className="font-poppins-semibold text-xs" style={{ color: isSelected ? "white" : primaryColor }}>
                       {dept}
                     </Text>
                   </TouchableOpacity>
@@ -814,7 +829,8 @@ export default function AttendanceAnalysisScreen() {
               <View className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
                 <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
                 <TextInput
-                  className="flex-grow font-inter text-xs text-[#0D1B2A] py-0 outline-none"
+                  className="flex-grow font-inter text-xs py-0 outline-none"
+                  style={{ color: primaryColor }}
                   placeholder="Search staff..."
                   placeholderTextColor="#75777D"
                   value={searchVal}
@@ -833,9 +849,9 @@ export default function AttendanceAnalysisScreen() {
             ) : error ? (
               <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
                 <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
-                  <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
-                  <Text className="font-poppins-semibold text-sm text-[#0D1B2A] mt-2 text-center">{error}</Text>
-                  <TouchableOpacity onPress={() => loadAttendanceData()} className="mt-4 px-6 py-2 bg-[#0D1B2A] rounded-xl">
+                  <Ionicons name="alert-circle-outline" size={40} color={dangerColor} />
+                  <Text className="font-poppins-semibold text-sm mt-2 text-center" style={{ color: primaryColor }}>{error}</Text>
+                  <TouchableOpacity onPress={() => loadAttendanceData()} className="mt-4 px-6 py-2 rounded-xl" style={{ backgroundColor: primaryColor }}>
                     <Text className="text-white font-poppins-semibold text-xs">Retry</Text>
                   </TouchableOpacity>
                 </View>
@@ -849,15 +865,15 @@ export default function AttendanceAnalysisScreen() {
                 {staffSummary && (
                   <View className="flex-row space-x-3 mt-4">
                     {/* Left Card: Department Average */}
-                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: "#0D1B2A", borderRadius: 24 }]}>
-                      <View className="bg-[#0D1B2A] p-4 rounded-3xl border border-slate-800 flex-1">
+                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: primaryColor, borderRadius: 24 }]}>
+                      <View className="p-4 rounded-3xl border flex-1" style={{ backgroundColor: primaryColor, borderColor: primaryColor }}>
                         <Text 
                           className="font-poppins-bold text-[9px] uppercase tracking-widest"
                           style={{ color: "rgba(255, 255, 255, 0.7)" }}
                         >
                           Dept Average
                         </Text>
-                        <Text className="font-poppins-bold text-2xl text-[#C9A84C] mt-2">
+                        <Text className="font-poppins-bold text-2xl mt-2" style={{ color: secondaryColor }}>
                           {staffSummary.monthlyAvg}%
                         </Text>
                         <View className="flex-row items-center space-x-1 mt-1">
@@ -875,7 +891,7 @@ export default function AttendanceAnalysisScreen() {
                         <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
                           On Leave Today
                         </Text>
-                        <Text className="font-poppins-bold text-2xl text-[#0D1B2A] mt-2">
+                        <Text className="font-poppins-bold text-2xl mt-2" style={{ color: primaryColor }}>
                           {String(staffSummary.staffOnLeaveToday).padStart(2, "0")}
                         </Text>
                         <Text className="font-inter text-[9px] text-[#75777D] mt-1">
@@ -889,11 +905,11 @@ export default function AttendanceAnalysisScreen() {
                 {/* Staff List Section */}
                 <View className="mt-6">
                   <View className="flex-row justify-between items-center mb-3">
-                    <Text className="font-poppins-bold text-sm text-[#0D1B2A]">
+                    <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>
                       Staff List
                     </Text>
                     <TouchableOpacity onPress={() => console.log("Navigating to view all teachers")}>
-                      <Text className="font-poppins-bold text-xs text-[#C9A84C]">
+                      <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                         View All
                       </Text>
                     </TouchableOpacity>
@@ -908,20 +924,20 @@ export default function AttendanceAnalysisScreen() {
                     filteredStaff.map((item, index) => {
                       const percent = item.attendancePercent;
                       let badgeStyle = {};
-                      let badgeTextClass = "";
+                      let badgeTextColor = "#75777D";
 
                       if (item.status === "excellent") {
                         badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
-                        badgeTextClass = "text-[#4CAF50]";
+                        badgeTextColor = "#4CAF50";
                       } else if (item.status === "leadership") {
                         badgeStyle = { borderColor: "#bfdbfe", backgroundColor: "rgba(219, 234, 254, 0.5)" };
-                        badgeTextClass = "text-[#2196F3]";
+                        badgeTextColor = "#2196F3";
                       } else if (item.status === "warning") {
-                        badgeStyle = { borderColor: "rgba(201, 168, 76, 0.3)", backgroundColor: "rgba(201, 168, 76, 0.05)" };
-                        badgeTextClass = "text-[#C9A84C]";
+                        badgeStyle = { borderColor: `${secondaryColor}4D`, backgroundColor: `${secondaryColor}0D` };
+                        badgeTextColor = secondaryColor;
                       } else if (item.status === "critical") {
                         badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
-                        badgeTextClass = "text-red-500";
+                        badgeTextColor = dangerColor;
                       }
 
                       return (
@@ -929,13 +945,13 @@ export default function AttendanceAnalysisScreen() {
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Gold Initials Avatar */}
-                                <View className="w-10 h-10 rounded-full bg-[#FAF2DF] items-center justify-center border border-[#C9A84C]/45">
-                                  <Text className="font-poppins-bold text-xs text-[#C9A84C]">
+                                <View className="w-10 h-10 rounded-full items-center justify-center border" style={{ backgroundColor: `${secondaryColor}1A`, borderColor: `${secondaryColor}73` }}>
+                                  <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                                     {item.initials}
                                   </Text>
                                 </View>
                                 <View className="flex-1">
-                                  <Text className="font-poppins-bold text-xs text-[#0D1B2A] leading-tight">
+                                  <Text className="font-poppins-bold text-xs leading-tight" style={{ color: primaryColor }}>
                                     {item.teacherName}
                                   </Text>
                                   <Text className="text-[10px] font-inter text-[#75777D] mt-0.5 font-semibold">
@@ -952,7 +968,7 @@ export default function AttendanceAnalysisScreen() {
                                 className="px-2.5 py-1 rounded-lg border"
                                 style={badgeStyle}
                               >
-                                <Text className={`font-poppins-bold text-[8.5px] uppercase tracking-wider ${badgeTextClass}`}>
+                                <Text className="font-poppins-bold text-[8.5px] uppercase tracking-wider" style={{ color: badgeTextColor }}>
                                   {item.status}
                                 </Text>
                               </View>
@@ -961,9 +977,9 @@ export default function AttendanceAnalysisScreen() {
                             {/* Gold Progress Bar */}
                             <View className="flex-row items-center space-x-2 mt-3">
                               <View className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <View className="h-full bg-[#C9A84C] rounded-full" style={{ width: `${percent}%` }} />
+                                <View className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: secondaryColor }} />
                               </View>
-                              <Text className="font-poppins-bold text-[10px] text-[#0D1B2A]">
+                              <Text className="font-poppins-bold text-[10px]" style={{ color: primaryColor }}>
                                 {percent}%
                               </Text>
                             </View>
@@ -975,13 +991,13 @@ export default function AttendanceAnalysisScreen() {
 
                 {/* Insight Card */}
                 {staffSummary && (
-                  <View style={[styles.insightShadow, { backgroundColor: "#FAF2DF", borderRadius: 24, marginTop: 20 }]}>
-                    <View className="bg-[#FAF2DF] p-5 rounded-3xl border border-[#C9A84C]/20 flex-row space-x-3 items-start">
-                      <View className="bg-[#C9A84C] p-2 rounded-xl">
+                  <View style={[styles.insightShadow, { backgroundColor: `${secondaryColor}15`, borderRadius: 24, marginTop: 20 }]}>
+                    <View className="p-5 rounded-3xl border flex-row space-x-3 items-start" style={{ backgroundColor: `${secondaryColor}15`, borderColor: `${secondaryColor}33` }}>
+                      <View className="p-2 rounded-xl" style={{ backgroundColor: secondaryColor }}>
                         <Ionicons name="bulb" size={16} color="white" />
                       </View>
                       <View className="flex-1">
-                        <Text className="font-poppins-bold text-xs text-[#735c00]">
+                        <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                           Attendance Insight
                         </Text>
                         <Text className="font-inter text-xs text-slate-700 leading-relaxed mt-1">
@@ -1003,20 +1019,20 @@ export default function AttendanceAnalysisScreen() {
             <View style={[styles.cardShadow, { borderRadius: 24, marginBottom: 16 }]}>
               <View className="bg-white rounded-3xl p-5 border border-gray-100 flex-row justify-between items-center">
                 <TouchableOpacity onPress={() => adjustDailyDate(-1)} className="p-2 bg-slate-50 border border-slate-200 rounded-full">
-                  <Ionicons name="chevron-back" size={18} color="#0D1B2A" />
+                  <Ionicons name="chevron-back" size={18} color={primaryColor} />
                 </TouchableOpacity>
                 
                 <View className="items-center flex-1">
                   <Text className="font-poppins-bold text-xs text-[#75777D] uppercase tracking-widest">
                     Selected Date
                   </Text>
-                  <Text className="font-poppins-bold text-sm text-[#0D1B2A] mt-1 text-center">
+                  <Text className="font-poppins-bold text-sm mt-1 text-center" style={{ color: primaryColor }}>
                     {formatDailyDate(dailySelectedDate)}
                   </Text>
                 </View>
 
                 <TouchableOpacity onPress={() => adjustDailyDate(1)} className="p-2 bg-slate-50 border border-slate-200 rounded-full">
-                  <Ionicons name="chevron-forward" size={18} color="#0D1B2A" />
+                  <Ionicons name="chevron-forward" size={18} color={primaryColor} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -1026,7 +1042,8 @@ export default function AttendanceAnalysisScreen() {
               <View style={styles.searchBarShadow} className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
                 <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
                 <TextInput
-                  className="flex-grow font-inter text-xs text-[#0D1B2A] py-0 outline-none"
+                  className="flex-grow font-inter text-xs py-0 outline-none"
+                  style={{ color: primaryColor }}
                   placeholder="Search classes or sections..."
                   placeholderTextColor="#75777D"
                   value={searchVal}
@@ -1045,9 +1062,9 @@ export default function AttendanceAnalysisScreen() {
             ) : dailyError ? (
               <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
                 <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
-                  <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
-                  <Text className="font-poppins-semibold text-sm text-[#0D1B2A] mt-2 text-center">{dailyError}</Text>
-                  <TouchableOpacity onPress={() => refetchDaily()} className="mt-4 px-6 py-2 bg-[#0D1B2A] rounded-xl">
+                  <Ionicons name="alert-circle-outline" size={40} color={dangerColor} />
+                  <Text className="font-poppins-semibold text-sm mt-2 text-center" style={{ color: primaryColor }}>{dailyError}</Text>
+                  <TouchableOpacity onPress={() => refetchDaily()} className="mt-4 px-6 py-2 rounded-xl" style={{ backgroundColor: primaryColor }}>
                     <Text className="text-white font-poppins-semibold text-xs">Retry</Text>
                   </TouchableOpacity>
                 </View>
@@ -1064,15 +1081,15 @@ export default function AttendanceAnalysisScreen() {
                   return (
                     <View className="flex-row space-x-3 mb-4">
                       {/* Card 1: Attendance Rate */}
-                      <View style={[styles.cardShadow, { flex: 1, backgroundColor: "#0D1B2A", borderRadius: 24 }]}>
-                        <View className="bg-[#0D1B2A] p-4 rounded-3xl border border-slate-800 flex-1">
+                      <View style={[styles.cardShadow, { flex: 1, backgroundColor: primaryColor, borderRadius: 24 }]}>
+                        <View className="p-4 rounded-3xl border flex-1" style={{ backgroundColor: primaryColor, borderColor: primaryColor }}>
                           <Text
                             className="font-poppins-bold text-[9px] uppercase tracking-widest"
                             style={{ color: "rgba(255, 255, 255, 0.7)" }}
                           >
                             Institution Rate
                           </Text>
-                          <Text className="font-poppins-bold text-2xl text-[#C9A84C] mt-2">
+                          <Text className="font-poppins-bold text-2xl mt-2" style={{ color: secondaryColor }}>
                             {overallPercent}%
                           </Text>
                           <Text className="font-inter text-[9px] text-[#4CAF50] mt-1 font-semibold">
@@ -1087,10 +1104,10 @@ export default function AttendanceAnalysisScreen() {
                           <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
                             Present / Absent
                           </Text>
-                          <Text className="font-poppins-bold text-lg text-[#0D1B2A] mt-2">
+                          <Text className="font-poppins-bold text-lg mt-2" style={{ color: primaryColor }}>
                             {totalPresent} / {totalStudents}
                           </Text>
-                          <Text className="font-inter text-[9px] text-red-500 mt-1 font-semibold">
+                          <Text className="font-inter text-[9px] mt-1 font-semibold" style={{ color: dangerColor }}>
                             {totalAbsent} Absent Today
                           </Text>
                         </View>
@@ -1101,7 +1118,7 @@ export default function AttendanceAnalysisScreen() {
 
                 {/* Class Breakdown List */}
                 <View className="mt-4">
-                  <Text className="font-poppins-bold text-sm text-[#0D1B2A] mb-3">
+                  <Text className="font-poppins-bold text-sm mb-3" style={{ color: primaryColor }}>
                     Class Breakdown
                   </Text>
 
@@ -1116,16 +1133,16 @@ export default function AttendanceAnalysisScreen() {
                       // Status check based on attendance percent
                       let status = "critical";
                       let badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
-                      let badgeTextClass = "text-red-500";
+                      let badgeTextColor = dangerColor;
                       
                       if (percent >= 90) {
                         status = "excellent";
                         badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
-                        badgeTextClass = "text-[#4CAF50]";
+                        badgeTextColor = "#4CAF50";
                       } else if (percent >= 80) {
                         status = "warning";
-                        badgeStyle = { borderColor: "rgba(201, 168, 76, 0.3)", backgroundColor: "rgba(201, 168, 76, 0.05)" };
-                        badgeTextClass = "text-[#C9A84C]";
+                        badgeStyle = { borderColor: `${secondaryColor}4D`, backgroundColor: `${secondaryColor}0D` };
+                        badgeTextColor = secondaryColor;
                       }
                       
                       return (
@@ -1140,7 +1157,7 @@ export default function AttendanceAnalysisScreen() {
                                 <Ionicons name="school-outline" size={18} color="#75777D" />
                               </View>
                               <View className="flex-1">
-                                <Text className="font-poppins-bold text-xs text-[#0D1B2A] leading-tight">
+                                <Text className="font-poppins-bold text-xs leading-tight" style={{ color: primaryColor }}>
                                   {item.className} - {item.sectionName}
                                 </Text>
                                 <Text className="text-[10px] font-inter text-[#75777D] mt-0.5">
@@ -1150,7 +1167,7 @@ export default function AttendanceAnalysisScreen() {
                             </View>
 
                             <View className="px-2.5 py-1 rounded-lg border" style={badgeStyle}>
-                              <Text className={`font-poppins-bold text-[8.5px] uppercase tracking-wider ${badgeTextClass}`}>
+                              <Text className="font-poppins-bold text-[8.5px] uppercase tracking-wider" style={{ color: badgeTextColor }}>
                                 {status}
                               </Text>
                             </View>
@@ -1158,9 +1175,9 @@ export default function AttendanceAnalysisScreen() {
 
                           <View className="flex-row items-center space-x-2 mt-3">
                             <View className="flex-grow h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <View className="h-full bg-[#C9A84C] rounded-full" style={{ width: `${percent}%` }} />
+                              <View className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: secondaryColor }} />
                             </View>
-                            <Text className="font-poppins-bold text-[10px] text-[#0D1B2A]">
+                            <Text className="font-poppins-bold text-[10px]" style={{ color: primaryColor }}>
                               {percent}%
                             </Text>
                           </View>

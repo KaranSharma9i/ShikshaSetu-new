@@ -80,7 +80,10 @@ interface ExamItem {
 
 export default function ExamScheduleScreen() {
   const router = useRouter();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -241,7 +244,7 @@ export default function ExamScheduleScreen() {
             width: 48,
             height: 48,
             borderRadius: 8,
-            backgroundColor: isPast ? "#9CA3AF" : "#0D1B2A",
+            backgroundColor: isPast ? "#9CA3AF" : primaryColor,
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -264,8 +267,8 @@ export default function ExamScheduleScreen() {
         {/* Content block */}
         <View className="flex-1 pr-2">
           <Text
-            style={{ fontFamily: "Poppins-SemiBold" }}
-            className="text-[14px] font-bold text-[#0D1B2A] leading-tight"
+            style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+            className="text-[14px] font-bold leading-tight"
             numberOfLines={1}
           >
             {item.exam_name}
@@ -273,8 +276,8 @@ export default function ExamScheduleScreen() {
 
           <View className="flex-row flex-wrap items-center mt-1">
             <Text
-              style={{ fontFamily: "Inter-Medium" }}
-              className="text-[12px] text-[#D4AF37] font-semibold mr-3"
+              style={{ fontFamily: "Inter-Medium", color: secondaryColor }}
+              className="text-[12px] font-semibold mr-3"
             >
               {item.class_name}
             </Text>
@@ -305,7 +308,7 @@ export default function ExamScheduleScreen() {
   const hasExams = upcomingExams.length > 0 || pastExams.length > 0;
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="Exam Schedule" showBack={true} onBack={() => router.back()} />
 
       {loading ? (
@@ -328,10 +331,10 @@ export default function ExamScheduleScreen() {
         >
           {!hasExams ? (
             <View className="items-center justify-center py-16">
-              <Feather name="clipboard" size={48} color="#D4AF37" />
+              <Feather name="clipboard" size={48} color={secondaryColor} />
               <Text
-                style={{ fontFamily: "Poppins-SemiBold" }}
-                className="text-sm font-bold text-[#0D1B2A] mt-4"
+                style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                className="text-sm font-bold mt-4"
               >
                 No exams scheduled
               </Text>
@@ -347,7 +350,7 @@ export default function ExamScheduleScreen() {
                       fontSize: 11,
                       fontWeight: "700",
                       letterSpacing: 0.8,
-                      color: "#D4AF37",
+                      color: secondaryColor,
                       textTransform: "uppercase",
                       marginBottom: 8,
                     }}

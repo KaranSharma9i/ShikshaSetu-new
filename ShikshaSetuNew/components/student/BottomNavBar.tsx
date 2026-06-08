@@ -2,10 +2,12 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../src/hooks/useAuth";
 
 export default function BottomNavBar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme } = useAuth();
 
   const getActiveTab = () => {
     if (pathname === "/") return "home";
@@ -37,17 +39,19 @@ export default function BottomNavBar() {
         activeOpacity={0.8}
       >
         <View
-          className={`flex-row items-center space-x-1.5 px-3 py-1.5 rounded-full ${
-            isActive ? "bg-[#ffe088]" : "bg-transparent"
-          }`}
+          className="flex-row items-center space-x-1.5 px-3 py-1.5 rounded-full"
+          style={isActive ? { backgroundColor: theme?.colors?.secondaryLight ?? "#ffe088" } : undefined}
         >
           <Ionicons
             name={isActive ? (activeIcon as any) : (inactiveIcon as any)}
             size={18}
-            color={isActive ? "#0D1B2A" : "#6B7280"}
+            color={isActive ? (theme?.colors?.primary ?? "#0D1B2A") : "#6B7280"}
           />
           {isActive && (
-            <Text className="font-poppins-bold text-[10px] text-[#0D1B2A]">
+            <Text 
+              className="font-poppins-bold text-[10px]"
+              style={{ color: theme?.colors?.primary ?? "#0D1B2A" }}
+            >
               {label}
             </Text>
           )}
@@ -62,7 +66,10 @@ export default function BottomNavBar() {
   };
 
   return (
-    <View className="bg-[#0D1B2A] border-t border-gray-800 flex-row justify-around items-center h-20 px-4 pb-2 z-50">
+    <View 
+      className="border-t border-gray-800 flex-row justify-around items-center h-20 px-4 pb-2 z-50"
+      style={{ backgroundColor: theme?.colors?.primary ?? "#0D1B2A" }}
+    >
       {renderTab("home", "/", "home", "home-outline", "Home")}
       {renderTab("homework", "/homework", "document-text", "document-text-outline", "Homework")}
       {renderTab("schedule", "/schedule", "calendar", "calendar-outline", "Schedule")}

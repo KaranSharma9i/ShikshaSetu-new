@@ -23,7 +23,12 @@ import {
 import { supabase } from "../../src/lib/supabase";
 
 export default function FeesDashboard() {
-  const { institutionId } = useAuth();
+  const { institutionId, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const creamColor = theme?.colors?.cream ?? "#F5F0E8";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
 
   // Fetch the academic year ID for "2026-27"
   const { data: academicYear, isLoading: loadingAy, error: ayErr, refetch: refetchAy } = useQuery(async () => {
@@ -152,20 +157,21 @@ export default function FeesDashboard() {
   const hasPageError = !!ayErr || !!statsErr || !!defaultersErr;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Finance & Fees" />
 
       {hasPageError ? (
         <View className="flex-grow justify-center items-center py-20 px-5">
-          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-          <Text className="text-[#0F1C2C] font-poppins-semibold text-sm mt-3 text-center">
+          <Ionicons name="alert-circle-outline" size={48} color={dangerColor} />
+          <Text className="font-poppins-semibold text-sm mt-3 text-center" style={{ color: primaryColor }}>
             Failed to load fee collection data
           </Text>
           <TouchableOpacity
             onPress={handleRetry}
-            className="bg-[#0F1C2C] mt-4 px-6 py-2.5 rounded-xl"
+            className="mt-4 px-6 py-2.5 rounded-xl"
+            style={{ backgroundColor: primaryColor }}
           >
-            <Text className="text-[#ffe088] font-poppins-semibold text-xs">
+            <Text className="font-poppins-semibold text-xs" style={{ color: secondaryColor }}>
               Retry
             </Text>
           </TouchableOpacity>
@@ -178,22 +184,22 @@ export default function FeesDashboard() {
         >
           {/* Title */}
           <View className="px-5 pt-6 pb-2">
-            <Text className="text-[11px] font-poppins-semibold text-[#735c00] tracking-widest uppercase mb-1">
+            <Text className="text-[11px] font-poppins-semibold tracking-widest uppercase mb-1" style={{ color: secondaryColor }}>
               Accounts & Billing
             </Text>
-            <Text className="text-2xl font-poppins-bold text-[#0F1C2C] leading-tight">
+            <Text className="text-2xl font-poppins-bold leading-tight" style={{ color: primaryColor }}>
               Fee Collection
             </Text>
           </View>
 
           {/* Financial Highlights Panel */}
           <View className="px-5 mb-6">
-            <View className="bg-[#0F1C2C] p-5 rounded-3xl border-2 border-[#ffe088]/40 shadow-md">
+            <View className="p-5 rounded-3xl border-2 shadow-md" style={{ backgroundColor: primaryColor, borderColor: `${secondaryColor}66` }}>
               <Text className="text-slate-400 font-inter text-[10px] uppercase tracking-wider">
                 Total Term Collection (Term 1)
               </Text>
               {isPageLoading ? (
-                <ActivityIndicator size="small" color="#ffe088" className="my-6" />
+                <ActivityIndicator size="small" color={secondaryColor} className="my-6" />
               ) : (
                 <>
                   <Text className="text-white font-poppins-bold text-3xl mt-1">
@@ -201,15 +207,15 @@ export default function FeesDashboard() {
                   </Text>
                   <View className="w-full bg-slate-800 h-2.5 rounded-full mt-4 overflow-hidden">
                     <View
-                      className="bg-[#ffe088] h-full rounded-full"
-                      style={{ width: `${stats?.completionPercent ?? 0}%` }}
+                      className="h-full rounded-full"
+                      style={{ width: `${stats?.completionPercent ?? 0}%`, backgroundColor: secondaryColor }}
                     />
                   </View>
                   <View className="flex-row justify-between items-center mt-3">
                     <Text className="text-slate-300 font-inter text-[11px]">
                       Target: {formatRupees(stats?.totalTarget ?? 0)}
                     </Text>
-                    <Text className="text-[#ffe088] font-poppins-bold text-[11px]">
+                    <Text className="font-poppins-bold text-[11px]" style={{ color: secondaryColor }}>
                       {(stats?.completionPercent ?? 0).toFixed(1)}% Completed
                     </Text>
                   </View>
@@ -223,10 +229,11 @@ export default function FeesDashboard() {
             <TouchableOpacity
               onPress={handleBroadcastAll}
               disabled={broadcasting || isPageLoading}
-              className="bg-[#ffe088] py-4 rounded-xl items-center flex-row justify-center space-x-2 border border-[#735c00]"
+              className="py-4 rounded-xl items-center flex-row justify-center space-x-2 border"
+              style={{ backgroundColor: secondaryColor, borderColor: secondaryColor }}
             >
-              <Ionicons name="mail-unread-outline" size={18} color="#735c00" />
-              <Text className="text-[#735c00] font-poppins-bold text-sm">
+              <Ionicons name="mail-unread-outline" size={18} color={primaryColor} />
+              <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>
                 {broadcasting ? "Broadcasting Reminders..." : "Send Reminders to All"}
               </Text>
             </TouchableOpacity>
@@ -234,74 +241,79 @@ export default function FeesDashboard() {
 
           {/* Defaulters Section */}
           <View className="px-5">
-            <Text className="text-[#0F1C2C] font-poppins-bold text-base mb-3 px-1">
+            <Text className="font-poppins-bold text-base mb-3 px-1" style={{ color: primaryColor }}>
               Outstanding Defaulters List
             </Text>
 
             {isPageLoading ? (
-              <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+              <ActivityIndicator size="small" color={secondaryColor} className="my-10" />
             ) : defaulters.length === 0 ? (
               <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">
                 No outstanding defaulters.
               </Text>
             ) : (
-              defaulters.map((student) => (
-                <View
-                  key={student.studentId}
-                  className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
-                >
-                  <View className="flex-row justify-between items-start mb-3">
-                    <View>
-                      <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
-                        {student.studentName}
-                      </Text>
-                      <Text className="text-[10px] text-neutral-steel">
-                        Grade {student.className.replace("Class ", "")}-{student.section}
-                      </Text>
-                    </View>
+              defaulters.map((student) => {
+                const isOverdue = student.status === "overdue";
+                const badgeColor = isOverdue ? dangerColor : secondaryColor;
+                
+                return (
+                  <View
+                    key={student.studentId}
+                    className="bg-white p-4 rounded-2xl border border-gray-200/60 shadow-sm mb-4"
+                  >
+                    <View className="flex-row justify-between items-start mb-3">
+                      <View>
+                        <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>
+                          {student.studentName}
+                        </Text>
+                        <Text className="text-[10px] text-neutral-steel">
+                          Grade {student.className.replace("Class ", "")}-{student.section}
+                        </Text>
+                      </View>
 
-                    <View
-                      className={`px-2 py-0.5 rounded-full ${
-                        student.status === "overdue"
-                          ? "bg-rose-50 border border-rose-100"
-                          : "bg-amber-50 border border-amber-100"
-                      }`}
-                    >
-                      <Text
-                        className={`font-poppins-semibold text-[8px] uppercase tracking-wide ${
-                          student.status === "overdue" ? "text-rose-600" : "text-amber-600"
-                        }`}
+                      <View
+                        className="px-2 py-0.5 rounded-full border"
+                        style={{
+                          backgroundColor: `${badgeColor}0D`,
+                          borderColor: `${badgeColor}33`
+                        }}
                       >
-                        {student.status}
-                      </Text>
+                        <Text
+                          className="font-poppins-semibold text-[8px] uppercase tracking-wide"
+                          style={{ color: badgeColor }}
+                        >
+                          {student.status}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
 
-                  {/* Fee info row */}
-                  <View className="flex-row justify-between items-center border-t border-gray-50 pt-3">
-                    <View>
-                      <Text className="text-[9px] text-[#778598] font-inter">Pending Amount</Text>
-                      <Text className="text-rose-600 font-poppins-bold text-sm">
-                        {formatRupees(student.pendingAmount)}
-                      </Text>
+                    {/* Fee info row */}
+                    <View className="flex-row justify-between items-center border-t border-gray-50 pt-3">
+                      <View>
+                        <Text className="text-[9px] text-[#778598] font-inter">Pending Amount</Text>
+                        <Text className="font-poppins-bold text-sm" style={{ color: dangerColor }}>
+                          {formatRupees(student.pendingAmount)}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text className="text-[9px] text-[#778598] font-inter">Deadline Date</Text>
+                        <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
+                          {formatDueDate(student.dueDate)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleSendReminder(student)}
+                        className="px-3.5 py-2 rounded-xl"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        <Text className="font-poppins-semibold text-[10px]" style={{ color: secondaryColor }}>
+                          Remind
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                    <View>
-                      <Text className="text-[9px] text-[#778598] font-inter">Deadline Date</Text>
-                      <Text className="text-[#0f1c2c] font-poppins-semibold text-xs">
-                        {formatDueDate(student.dueDate)}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleSendReminder(student)}
-                      className="bg-[#0F1C2C] px-3.5 py-2 rounded-xl"
-                    >
-                      <Text className="text-[#ffe088] font-poppins-semibold text-[10px]">
-                        Remind
-                      </Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>

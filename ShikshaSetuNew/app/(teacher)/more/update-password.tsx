@@ -16,7 +16,9 @@ import Header from "@/components/teacher/Header";
 
 export default function TeacherUpdatePasswordScreen() {
   const router = useRouter();
-  useAuth();
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   // Form states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -102,7 +104,7 @@ export default function TeacherUpdatePasswordScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="Update Password" showBack={true} onBack={() => router.back()} />
 
       <ScrollView 
@@ -132,9 +134,10 @@ export default function TeacherUpdatePasswordScreen() {
               Current Password
             </Text>
             <View 
-              className={`bg-white border rounded-lg px-4 py-3 flex-row items-center ${
-                focusedField === "current" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 flex-row items-center"
+              style={{
+                borderColor: focusedField === "current" ? primaryColor : "#E5E7EB"
+              }}
             >
               <TextInput
                 value={currentPassword}
@@ -149,7 +152,8 @@ export default function TeacherUpdatePasswordScreen() {
                 autoCorrect={false}
                 onFocus={() => setFocusedField("current")}
                 onBlur={() => setFocusedField(null)}
-                className="flex-1 font-inter text-[15px] text-[#0D1B2A] p-0"
+                className="flex-1 font-inter text-[15px] p-0"
+                style={{ color: primaryColor }}
               />
               <TouchableOpacity onPress={() => setShowCurrent(!showCurrent)} className="p-1">
                 <Feather name={showCurrent ? "eye" : "eye-off"} size={16} color="#9CA3AF" />
@@ -163,9 +167,10 @@ export default function TeacherUpdatePasswordScreen() {
               New Password (min 6 characters)
             </Text>
             <View 
-              className={`bg-white border rounded-lg px-4 py-3 flex-row items-center ${
-                focusedField === "new" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 flex-row items-center"
+              style={{
+                borderColor: focusedField === "new" ? primaryColor : "#E5E7EB"
+              }}
             >
               <TextInput
                 value={newPassword}
@@ -180,7 +185,8 @@ export default function TeacherUpdatePasswordScreen() {
                 autoCorrect={false}
                 onFocus={() => setFocusedField("new")}
                 onBlur={() => setFocusedField(null)}
-                className="flex-1 font-inter text-[15px] text-[#0D1B2A] p-0"
+                className="flex-1 font-inter text-[15px] p-0"
+                style={{ color: primaryColor }}
               />
               <TouchableOpacity onPress={() => setShowNew(!showNew)} className="p-1">
                 <Feather name={showNew ? "eye" : "eye-off"} size={16} color="#9CA3AF" />
@@ -194,9 +200,10 @@ export default function TeacherUpdatePasswordScreen() {
               Confirm New Password
             </Text>
             <View 
-              className={`bg-white border rounded-lg px-4 py-3 flex-row items-center ${
-                focusedField === "confirm" ? "border-[#0D1B2A]" : "border-gray-200"
-              }`}
+              className="bg-white border rounded-lg px-4 py-3 flex-row items-center"
+              style={{
+                borderColor: focusedField === "confirm" ? primaryColor : "#E5E7EB"
+              }}
             >
               <TextInput
                 value={confirmPassword}
@@ -211,7 +218,8 @@ export default function TeacherUpdatePasswordScreen() {
                 autoCorrect={false}
                 onFocus={() => setFocusedField("confirm")}
                 onBlur={() => setFocusedField(null)}
-                className="flex-1 font-inter text-[15px] text-[#0D1B2A] p-0"
+                className="flex-1 font-inter text-[15px] p-0"
+                style={{ color: primaryColor }}
               />
               <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} className="p-1">
                 <Feather name={showConfirm ? "eye" : "eye-off"} size={16} color="#9CA3AF" />
@@ -230,9 +238,10 @@ export default function TeacherUpdatePasswordScreen() {
         <TouchableOpacity
           onPress={handleSave}
           disabled={isSaving}
-          className={`mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row ${
-            currentPassword && newPassword && confirmPassword && !isSaving ? "bg-[#0D1B2A]" : "bg-gray-300"
-          }`}
+          className="mx-4 mt-6 py-4 rounded-xl items-center justify-center flex-row"
+          style={{
+            backgroundColor: currentPassword && newPassword && confirmPassword && !isSaving ? primaryColor : "#D1D5DB"
+          }}
           activeOpacity={0.8}
         >
           {isSaving ? (

@@ -198,7 +198,14 @@ function ScheduleSkeleton() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ScheduleScreen() {
-  const { user, isLoaded, isSignedIn, role } = useAuth();
+  const { user, isLoaded, isSignedIn, role, theme } = useAuth();
+  
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
+  const dangerColor = theme?.colors?.danger ?? "#ba1a1a";
+
   const [student, setStudent] = useState<any>(null);
   const [academicYear, setAcademicYear] = useState<{ id: string; starts_on: string; ends_on: string } | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -345,43 +352,59 @@ export default function ScheduleScreen() {
           const type = getDayType(day, holidays, leaves, attendance);
           const dayNum = day.getDate();
           
-          let circleBgClass = "";
-          let textColorClass = "text-[#0D1B2A] font-inter";
+          let circleBgStyle = {};
+          let textColorClass = "font-inter";
+          let textColor = primaryColor;
 
           switch (type) {
             case "today":
-              circleBgClass = "bg-[#0D1B2A]";
-              textColorClass = "text-white font-inter-semibold";
+              circleBgStyle = { backgroundColor: primaryColor };
+              textColorClass = "font-inter-semibold";
+              textColor = "#FFFFFF";
               break;
             case "holiday":
-              circleBgClass = "bg-black";
-              textColorClass = "text-white font-inter-semibold";
+              circleBgStyle = { backgroundColor: "black" };
+              textColorClass = "font-inter-semibold";
+              textColor = "#FFFFFF";
               break;
             case "leave":
-              circleBgClass = "bg-[#D4AF37]";
-              textColorClass = "text-[#0D1B2A] font-inter-semibold";
+              circleBgStyle = { backgroundColor: secondaryColor };
+              textColorClass = "font-inter-semibold";
+              textColor = primaryColor;
               break;
             case "present":
-              circleBgClass = "bg-gray-100";
-              textColorClass = "text-[#0D1B2A] font-inter-medium";
+              circleBgStyle = { backgroundColor: "#F3F4F6" };
+              textColorClass = "font-inter-medium";
+              textColor = primaryColor;
               break;
             case "absent":
-              circleBgClass = "bg-[#FFF0F0]";
-              textColorClass = "text-red-600 font-inter-medium";
+              circleBgStyle = { backgroundColor: "#FFF0F0" };
+              textColorClass = "font-inter-medium";
+              textColor = "#DC2626";
               break;
             case "future":
-              textColorClass = "text-gray-400 font-inter";
+              textColorClass = "font-inter";
+              textColor = "#9CA3AF";
               break;
             case "none":
             default:
-              textColorClass = "text-gray-300 font-inter";
+              textColorClass = "font-inter";
+              textColor = "#D1D5DB";
               break;
           }
 
           return (
             <View key={day.toISOString()} className="w-[14.28%] h-12 items-center justify-center">
-              <View className={`w-9 h-9 rounded-full items-center justify-center ${circleBgClass}`}>
-                <Text className={`text-sm ${textColorClass}`}>{dayNum}</Text>
+              <View 
+                className="w-9 h-9 rounded-full items-center justify-center"
+                style={circleBgStyle}
+              >
+                <Text 
+                  className={`text-sm ${textColorClass}`}
+                  style={{ color: textColor }}
+                >
+                  {dayNum}
+                </Text>
               </View>
             </View>
           );
@@ -395,7 +418,7 @@ export default function ScheduleScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#F9F6EF]">
+      <View className="flex-1" style={{ backgroundColor: creamColor }}>
         {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
         <Header />
         <ScheduleSkeleton />
@@ -406,11 +429,11 @@ export default function ScheduleScreen() {
 
   if (error) {
     return (
-      <View className="flex-1 bg-[#F9F6EF]">
+      <View className="flex-1" style={{ backgroundColor: creamColor }}>
         {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
         <Header />
         <View className="flex-1 justify-center items-center px-6">
-          <Ionicons name="warning-outline" size={48} color="#ba1a1a" />
+          <Ionicons name="warning-outline" size={48} color={dangerColor} />
           <Text className="font-poppins-semibold text-lg text-neutral-charcoal text-center mt-3">
             Something went wrong
           </Text>
@@ -419,7 +442,8 @@ export default function ScheduleScreen() {
           </Text>
           <TouchableOpacity
             onPress={loadInitialData}
-            className="bg-[#0D1B2A] px-7 py-3 rounded-full"
+            style={{ backgroundColor: primaryColor }}
+            className="px-7 py-3 rounded-full"
             activeOpacity={0.8}
           >
             <Text className="font-poppins-bold text-white text-sm">Try Again</Text>
@@ -431,7 +455,7 @@ export default function ScheduleScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#F9F6EF]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {/* Status bar padding for Android */}
       {Platform.OS === "android" && <View style={{ height: statusBarHeight }} />}
 
@@ -440,7 +464,7 @@ export default function ScheduleScreen() {
       <ScrollView className="flex-1 px-5 py-4" contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         
         {/* ── Academic Calendar Heading ── */}
-        <Text className="font-poppins-semibold text-xl text-[#0D1B2A] mb-3">
+        <Text className="font-poppins-semibold text-xl mb-3" style={{ color: primaryColor }}>
           Academic Calendar
         </Text>
 
@@ -455,11 +479,11 @@ export default function ScheduleScreen() {
             <Ionicons
               name="chevron-back"
               size={20}
-              color={isPrevDisabled ? "#9CA3AF" : "#0D1B2A"}
+              color={isPrevDisabled ? "#9CA3AF" : primaryColor}
             />
           </TouchableOpacity>
 
-          <Text className="font-poppins-medium text-base text-[#0D1B2A] capitalize">
+          <Text className="font-poppins-medium text-base capitalize" style={{ color: primaryColor }}>
             {monthLabel}
           </Text>
 
@@ -472,7 +496,7 @@ export default function ScheduleScreen() {
             <Ionicons
               name="chevron-forward"
               size={20}
-              color={isNextDisabled ? "#9CA3AF" : "#0D1B2A"}
+              color={isNextDisabled ? "#9CA3AF" : primaryColor}
             />
           </TouchableOpacity>
         </View>
@@ -503,7 +527,7 @@ export default function ScheduleScreen() {
               {/* Legend Row */}
               <View className="flex-row justify-evenly items-center mt-5 border-t border-gray-50 pt-4">
                 <View className="flex-row items-center">
-                  <View className="w-2.5 h-2.5 rounded-full bg-[#D4AF37] mr-1.5" />
+                  <View className="w-2.5 h-2.5 rounded-full mr-1.5" style={{ backgroundColor: secondaryColor }} />
                   <Text className="font-inter text-xs text-gray-500">Leaves</Text>
                 </View>
                 <View className="flex-row items-center">
@@ -521,8 +545,8 @@ export default function ScheduleScreen() {
 
         {/* ── Upcoming Exams Heading Row ── */}
         <View className="flex-row items-center mb-4">
-          <View className="w-[4px] h-[20px] bg-[#D4AF37] rounded-full mr-2" />
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A]">
+          <View className="w-[4px] h-[20px] rounded-full mr-2" style={{ backgroundColor: secondaryColor }} />
+          <Text className="font-poppins-semibold text-lg mb-3" style={{ color: primaryColor }}>
             Upcoming Exams
           </Text>
         </View>
@@ -570,7 +594,7 @@ export default function ScheduleScreen() {
                 {/* Exam Title & Syllabus Badge */}
                 <View className="flex-row justify-between items-start mb-2.5">
                   <View className="flex-1 mr-3">
-                    <Text className="font-poppins-semibold text-base text-[#0D1B2A] leading-tight">
+                    <Text className="font-poppins-semibold text-base leading-tight" style={{ color: primaryColor }}>
                       {exam.title}
                     </Text>
                     <Text className="font-inter text-xs text-gray-400 mt-0.5">
@@ -579,10 +603,11 @@ export default function ScheduleScreen() {
                   </View>
                   <TouchableOpacity
                     onPress={handleSyllabusPress}
-                    className="border border-[#D4AF37] bg-transparent rounded-full px-2.5 py-0.5"
+                    style={{ borderColor: secondaryColor }}
+                    className="border bg-transparent rounded-full px-2.5 py-0.5"
                     activeOpacity={0.7}
                   >
-                    <Text className="font-poppins-semibold text-[10px] text-[#D4AF37]">
+                    <Text className="font-poppins-semibold text-[10px]" style={{ color: secondaryColor }}>
                       Syllabus
                     </Text>
                   </TouchableOpacity>
@@ -612,7 +637,7 @@ export default function ScheduleScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity onPress={handleDetailsPress} activeOpacity={0.7}>
-                    <Text className="font-poppins-semibold text-xs text-[#0D1B2A]">
+                    <Text className="font-poppins-semibold text-xs" style={{ color: primaryColor }}>
                       Details →
                     </Text>
                   </TouchableOpacity>

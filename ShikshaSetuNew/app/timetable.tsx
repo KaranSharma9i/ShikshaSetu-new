@@ -33,7 +33,10 @@ const DAYS = [
 
 export default function TimetableScreen() {
   const router = useRouter();
-  const { userId } = useAuth();
+  const { userId, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F9F6EF";
   const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -99,14 +102,14 @@ export default function TimetableScreen() {
     loadTimetable();
   }, [profile, academicYear, selectedDay]);
 
-  const getAccentColor = (subjectName: string) => {
+  const getSubjectColorStyle = (subjectName: string) => {
     const lower = (subjectName || "").toLowerCase();
-    if (lower.includes("math")) return "bg-blue-500";
-    if (lower.includes("science")) return "bg-green-500";
-    if (lower.includes("english")) return "bg-purple-500";
-    if (lower.includes("hindi")) return "bg-orange-500";
-    if (lower.includes("history")) return "bg-[#8B4513]"; // Brown
-    return "bg-[#0D1B2A]"; // Default Navy
+    if (lower.includes("math")) return { backgroundColor: "#3B82F6" }; // bg-blue-500
+    if (lower.includes("science")) return { backgroundColor: "#22C55E" }; // bg-green-500
+    if (lower.includes("english")) return { backgroundColor: "#A855F7" }; // bg-purple-500
+    if (lower.includes("hindi")) return { backgroundColor: "#F97316" }; // bg-orange-500
+    if (lower.includes("history")) return { backgroundColor: "#8B4513" }; // Brown
+    return { backgroundColor: primaryColor };
   };
 
   const renderTimetableContent = () => {
@@ -144,7 +147,7 @@ export default function TimetableScreen() {
           <View className="w-16 h-16 rounded-full bg-gray-100 justify-center items-center mb-4">
             <Ionicons name="calendar-outline" size={32} color="#9CA3AF" />
           </View>
-          <Text className="font-poppins-medium text-lg text-[#0D1B2A] text-center">
+          <Text className="font-poppins-medium text-lg text-center" style={{ color: primaryColor }}>
             No classes today
           </Text>
           <Text className="font-inter text-sm text-gray-500 text-center mt-1">
@@ -162,7 +165,7 @@ export default function TimetableScreen() {
             className="flex-row items-stretch bg-white rounded-2xl mb-3 border border-gray-100/50 shadow-sm overflow-hidden"
           >
             {/* Left Colored Accent Bar */}
-            <View className={`w-1.5 ${getAccentColor(item.subject_name)}`} />
+            <View className="w-1.5" style={getSubjectColorStyle(item.subject_name)} />
             
             {/* Main Content */}
             <View className="flex-1 p-4">
@@ -175,7 +178,7 @@ export default function TimetableScreen() {
                 </Text>
               </View>
               
-              <Text className="font-poppins-semibold text-[16px] text-[#0D1B2A] mt-1.5 mb-2">
+              <Text className="font-poppins-semibold text-[16px] mt-1.5 mb-2" style={{ color: primaryColor }}>
                 {item.subject_name}
               </Text>
               
@@ -204,14 +207,14 @@ export default function TimetableScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#fbf9f8] justify-center items-center">
-        <ActivityIndicator size="large" color="#0D1B2A" />
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: creamColor }}>
+        <ActivityIndicator size="large" color={primaryColor} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#fbf9f8]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       {/* Custom Header */}
       <View 
         className="bg-white border-b border-[#E5E7EB] px-5 flex-row items-center justify-between z-50"
@@ -225,10 +228,10 @@ export default function TimetableScreen() {
           className="p-1"
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#0D1B2A" />
+          <Ionicons name="arrow-back" size={24} color={primaryColor} />
         </TouchableOpacity>
         
-        <Text className="font-poppins-semibold text-lg text-[#0D1B2A] text-center flex-1">
+        <Text className="font-poppins-semibold text-lg text-center flex-1" style={{ color: primaryColor }}>
           Class Schedule
         </Text>
         
@@ -237,7 +240,7 @@ export default function TimetableScreen() {
           className="p-1"
           activeOpacity={0.7}
         >
-          <Ionicons name="notifications-outline" size={24} color="#0D1B2A" />
+          <Ionicons name="notifications-outline" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
 
@@ -254,16 +257,19 @@ export default function TimetableScreen() {
               
               let pillStyle = "px-4 py-2.5 rounded-full items-center justify-center ";
               let textStyle = "font-poppins-medium text-xs ";
+              let customStyle: any = {};
+              let customTextStyle: any = {};
               
               if (isSelected) {
-                pillStyle += "bg-[#0D1B2A]";
+                customStyle.backgroundColor = primaryColor;
                 textStyle += "text-white";
               } else if (day.isWeekend) {
                 pillStyle += "bg-gray-100 border border-gray-200";
                 textStyle += "text-gray-400";
               } else {
-                pillStyle += "bg-white border border-[#0D1B2A]";
-                textStyle += "text-[#0D1B2A]";
+                pillStyle += "bg-white border";
+                customStyle.borderColor = primaryColor;
+                customTextStyle.color = primaryColor;
               }
 
               return (
@@ -271,9 +277,10 @@ export default function TimetableScreen() {
                   key={day.key}
                   onPress={() => setSelectedDay(day.key)}
                   className={pillStyle}
+                  style={customStyle}
                   activeOpacity={0.7}
                 >
-                  <Text className={textStyle}>
+                  <Text className={textStyle} style={customTextStyle}>
                     {day.label}
                   </Text>
                 </TouchableOpacity>

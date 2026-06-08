@@ -98,7 +98,10 @@ interface TimetableItem {
 
 export default function MyTimetableScreen() {
   const router = useRouter();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,7 +252,7 @@ export default function MyTimetableScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="My Timetable" showBack={true} onBack={() => router.back()} />
 
       {loading ? (
@@ -289,15 +292,15 @@ export default function MyTimetableScreen() {
                       paddingHorizontal: 16,
                       paddingVertical: 8,
                       borderRadius: 9999,
-                      backgroundColor: isSelected ? "#D4AF37" : "#FFFFFF",
+                      backgroundColor: isSelected ? secondaryColor : "#FFFFFF",
                       borderWidth: isSelected ? 0 : 1,
-                      borderColor: "#0D1B2A",
+                      borderColor: primaryColor,
                     }}
                   >
                     <Text
                       style={{
                         fontSize: 13,
-                        color: "#0D1B2A",
+                        color: primaryColor,
                       }}
                       className={isSelected ? "font-poppins-semibold" : "font-poppins-medium"}
                     >
@@ -317,10 +320,10 @@ export default function MyTimetableScreen() {
           >
             {filteredPeriods.length === 0 ? (
               <View className="items-center justify-center py-16">
-                <Feather name="calendar" size={48} color="#D4AF37" />
+                <Feather name="calendar" size={48} color={secondaryColor} />
                 <Text
-                  style={{ fontFamily: "Poppins-SemiBold" }}
-                  className="text-sm font-bold text-[#0D1B2A] mt-4"
+                  style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                  className="text-sm font-bold mt-4"
                 >
                   No classes on {getDayNameTitleCase(selectedDay)}
                 </Text>
@@ -335,7 +338,7 @@ export default function MyTimetableScreen() {
                       borderRadius: 12,
                       padding: 12,
                       borderLeftWidth: 3,
-                      borderLeftColor: "#D4AF37",
+                      borderLeftColor: secondaryColor,
                       shadowColor: "rgba(0,0,0,0.04)",
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 1,
@@ -349,14 +352,14 @@ export default function MyTimetableScreen() {
                     {/* Left column */}
                     <View className="items-start pr-3 border-r border-[#E4E2E1]">
                       <Text
-                        style={{ fontFamily: "Poppins-Bold" }}
-                        className="text-[13px] font-bold text-[#0D1B2A]"
+                        style={{ fontFamily: "Poppins-Bold", color: primaryColor }}
+                        className="text-[13px] font-bold"
                       >
                         Period {period.period_number}
                       </Text>
                       <Text
-                        style={{ fontFamily: "OpenSans" }}
-                        className="text-[10px] text-[#D4AF37] font-bold mt-0.5"
+                        style={{ fontFamily: "OpenSans", color: secondaryColor }}
+                        className="text-[10px] font-bold mt-0.5"
                       >
                         {formatTime(period.starts_at)} - {formatTime(period.ends_at)}
                       </Text>
@@ -365,8 +368,8 @@ export default function MyTimetableScreen() {
                     {/* Right column */}
                     <View className="flex-1 pl-3">
                       <Text
-                        style={{ fontFamily: "Poppins-SemiBold" }}
-                        className="text-[14px] font-bold text-[#0D1B2A]"
+                        style={{ fontFamily: "Poppins-SemiBold", color: primaryColor }}
+                        className="text-[14px] font-bold"
                         numberOfLines={1}
                       >
                         {period.subject_name}

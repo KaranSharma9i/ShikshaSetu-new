@@ -31,7 +31,11 @@ interface SubjectItem {
 
 export default function CreateHomework() {
   const router = useRouter();
-  const { userId, institutionId, isLoaded, isSignedIn } = useAuth();
+  const { userId, institutionId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   // Loading States
   const [loading, setLoading] = useState(true);
@@ -404,12 +408,12 @@ export default function CreateHomework() {
   };
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Create Homework" showBack={true} onBack={() => router.back()} />
 
       {loading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#D4AF37" />
+          <ActivityIndicator size="large" color={secondaryColor} />
           <Text className="font-poppins-semibold text-xs text-gray-400 mt-2">
             Loading form details...
           </Text>
@@ -424,40 +428,45 @@ export default function CreateHomework() {
           {/* Dropdown Header & Trigger */}
           <View className="mb-4">
             <View className="flex-row justify-between items-center mb-1.5">
-              <Text className="font-poppins-semibold text-base text-[#0D1B2A]">
+              <Text className="font-poppins-semibold text-base mb-1.5" style={{ color: primaryColor }}>
                 Select Grade
               </Text>
               {dailyLimitLoading && (
-                <ActivityIndicator size="small" color="#D4AF37" />
+                <ActivityIndicator size="small" color={secondaryColor} />
               )}
             </View>
 
             <TouchableOpacity
               onPress={() => setIsDropdownOpen(!isDropdownOpen)}
               activeOpacity={0.8}
-              className={`w-full bg-white flex-row justify-between items-center px-4 py-3 border border-[#0D1B2A] ${
+              className={`w-full bg-white flex-row justify-between items-center px-4 py-3 border ${
                 isDropdownOpen ? "rounded-t-lg border-b-0" : "rounded-lg"
               }`}
+              style={{ borderColor: primaryColor }}
             >
               <Text
                 className={
                   selectedGrade
-                    ? "text-[#0D1B2A] font-inter text-sm"
+                    ? "font-inter text-sm"
                     : "text-gray-400 font-inter text-sm"
                 }
+                style={selectedGrade ? { color: primaryColor } : undefined}
               >
                 {selectedGrade ? selectedGrade.name : "Select Grade"}
               </Text>
               <Feather
                 name="chevron-down"
                 size={18}
-                color={isDropdownOpen ? "#D4AF37" : "#0D1B2A"}
+                color={isDropdownOpen ? secondaryColor : primaryColor}
               />
             </TouchableOpacity>
 
             {/* Dropdown Options List */}
             {isDropdownOpen && (
-              <View className="w-full bg-white border border-[#0D1B2A] rounded-b-lg overflow-hidden z-40 max-h-48 shadow-sm">
+              <View 
+                className="w-full bg-white border rounded-b-lg overflow-hidden z-40 max-h-48 shadow-sm"
+                style={{ borderColor: primaryColor }}
+              >
                 <ScrollView nestedScrollEnabled>
                   {grades.map((grade) => (
                     <TouchableOpacity
@@ -465,7 +474,7 @@ export default function CreateHomework() {
                       onPress={() => handleGradeSelect(grade)}
                       className="px-4 py-3.5 border-b border-gray-100 last:border-b-0"
                     >
-                      <Text className="text-[#0D1B2A] font-inter text-sm">
+                      <Text className="font-inter text-sm" style={{ color: primaryColor }}>
                         {grade.name}
                       </Text>
                     </TouchableOpacity>
@@ -480,40 +489,45 @@ export default function CreateHomework() {
           {selectedGrade && (
             <View className="mb-4">
               <View className="flex-row justify-between items-center mb-1.5">
-                <Text className="font-poppins-semibold text-base text-[#0D1B2A]">
+                <Text className="font-poppins-semibold text-base mb-1.5" style={{ color: primaryColor }}>
                   Select Section
                 </Text>
                 {dailyLimitLoading && (
-                  <ActivityIndicator size="small" color="#D4AF37" />
+                  <ActivityIndicator size="small" color={secondaryColor} />
                 )}
               </View>
 
               <TouchableOpacity
                 onPress={() => setIsSectionDropdownOpen(!isSectionDropdownOpen)}
                 activeOpacity={0.8}
-                className={`w-full bg-white flex-row justify-between items-center px-4 py-3 border border-[#0D1B2A] ${
+                className={`w-full bg-white flex-row justify-between items-center px-4 py-3 border ${
                   isSectionDropdownOpen ? "rounded-t-lg border-b-0" : "rounded-lg"
                 }`}
+                style={{ borderColor: primaryColor }}
               >
                 <Text
                   className={
                     selectedSection
-                      ? "text-[#0D1B2A] font-inter text-sm"
+                      ? "font-inter text-sm"
                       : "text-gray-400 font-inter text-sm"
                   }
+                  style={selectedSection ? { color: primaryColor } : undefined}
                 >
                   {selectedSection ? selectedSection.name : "Select Section"}
                 </Text>
                 <Feather
                   name="chevron-down"
                   size={18}
-                  color={isSectionDropdownOpen ? "#D4AF37" : "#0D1B2A"}
+                  color={isSectionDropdownOpen ? secondaryColor : primaryColor}
                 />
               </TouchableOpacity>
 
               {/* Dropdown Options List */}
               {isSectionDropdownOpen && (
-                <View className="w-full bg-white border border-[#0D1B2A] rounded-b-lg overflow-hidden z-40 max-h-48 shadow-sm">
+                <View 
+                  className="w-full bg-white border rounded-b-lg overflow-hidden z-40 max-h-48 shadow-sm"
+                  style={{ borderColor: primaryColor }}
+                >
                   <ScrollView nestedScrollEnabled>
                     {sections.map((section) => (
                       <TouchableOpacity
@@ -521,7 +535,7 @@ export default function CreateHomework() {
                         onPress={() => handleSectionSelect(section)}
                         className="px-4 py-3.5 border-b border-gray-100 last:border-b-0"
                       >
-                        <Text className="text-[#0D1B2A] font-inter text-sm">
+                        <Text className="font-inter text-sm" style={{ color: primaryColor }}>
                           {section.name}
                         </Text>
                       </TouchableOpacity>
@@ -550,7 +564,7 @@ export default function CreateHomework() {
 
           {/* STEP 1: Select Subject */}
           <View className="mb-6 mt-2">
-            <Text className="font-poppins-semibold text-base text-[#0D1B2A] mb-3">
+            <Text className="font-poppins-semibold text-base mb-3" style={{ color: primaryColor }}>
               Step 1: Select Subject
             </Text>
 
@@ -576,20 +590,22 @@ export default function CreateHomework() {
                       key={sub.id}
                       onPress={() => setSelectedSubject(sub)}
                       activeOpacity={0.8}
-                      className={`w-[48%] bg-white rounded-xl p-3.5 m-[1%] border relative ${
+                      className="w-[48%] bg-white rounded-xl p-3.5 m-[1%] border relative"
+                      style={
                         isSelected
-                          ? "border-[#D4AF37] bg-[#FFFBEA] border-2"
-                          : "border-[#E4E2E1] border-1"
-                      }`}
+                          ? { borderColor: secondaryColor, backgroundColor: secondaryLightColor, borderWidth: 2 }
+                          : { borderColor: "#E4E2E1", borderWidth: 1 }
+                      }
                     >
                       {/* Subject Icon Box */}
-                      <View className="w-10 h-10 rounded-lg bg-[#0D1B2A] items-center justify-center mb-3">
-                        <Feather name={icon} size={18} color="#D4AF37" />
+                      <View className="w-10 h-10 rounded-lg items-center justify-center mb-3" style={{ backgroundColor: primaryColor }}>
+                        <Feather name={icon} size={18} color={secondaryColor} />
                       </View>
 
                       {/* Info */}
                       <Text
-                        className="font-poppins-semibold text-[14px] text-[#0D1B2A]"
+                        className="font-poppins-semibold text-[14px]"
+                        style={{ color: primaryColor }}
                         numberOfLines={1}
                       >
                         {sub.name}
@@ -603,7 +619,7 @@ export default function CreateHomework() {
 
                       {/* Selected Badge */}
                       {isSelected && (
-                        <View className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#D4AF37] items-center justify-center">
+                        <View className="absolute top-2 right-2 w-4 h-4 rounded-full items-center justify-center" style={{ backgroundColor: secondaryColor }}>
                           <Feather name="check" size={10} color="white" />
                         </View>
                       )}
@@ -616,7 +632,7 @@ export default function CreateHomework() {
 
           {/* STEP 2: Title & Topic */}
           <View className="mb-6">
-            <Text className="font-poppins-semibold text-base text-[#0D1B2A] mb-3">
+            <Text className="font-poppins-semibold text-base mb-3" style={{ color: primaryColor }}>
               Step 2: Title & Topic
             </Text>
 
@@ -626,7 +642,8 @@ export default function CreateHomework() {
                 TITLE
               </Text>
               <TextInput
-                className="bg-white border border-[#6B7280] rounded-lg px-3.5 py-3 font-inter text-sm text-[#0D1B2A]"
+                className="bg-white border border-[#6B7280] rounded-lg px-3.5 py-3 font-inter text-sm"
+                style={{ color: primaryColor }}
                 placeholder="e.g. Algebra — Quadratic Equations"
                 placeholderTextColor="#9CA3AF"
                 value={title}
@@ -640,12 +657,12 @@ export default function CreateHomework() {
                 TOPIC DESCRIPTION
               </Text>
               <TextInput
-                className="bg-white border border-[#6B7280] rounded-lg px-3.5 py-3 font-inter text-sm text-[#0D1B2A]"
+                className="bg-white border border-[#6B7280] rounded-lg px-3.5 py-3 font-inter text-sm"
                 placeholder="Add specific instructions or focus areas for this assignment..."
                 placeholderTextColor="#9CA3AF"
                 multiline={true}
                 numberOfLines={3}
-                style={{ minHeight: 80, textAlignVertical: "top" }}
+                style={{ minHeight: 80, textAlignVertical: "top", color: primaryColor }}
                 value={topicDescription}
                 onChangeText={setTopicDescription}
               />
@@ -654,7 +671,7 @@ export default function CreateHomework() {
 
           {/* STEP 3: Assignment Settings */}
           <View className="mb-6">
-            <Text className="font-poppins-semibold text-base mb-3" style={{ color: Colors.navyBlue }}>
+            <Text className="font-poppins-semibold text-base mb-3" style={{ color: primaryColor }}>
               Step 3: Assignment Settings
             </Text>
 
@@ -668,7 +685,7 @@ export default function CreateHomework() {
                 activeOpacity={0.8}
                 className="w-full bg-white flex-row justify-between items-center px-4 py-3 border"
                 style={{
-                  borderColor: Colors.navyBlue,
+                  borderColor: primaryColor,
                   borderTopLeftRadius: 8,
                   borderTopRightRadius: 8,
                   borderBottomLeftRadius: isDueDropdownOpen ? 0 : 8,
@@ -676,13 +693,13 @@ export default function CreateHomework() {
                   borderBottomWidth: isDueDropdownOpen ? 0 : 1,
                 }}
               >
-                <Text className="font-inter text-sm" style={{ color: Colors.navyBlue }}>
+                <Text className="font-inter text-sm" style={{ color: primaryColor }}>
                   {dueDateDays} {dueDateDays === 1 ? "day" : "days"}
                 </Text>
                 <Feather
                   name="chevron-down"
                   size={18}
-                  color={isDueDropdownOpen ? Colors.gold : Colors.navyBlue}
+                  color={isDueDropdownOpen ? secondaryColor : primaryColor}
                 />
               </TouchableOpacity>
 
@@ -691,7 +708,7 @@ export default function CreateHomework() {
                 <View 
                   className="w-full bg-white border max-h-48 z-40"
                   style={{
-                    borderColor: Colors.navyBlue,
+                    borderColor: primaryColor,
                     borderBottomLeftRadius: 8,
                     borderBottomRightRadius: 8,
                     overflow: "hidden",
@@ -708,7 +725,7 @@ export default function CreateHomework() {
                         }}
                         className="px-4 py-3.5 border-b border-gray-100 last:border-b-0"
                       >
-                        <Text className="font-inter text-sm" style={{ color: Colors.navyBlue }}>
+                        <Text className="font-inter text-sm" style={{ color: primaryColor }}>
                           {days} {days === 1 ? "day" : "days"}
                         </Text>
                       </TouchableOpacity>
@@ -736,8 +753,8 @@ export default function CreateHomework() {
                       style={
                         isSelected
                           ? {
-                              backgroundColor: Colors.navyBlue,
-                              borderColor: Colors.navyBlue,
+                              backgroundColor: primaryColor,
+                              borderColor: primaryColor,
                               ...Shadow.md,
                             }
                           : {
@@ -763,7 +780,7 @@ export default function CreateHomework() {
 
           {/* STEP 4: Question Configuration */}
           <View className="mb-8">
-            <Text className="font-poppins-semibold text-base mb-3" style={{ color: Colors.navyBlue }}>
+            <Text className="font-poppins-semibold text-base mb-3" style={{ color: primaryColor }}>
               Step 4: Question Configuration
             </Text>
 
@@ -780,7 +797,7 @@ export default function CreateHomework() {
               ].map((row, index, arr) => (
                 <View key={row.label}>
                   <View className="flex-row justify-between items-center py-2.5">
-                    <Text className="font-inter-medium text-[14px] text-[#0D1B2A]">
+                    <Text className="font-inter-medium text-[14px]" style={{ color: primaryColor }}>
                       {row.label}
                     </Text>
 
@@ -791,20 +808,19 @@ export default function CreateHomework() {
                         disabled={row.val <= 0}
                         onPress={() => row.setVal(row.val - 1)}
                         activeOpacity={0.7}
-                        className={`w-7 h-7 rounded-full items-center justify-center ${
-                          row.val <= 0 ? "bg-gray-100" : "bg-[#0D1B2A]"
-                        }`}
+                        className="w-7 h-7 rounded-full items-center justify-center"
+                        style={{ backgroundColor: row.val <= 0 ? "rgba(243, 244, 246, 1)" : primaryColor }}
                       >
                         <Feather
                           name="minus"
                           size={14}
-                          color={row.val <= 0 ? "#9CA3AF" : "#D4AF37"}
+                          color={row.val <= 0 ? "#9CA3AF" : secondaryColor}
                         />
                       </TouchableOpacity>
 
                       {/* Value Count */}
                       <View style={{ minWidth: 32 }} className="items-center">
-                        <Text className="font-poppins-bold text-[16px] text-[#0D1B2A]">
+                        <Text className="font-poppins-bold text-[16px]" style={{ color: primaryColor }}>
                           {row.val}
                         </Text>
                       </View>
@@ -813,9 +829,10 @@ export default function CreateHomework() {
                       <TouchableOpacity
                         onPress={() => row.setVal(row.val + 1)}
                         activeOpacity={0.7}
-                        className="w-7 h-7 rounded-full bg-[#0D1B2A] items-center justify-center"
+                        className="w-7 h-7 rounded-full items-center justify-center"
+                        style={{ backgroundColor: primaryColor }}
                       >
-                        <Feather name="plus" size={14} color="#D4AF37" />
+                        <Feather name="plus" size={14} color={secondaryColor} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -833,6 +850,7 @@ export default function CreateHomework() {
           <TouchableOpacity
             style={[
               styles.generateButton,
+              { backgroundColor: primaryColor },
               (isGenerating || !isFormValid) && styles.generateButtonDisabled,
             ]}
             onPress={handleGenerate}
@@ -841,12 +859,12 @@ export default function CreateHomework() {
           >
             {isGenerating ? (
               <View style={styles.generateButtonContent}>
-                <ActivityIndicator size="small" color={Colors.gold} />
-                <Text style={styles.generateButtonText}>Generating...</Text>
+                <ActivityIndicator size="small" color={secondaryColor} />
+                <Text style={[styles.generateButtonText, { color: secondaryColor }]}>Generating...</Text>
               </View>
             ) : (
               <View style={styles.generateButtonContent}>
-                <Text style={styles.generateButtonText}>Generate Questions →</Text>
+                <Text style={[styles.generateButtonText, { color: secondaryColor }]}>Generate Questions →</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -855,8 +873,8 @@ export default function CreateHomework() {
 
       {/* Loading Overlay Modal */}
       <Modal visible={preparingOverlay} transparent={true} animationType="fade">
-        <View className="flex-1 bg-[#0D1B2A] justify-center items-center px-6">
-          <ActivityIndicator size="large" color="#D4AF37" />
+        <View className="flex-1 justify-center items-center px-6" style={{ backgroundColor: primaryColor }}>
+          <ActivityIndicator size="large" color={secondaryColor} />
           <Text className="font-poppins text-[16px] text-white mt-4 text-center">
             Preparing assignment...
           </Text>
@@ -874,7 +892,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    backgroundColor: "#0D1B2A",
   },
   generateButtonDisabled: {
     opacity: 0.5,
@@ -888,6 +905,5 @@ const styles = StyleSheet.create({
   generateButtonText: {
     fontFamily: "Poppins-SemiBold",
     fontSize: 16,
-    color: "#D4AF37",
   },
 });

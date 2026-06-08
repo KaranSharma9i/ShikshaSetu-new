@@ -3,12 +3,14 @@ import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, SafeAreaView } from "react-native";
 
 export default function InstitutionLayout() {
-  const { isSignedIn, isLoaded, role } = useAuth();
+  const { isSignedIn, isLoaded, role, theme } = useAuth();
+  const creamColor = theme?.colors?.cream ?? "#FDF9F1";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
 
   if (!isLoaded) {
     return (
-      <SafeAreaView className="flex-1 bg-[#FDF9F1] justify-center items-center">
-        <ActivityIndicator size="large" color="#FF5E00" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: creamColor, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={secondaryColor} />
       </SafeAreaView>
     );
   }

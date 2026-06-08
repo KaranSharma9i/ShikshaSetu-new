@@ -98,7 +98,7 @@ This is what gets stored in the `theme` JSONB column per institution. Fonts are 
     "secondaryLight": "#F2C14E",
     "charcoal": "#333333",
     "steelGray": "#6B7280",
-    "lightGray": "#E5E7EB",
+    "lightGray": "#E5E7EB", 
     "cream": "#F7F3EB",
     "white": "#FFFFFF",
     "success": "#22C55E",

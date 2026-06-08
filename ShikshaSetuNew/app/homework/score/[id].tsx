@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Header from '../../../components/student/Header';
 import BottomNavBar from '../../../components/student/BottomNavBar';
 import { Colors } from '../../../constants/theme';
+import { useAuth } from '../../../src/hooks/useAuth';
 
 // Helper: getScoreColor(score: number)
 // Returns the appropriate theme color string:
@@ -56,15 +57,25 @@ interface BreakdownCardProps {
 }
 
 function BreakdownCard({ label, value, icon }: BreakdownCardProps) {
-  const barColor = getScoreColor(value);
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+
+  const getScoreColorLocal = (score: number) => {
+    if (score < 4) return Colors.red;
+    if (score <= 7) return secondaryColor;
+    return Colors.green;
+  };
+
+  const barColor = getScoreColorLocal(value);
   return (
-    <View style={styles.breakdownCard}>
+    <View style={[styles.breakdownCard, { borderColor: theme?.colors?.lightGray ?? '#E4E2E1' }]}>
       <View style={styles.breakdownCardRow}>
         <View style={styles.breakdownIconLabel}>
           <Ionicons name={icon as any} size={20} color={barColor} />
-          <Text style={styles.breakdownLabel}>{label}</Text>
+          <Text style={[styles.breakdownLabel, { color: primaryColor }]}>{label}</Text>
         </View>
-        <Text style={styles.breakdownScore}>{value}/10</Text>
+        <Text style={[styles.breakdownScore, { color: primaryColor }]}>{value}/10</Text>
       </View>
       <View style={styles.progressContainer}>
         <View style={[styles.progressBar, { width: `${(value / 10) * 100}%`, backgroundColor: barColor }]} />
@@ -80,14 +91,19 @@ interface LockedCardProps {
 }
 
 function LockedCard({ text, subtext }: LockedCardProps) {
+  const { theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#FFF3CD';
+  
   return (
-    <View style={styles.lockedCard}>
+    <View style={[styles.lockedCard, { backgroundColor: secondaryLightColor, borderColor: secondaryColor }]}>
       <View style={styles.lockIconContainer}>
-        <Ionicons name="lock-closed-outline" size={20} color={Colors.textGold} />
+        <Ionicons name="lock-closed-outline" size={20} color={secondaryColor} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.lockedText}>{text}</Text>
-        <Text style={styles.lockedSubtext}>{subtext}</Text>
+        <Text style={[styles.lockedText, { color: theme?.colors?.secondary ?? '#856404' }]}>{text}</Text>
+        <Text style={[styles.lockedSubtext, { color: theme?.colors?.secondary ?? '#856404' }]}>{subtext}</Text>
       </View>
     </View>
   );
@@ -95,7 +111,20 @@ function LockedCard({ text, subtext }: LockedCardProps) {
 
 export default function HomeworkScoreScreen() {
   const router = useRouter();
+  const { theme } = useAuth();
   
+  const primaryColor = theme?.colors?.primary ?? '#0D1B2A';
+  const secondaryColor = theme?.colors?.secondary ?? '#D4AF37';
+  const creamColor = theme?.colors?.cream ?? '#F7F3EB';
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? '#FFF3CD';
+
+  // Helper: getScoreColor(score: number) using dynamic secondaryColor
+  const getScoreColor = (score: number) => {
+    if (score < 4) return Colors.red;
+    if (score <= 7) return secondaryColor;
+    return Colors.green;
+  };
+
   // Data Parsing Block
   const params = useLocalSearchParams();
   const ai_score = parseFloat(params.ai_score as string) || 0;
@@ -123,7 +152,7 @@ export default function HomeworkScoreScreen() {
   const ringColor = getScoreColor(ai_score);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: creamColor }]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
@@ -139,13 +168,13 @@ export default function HomeworkScoreScreen() {
         {parseError ? (
           /* Error state */
           <View style={styles.contentPadding}>
-            <View style={styles.errorCard}>
+            <View style={[styles.errorCard, { shadowColor: primaryColor }]}>
               <Ionicons name="alert-circle-outline" size={48} color={Colors.red} />
-              <Text style={styles.errorTitle}>Result Unavailable</Text>
+              <Text style={[styles.errorTitle, { color: primaryColor }]}>Result Unavailable</Text>
               <Text style={styles.errorSub}>Could not load your score details.</Text>
               <TouchableOpacity
                 onPress={() => router.push('/homework')}
-                style={styles.errorButton}
+                style={[styles.errorButton, { backgroundColor: primaryColor }]}
                 activeOpacity={0.8}
               >
                 <Text style={styles.errorButtonText}>Back to Homework</Text>
@@ -157,10 +186,10 @@ export default function HomeworkScoreScreen() {
             {/* 2. Overall Score Section */}
             <View style={styles.overallScoreContainer}>
               <View style={[styles.circleOuter, { borderColor: ringColor }]}>
-                <Text style={styles.circleText}>{ai_score}</Text>
+                <Text style={[styles.circleText, { color: primaryColor }]}>{ai_score}</Text>
               </View>
               <Text style={styles.mutedTextBelowCircle}>/10</Text>
-              <Text style={styles.homeworkTitle}>{homework_title}</Text>
+              <Text style={[styles.homeworkTitle, { color: primaryColor }]}>{homework_title}</Text>
               {scored_at ? (
                 <Text style={styles.scoredAtText}>Scored: {formatScoredAt(scored_at)}</Text>
               ) : null}
@@ -190,7 +219,7 @@ export default function HomeworkScoreScreen() {
             <Text style={styles.sectionLabel}>💡 KEY INSIGHTS</Text>
             {plan_tier === 'PRO' && ai_feedback?.insights && ai_feedback.insights.length > 0 ? (
               ai_feedback.insights.slice(0, 2).map((insight, idx) => (
-                <View key={`insight-${idx}`} style={styles.insightCard}>
+                <View key={`insight-${idx}`} style={[styles.insightCard, { borderLeftColor: primaryColor }]}>
                   <Text style={styles.insightText}>{insight}</Text>
                 </View>
               ))
@@ -208,7 +237,7 @@ export default function HomeworkScoreScreen() {
             {plan_tier === 'PRO' ? (
               <View>
                 {/* Sub-section A: Needs Attention */}
-                <Text style={styles.subSectionTitle}>❌ Needs Attention</Text>
+                <Text style={[styles.subSectionTitle, { color: primaryColor }]}>❌ Needs Attention</Text>
                 {(!ai_feedback?.wrong_answers || ai_feedback.wrong_answers.length === 0) ? (
                   <Text style={[styles.emptyStateText, { color: Colors.green }]}>
                     ✅ No completely wrong answers. Great work!
@@ -223,15 +252,15 @@ export default function HomeworkScoreScreen() {
                 )}
 
                 {/* Sub-section B: Partially Correct */}
-                <Text style={styles.subSectionTitle}>⚠️ Partially Correct</Text>
+                <Text style={[styles.subSectionTitle, { color: primaryColor }]}>⚠️ Partially Correct</Text>
                 {(!ai_feedback?.partial_answers || ai_feedback.partial_answers.length === 0) ? (
                   <Text style={styles.emptyStateText}>
                     All correct or fully wrong — no partial answers.
                   </Text>
                 ) : (
                   ai_feedback.partial_answers.map((item, idx) => (
-                    <View key={`partial-${idx}`} style={[styles.questionCard, { backgroundColor: Colors.badgeGoldBg, borderColor: Colors.borderGold }]}>
-                      <Text style={[styles.questionHeader, { color: Colors.textGold }]}>Q{item.question_number}</Text>
+                    <View key={`partial-${idx}`} style={[styles.questionCard, { backgroundColor: secondaryLightColor, borderColor: secondaryColor }]}>
+                      <Text style={[styles.questionHeader, { color: theme?.colors?.secondary ?? '#856404' }]}>Q{item.question_number}</Text>
                       <Text style={styles.questionDesc}>{item.description}</Text>
                     </View>
                   ))
@@ -248,15 +277,15 @@ export default function HomeworkScoreScreen() {
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 onPress={() => router.push('/homework')}
-                style={styles.outlineButton}
+                style={[styles.outlineButton, { borderColor: primaryColor }]}
                 activeOpacity={0.8}
               >
-                <Text style={styles.outlineButtonText}>← Homework</Text>
+                <Text style={[styles.outlineButtonText, { color: primaryColor }]}>← Homework</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => router.back()}
-                style={styles.primaryButton}
+                style={[styles.primaryButton, { backgroundColor: primaryColor }]}
                 activeOpacity={0.8}
               >
                 <Text style={styles.primaryButtonText}>Submit Again</Text>

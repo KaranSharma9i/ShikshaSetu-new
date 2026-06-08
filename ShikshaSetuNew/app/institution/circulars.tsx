@@ -20,7 +20,13 @@ import { getClasses } from "../../src/repositories/studentRepository";
 import { handleError } from "../../src/utils/error";
 
 export default function CircularsHub() {
-  const { institutionId, userId } = useAuth();
+  const { institutionId, userId, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const creamColor = theme?.colors?.cream ?? "#F5F0E8";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
+
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<"Announcement" | "Urgent">("Announcement");
@@ -93,7 +99,7 @@ export default function CircularsHub() {
 
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Circular Composer" />
 
       <ScrollView
@@ -103,10 +109,10 @@ export default function CircularsHub() {
       >
         {/* Title */}
         <View className="px-5 pt-6 pb-2">
-          <Text className="text-[11px] font-poppins-semibold text-[#735c00] tracking-widest uppercase mb-1">
+          <Text className="text-[11px] font-poppins-semibold tracking-widest uppercase mb-1" style={{ color: secondaryColor }}>
             Communication Board
           </Text>
-          <Text className="text-2xl font-poppins-bold text-[#0F1C2C] leading-tight">
+          <Text className="text-2xl font-poppins-bold leading-tight" style={{ color: primaryColor }}>
             Circular Broadcast
           </Text>
         </View>
@@ -114,7 +120,7 @@ export default function CircularsHub() {
         {/* Composer Form Card */}
         <View className="px-5 mb-6">
           <View className="bg-white rounded-2xl p-5 border border-gray-200/60 shadow-sm">
-            <Text className="text-[#0F1C2C] font-poppins-bold text-sm mb-4">
+            <Text className="font-poppins-bold text-sm mb-4" style={{ color: primaryColor }}>
               Compose New Notice
             </Text>
 
@@ -127,7 +133,8 @@ export default function CircularsHub() {
               onChangeText={setTitle}
               placeholder="e.g. Science Fair Registration Open"
               placeholderTextColor="#9CA3AF"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs"
+              style={{ color: primaryColor }}
             />
 
             {/* Selector - Category */}
@@ -139,16 +146,17 @@ export default function CircularsHub() {
                 <TouchableOpacity
                   key={cat}
                   onPress={() => setCategory(cat)}
-                  className={`px-3 py-2 rounded-lg border ${
-                    category === cat
-                      ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                      : "bg-[#FCFAFA] border-gray-200"
-                  }`}
+                  className="px-3 py-2 rounded-lg border"
+                  style={{
+                    backgroundColor: category === cat ? primaryColor : "#FCFAFA",
+                    borderColor: category === cat ? primaryColor : "#E5E7EB"
+                  }}
                 >
                   <Text
-                    className={`text-[10px] font-poppins-semibold ${
-                      category === cat ? "text-[#ffe088]" : "text-neutral-steel"
-                    }`}
+                    className="text-[10px] font-poppins-semibold"
+                    style={{
+                      color: category === cat ? secondaryColor : "#75777D"
+                    }}
                   >
                     {cat}
                   </Text>
@@ -171,16 +179,17 @@ export default function CircularsHub() {
                       setClassPickerOpen(false);
                     }
                   }}
-                  className={`flex-1 py-2 rounded-lg border items-center ${
-                    audience === aud
-                      ? "bg-[#0F1C2C] border-[#0F1C2C]"
-                      : "bg-[#FCFAFA] border-gray-200"
-                  }`}
+                  className="flex-1 py-2 rounded-lg border items-center"
+                  style={{
+                    backgroundColor: audience === aud ? primaryColor : "#FCFAFA",
+                    borderColor: audience === aud ? primaryColor : "#E5E7EB"
+                  }}
                 >
                   <Text
-                    className={`text-[10px] font-poppins-semibold ${
-                      audience === aud ? "text-[#ffe088]" : "text-neutral-steel"
-                    }`}
+                    className="text-[10px] font-poppins-semibold"
+                    style={{
+                      color: audience === aud ? secondaryColor : "#75777D"
+                    }}
                   >
                     {aud}
                   </Text>
@@ -198,12 +207,12 @@ export default function CircularsHub() {
                   onPress={() => setClassPickerOpen(!classPickerOpen)}
                   className="flex-row items-center justify-between px-4 py-3 bg-[#FCFAFA] border border-gray-200 rounded-xl"
                 >
-                  <Text className="font-inter text-xs text-[#0F1C2C]">
+                  <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                     {targetClassId && classesData
                       ? (classesData.find(c => c.id === targetClassId)?.name || "All Classes")
                       : "All Classes"}
                   </Text>
-                  <Ionicons name={classPickerOpen ? "chevron-up" : "chevron-down"} size={14} color="#0F1C2C" />
+                  <Ionicons name={classPickerOpen ? "chevron-up" : "chevron-down"} size={14} color={primaryColor} />
                 </TouchableOpacity>
 
                 {classPickerOpen && (
@@ -214,11 +223,10 @@ export default function CircularsHub() {
                           setTargetClassId(null);
                           setClassPickerOpen(false);
                         }}
-                        className={`py-2.5 px-4 border-b border-gray-100 last:border-b-0 ${
-                          targetClassId === null ? "bg-[#FFFCEE]" : ""
-                        }`}
+                        style={{ backgroundColor: targetClassId === null ? `${secondaryColor}15` : "transparent" }}
+                        className="py-2.5 px-4 border-b border-gray-100 last:border-b-0"
                       >
-                        <Text className="font-inter text-xs text-[#0F1C2C]">
+                        <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                           All Classes
                         </Text>
                       </TouchableOpacity>
@@ -229,11 +237,10 @@ export default function CircularsHub() {
                             setTargetClassId(item.id);
                             setClassPickerOpen(false);
                           }}
-                          className={`py-2.5 px-4 border-b border-gray-100 last:border-b-0 ${
-                            targetClassId === item.id ? "bg-[#FFFCEE]" : ""
-                          }`}
+                          style={{ backgroundColor: targetClassId === item.id ? `${secondaryColor}15` : "transparent" }}
+                          className="py-2.5 px-4 border-b border-gray-100 last:border-b-0"
                         >
-                          <Text className="font-inter text-xs text-[#0F1C2C]">
+                          <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                             {item.name}
                           </Text>
                         </TouchableOpacity>
@@ -256,22 +263,23 @@ export default function CircularsHub() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
-              style={{ minHeight: 80 }}
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs"
+              style={{ minHeight: 80, color: primaryColor }}
             />
 
             {/* Broadcast Button */}
             <TouchableOpacity
               onPress={handleBroadcast}
               disabled={isSubmitting}
-              className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2 shadow-sm active:opacity-90"
+              className="py-4 rounded-xl items-center flex-row justify-center space-x-2 shadow-sm active:opacity-90"
+              style={{ backgroundColor: primaryColor }}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#ffe088" />
+                <ActivityIndicator size="small" color={secondaryColor} />
               ) : (
                 <>
-                  <Ionicons name="send-outline" size={16} color="#ffe088" />
-                  <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                  <Ionicons name="send-outline" size={16} color={secondaryColor} />
+                  <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                     Broadcast Notice
                   </Text>
                 </>
@@ -282,12 +290,12 @@ export default function CircularsHub() {
 
         {/* History Feed */}
         <View className="px-5">
-          <Text className="text-[#0F1C2C] font-poppins-bold text-base mb-3 px-1">
+          <Text className="font-poppins-bold text-base mb-3 px-1" style={{ color: primaryColor }}>
             Recent Broadcast Feed
           </Text>
 
           {isLoading ? (
-            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+            <ActivityIndicator size="small" color={secondaryColor} className="my-10" />
           ) : circulars.length === 0 ? (
             <Text className="text-center text-xs text-neutral-steel font-inter italic my-10">No circulars broadcasted yet.</Text>
           ) : (
@@ -299,15 +307,16 @@ export default function CircularsHub() {
                 <View className="flex-row justify-between items-start mb-2">
                   <View className="flex-row items-center space-x-2">
                     <View
-                      className={`w-2.5 h-2.5 rounded-full ${
-                        circ.category === "Urgent"
-                          ? "bg-rose-500"
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{
+                        backgroundColor: circ.category === "Urgent"
+                          ? dangerColor
                           : circ.category === "Event"
-                          ? "bg-[#735c00]"
+                          ? secondaryColor
                           : circ.category === "Holiday"
-                          ? "bg-amber-500"
-                          : "bg-blue-500"
-                      }`}
+                          ? "#F59E0B"
+                          : "#3B82F6"
+                      }}
                     />
                     <Text className="text-[10px] font-poppins-bold text-neutral-steel uppercase">
                       {circ.category}
@@ -321,7 +330,7 @@ export default function CircularsHub() {
                   </View>
                 </View>
 
-                <Text className="font-poppins-bold text-sm text-[#0F1C2C] mb-1">
+                <Text className="font-poppins-bold text-sm mb-1" style={{ color: primaryColor }}>
                   {circ.title}
                 </Text>
                 <Text className="text-[11px] text-neutral-steel leading-relaxed font-inter">

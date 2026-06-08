@@ -26,7 +26,12 @@ interface CustomEvent extends CalendarEvent {
 }
 
 export default function EventsHub() {
-  const { institutionId } = useAuth();
+  const { institutionId, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
+  const creamColor = theme?.colors?.cream ?? "#F5F0E8";
+  const dangerColor = theme?.colors?.danger ?? "#EF4444";
   
   const { data: dbEvents, isLoading, refetch } = useQuery(
     () => getEvents(institutionId || ""),
@@ -167,7 +172,7 @@ export default function EventsHub() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDF9F1]">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: creamColor }}>
       <Header title="Events Board" />
 
       <ScrollView
@@ -177,10 +182,10 @@ export default function EventsHub() {
       >
         {/* Title Block */}
         <View className="px-5 pt-6 pb-2">
-          <Text className="text-[11px] font-poppins-semibold text-[#735c00] tracking-widest uppercase mb-1">
+          <Text className="text-[11px] font-poppins-semibold tracking-widest uppercase mb-1" style={{ color: secondaryColor }}>
             Institutional Calendar
           </Text>
-          <Text className="text-2xl font-poppins-bold text-[#0F1C2C] leading-tight">
+          <Text className="text-2xl font-poppins-bold leading-tight" style={{ color: primaryColor }}>
             Events Hub
           </Text>
         </View>
@@ -192,14 +197,12 @@ export default function EventsHub() {
               <TouchableOpacity
                 key={filter}
                 onPress={() => setActiveFilter(filter)}
-                className={`flex-1 py-2.5 rounded-lg items-center ${
-                  activeFilter === filter ? "bg-[#0F1C2C]" : "bg-transparent"
-                }`}
+                className="flex-1 py-2.5 rounded-lg items-center"
+                style={{ backgroundColor: activeFilter === filter ? primaryColor : "transparent" }}
               >
                 <Text
-                  className={`text-xs font-poppins-bold ${
-                    activeFilter === filter ? "text-[#ffe088]" : "text-neutral-steel"
-                  }`}
+                  className="text-xs font-poppins-bold"
+                  style={{ color: activeFilter === filter ? secondaryColor : "#75777D" }}
                 >
                   {filter}
                 </Text>
@@ -211,7 +214,7 @@ export default function EventsHub() {
         {/* Events Stack */}
         <View className="px-5">
           {isLoading ? (
-            <ActivityIndicator size="small" color="#FF5E00" className="my-10" />
+            <ActivityIndicator size="small" color={secondaryColor} className="my-10" />
           ) : filteredEvents.length === 0 ? (
             <View className="bg-white border border-gray-200/60 p-8 rounded-2xl items-center justify-center">
               <Ionicons name="calendar-outline" size={32} color="#778598" />
@@ -229,20 +232,20 @@ export default function EventsHub() {
                   <View className="flex-row justify-between items-start mb-2">
                     <View className="flex-row items-center">
                       {ev.status !== "Published" && (
-                        <View className="w-1.5 h-6 bg-[#735c00] rounded-full mr-2" />
+                        <View className="w-1.5 h-6 rounded-full mr-2" style={{ backgroundColor: secondaryColor }} />
                       )}
                       <View>
-                        <Text className="font-poppins-bold text-sm text-[#0F1C2C]">
+                        <Text className="font-poppins-bold text-sm" style={{ color: primaryColor }}>
                           {ev.title}
                         </Text>
-                        <Text className="text-[9px] text-[#735c00] font-poppins-semibold uppercase tracking-wider mt-0.5">
+                        <Text className="text-[9px] font-poppins-semibold uppercase tracking-wider mt-0.5" style={{ color: secondaryColor }}>
                           {ev.category}
                         </Text>
                       </View>
                     </View>
                     
-                    <View className="bg-[#0F1C2C]/5 px-2 py-0.5 rounded">
-                      <Text className="text-[#0F1C2C] font-inter text-[8px] font-bold">
+                    <View style={{ backgroundColor: `${primaryColor}0D` }} className="px-2 py-0.5 rounded">
+                      <Text className="font-inter text-[8px] font-bold" style={{ color: primaryColor }}>
                         {ev.status.toUpperCase()}
                       </Text>
                     </View>
@@ -250,13 +253,13 @@ export default function EventsHub() {
 
                   <View className="space-y-1.5 mt-3">
                     <View className="flex-row items-center space-x-2">
-                      <Ionicons name="calendar-outline" size={13} color="#735c00" />
+                      <Ionicons name="calendar-outline" size={13} color={secondaryColor} />
                       <Text className="font-inter text-[11px] text-neutral-charcoal">
                         {ev.date} • {ev.time}
                       </Text>
                     </View>
                     <View className="flex-row items-center space-x-2">
-                      <Ionicons name="location-outline" size={13} color="#735c00" />
+                      <Ionicons name="location-outline" size={13} color={secondaryColor} />
                       <Text className="font-inter text-[11px] text-neutral-charcoal">
                         {ev.location}
                       </Text>
@@ -269,9 +272,10 @@ export default function EventsHub() {
                       <>
                         <TouchableOpacity
                           onPress={() => handlePublishNow(ev)}
-                          className="flex-1 bg-[#0F1C2C] py-2.5 rounded-xl items-center"
+                          className="flex-1 py-2.5 rounded-xl items-center"
+                          style={{ backgroundColor: primaryColor }}
                         >
-                          <Text className="text-[#ffe088] font-poppins-bold text-[10px]">
+                          <Text className="font-poppins-bold text-[10px]" style={{ color: secondaryColor }}>
                             Publish Now
                           </Text>
                         </TouchableOpacity>
@@ -279,17 +283,18 @@ export default function EventsHub() {
                           onPress={() => handleScheduleNotifications(ev)}
                           className="px-3 border border-gray-200 rounded-xl justify-center items-center"
                         >
-                          <Ionicons name="notifications-outline" size={14} color="#735c00" />
+                          <Ionicons name="notifications-outline" size={14} color={secondaryColor} />
                         </TouchableOpacity>
                       </>
                     )}
                     {ev.status === "Published" && (
                       <TouchableOpacity
                         onPress={() => handleScheduleNotifications(ev)}
-                        className="flex-1 border border-[#735c00]/50 py-2.5 rounded-xl items-center flex-row justify-center space-x-1"
+                        className="flex-1 border py-2.5 rounded-xl items-center flex-row justify-center space-x-1"
+                        style={{ borderColor: `${secondaryColor}80` }}
                       >
-                        <Ionicons name="notifications-outline" size={12} color="#735c00" />
-                        <Text className="text-[#735c00] font-poppins-bold text-[10px]">
+                        <Ionicons name="notifications-outline" size={12} color={secondaryColor} />
+                        <Text className="font-poppins-bold text-[10px]" style={{ color: secondaryColor }}>
                           Notify Attendees
                         </Text>
                       </TouchableOpacity>
@@ -306,10 +311,11 @@ export default function EventsHub() {
       <View className="absolute bottom-24 left-0 right-0 items-center">
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
-          className="flex-row items-center space-x-2 bg-[#0F1C2C] px-8 py-3.5 rounded-full shadow-lg border border-gray-800"
+          className="flex-row items-center space-x-2 px-8 py-3.5 rounded-full shadow-lg border"
+          style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
         >
-          <Ionicons name="add" size={18} color="#ffe088" />
-          <Text className="text-[#ffe088] font-poppins-bold text-xs">
+          <Ionicons name="add" size={18} color={secondaryColor} />
+          <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
             Add New Event
           </Text>
         </TouchableOpacity>
@@ -329,9 +335,9 @@ export default function EventsHub() {
                 onPress={() => setModalVisible(false)}
                 className="p-1 rounded-full bg-slate-100"
               >
-                <Ionicons name="close" size={18} color="#0F1C2C" />
+                <Ionicons name="close" size={18} color={primaryColor} />
               </TouchableOpacity>
-              <Text className="font-poppins-bold text-base text-[#0F1C2C]">
+              <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>
                 Schedule Academic Event
               </Text>
               <View className="w-6" />
@@ -346,7 +352,8 @@ export default function EventsHub() {
               onChangeText={setTitle}
               placeholder="e.g. Annual Sports Meet"
               placeholderTextColor="#9CA3AF"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs"
+              style={{ color: primaryColor }}
             />
 
             <View className="flex-row space-x-3 mb-4">
@@ -356,9 +363,9 @@ export default function EventsHub() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
-                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs text-[#0F1C2C] h-[44px] justify-center"
+                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs h-[44px] justify-center"
                 >
-                  <Text className="font-inter text-xs text-[#0F1C2C]">
+                  <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                     {formatDisplayDate(eventDate)}
                   </Text>
                 </TouchableOpacity>
@@ -377,9 +384,9 @@ export default function EventsHub() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => setShowTimePicker(true)}
-                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs text-[#0F1C2C] h-[44px] justify-center"
+                  className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl font-inter text-xs h-[44px] justify-center"
                 >
-                  <Text className="font-inter text-xs text-[#0F1C2C]">
+                  <Text className="font-inter text-xs" style={{ color: primaryColor }}>
                     {formatDisplayTime(eventTime)}
                   </Text>
                 </TouchableOpacity>
@@ -403,7 +410,8 @@ export default function EventsHub() {
               onChangeText={setLocation}
               placeholder="e.g. Main Athletic Arena"
               placeholderTextColor="#9CA3AF"
-              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs text-[#0F1C2C]"
+              className="bg-[#FCFAFA] border border-gray-200 px-4 py-3 rounded-xl mb-4 font-inter text-xs"
+              style={{ color: primaryColor }}
             />
 
             {/* Category Select */}
@@ -415,14 +423,17 @@ export default function EventsHub() {
                 <TouchableOpacity
                   key={cat}
                   onPress={() => setCategory(cat)}
-                  className={`flex-1 py-2 rounded-lg border items-center ${
-                    category === cat ? "bg-[#0F1C2C] border-[#0F1C2C]" : "bg-[#FCFAFA] border-gray-200"
-                  }`}
+                  className="flex-1 py-2 rounded-lg border items-center"
+                  style={{
+                    backgroundColor: category === cat ? primaryColor : "#FCFAFA",
+                    borderColor: category === cat ? primaryColor : "#E5E7EB"
+                  }}
                 >
                   <Text
-                    className={`text-[9px] font-poppins-semibold ${
-                      category === cat ? "text-[#ffe088]" : "text-neutral-steel"
-                    }`}
+                    className="text-[9px] font-poppins-semibold"
+                    style={{
+                      color: category === cat ? secondaryColor : "#75777D"
+                    }}
                   >
                     {cat}
                   </Text>
@@ -434,14 +445,15 @@ export default function EventsHub() {
             <TouchableOpacity
               onPress={handleAddEventSubmit}
               disabled={isSubmitting}
-              className="bg-[#0F1C2C] py-4 rounded-xl items-center flex-row justify-center space-x-2 active:opacity-90"
+              className="py-4 rounded-xl items-center flex-row justify-center space-x-2 active:opacity-90"
+              style={{ backgroundColor: primaryColor }}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#ffe088" />
+                <ActivityIndicator size="small" color={secondaryColor} />
               ) : (
                 <>
-                  <Ionicons name="calendar-outline" size={16} color="#ffe088" />
-                  <Text className="text-[#ffe088] font-poppins-bold text-xs">
+                  <Ionicons name="calendar-outline" size={16} color={secondaryColor} />
+                  <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
                     Schedule Event
                   </Text>
                 </>

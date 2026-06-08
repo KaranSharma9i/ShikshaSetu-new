@@ -128,7 +128,11 @@ export default function HomeworkInsightsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userId, isLoaded, isSignedIn } = useAuth();
+  const { userId, isLoaded, isSignedIn, theme } = useAuth();
+  const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
+  const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
+  const creamColor = theme?.colors?.cream ?? "#F7F3EB";
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -363,8 +367,8 @@ export default function HomeworkInsightsScreen() {
 
   if (!isLoaded) {
     return (
-      <View className="flex-1 bg-[#F7F3EB] justify-center items-center">
-        <ActivityIndicator size="large" color="#D4AF37" />
+      <View style={{ backgroundColor: creamColor }} className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color={secondaryColor} />
       </View>
     );
   }
@@ -373,7 +377,7 @@ export default function HomeworkInsightsScreen() {
   const submissionsPercent = totalStudentsCount > 0 ? (submittedCount / totalStudentsCount) * 100 : 0;
 
   return (
-    <View className="flex-1 bg-[#F7F3EB]">
+    <View style={{ backgroundColor: creamColor }} className="flex-1">
       <Header title="Homework Details" showBack={true} onBack={() => router.back()} />
 
       {loading ? (
@@ -381,7 +385,7 @@ export default function HomeworkInsightsScreen() {
       ) : error ? (
         <View className="flex-1 justify-center items-center p-6">
           <Ionicons name="alert-circle" size={48} color="#DC2626" />
-          <Text className="font-poppins-semibold text-lg text-[#0D1B2A] text-center mt-3">
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold text-lg text-center mt-3">
             Error Loading Details
           </Text>
           <Text className="font-inter text-gray-500 text-center mt-1">
@@ -390,7 +394,8 @@ export default function HomeworkInsightsScreen() {
           <TouchableOpacity
             onPress={() => fetchInsightsData(true)}
             activeOpacity={0.7}
-            className="mt-4 px-6 py-2.5 bg-[#0D1B2A] rounded-lg"
+            style={{ backgroundColor: primaryColor }}
+            className="mt-4 px-6 py-2.5 rounded-lg"
           >
             <Text className="font-poppins-semibold text-xs text-white">
               Try Again
@@ -399,7 +404,7 @@ export default function HomeworkInsightsScreen() {
         </View>
       ) : !homework ? (
         <View className="flex-1 justify-center items-center p-6">
-          <Text className="font-poppins-semibold text-[#0D1B2A]">Homework not found</Text>
+          <Text style={{ color: primaryColor }} className="font-poppins-semibold">Homework not found</Text>
         </View>
       ) : (
         <ScrollView
@@ -410,16 +415,20 @@ export default function HomeworkInsightsScreen() {
         >
           {/* Navy Banner Card */}
           <View
-            className="bg-[#0D1B2A] rounded-3xl p-5 mb-6 shadow-md"
             style={{
-              shadowColor: "#0D1B2A",
+              backgroundColor: primaryColor,
+              shadowColor: primaryColor,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.12,
               shadowRadius: 12,
               elevation: 4,
             }}
+            className="rounded-3xl p-5 mb-6 shadow-md"
           >
-            <Text className="font-opensans-bold text-[11px] font-bold text-[#D4AF37] tracking-wider uppercase mb-1">
+            <Text
+              style={{ color: secondaryColor }}
+              className="font-opensans-bold text-[11px] font-bold tracking-wider uppercase mb-1"
+            >
               {homework.subject?.name || "Subject"} - {homework.class ? formatGradeName(homework.class.name) : "Grade"}
             </Text>
 
@@ -434,15 +443,15 @@ export default function HomeworkInsightsScreen() {
                 <Text className="font-opensans text-[9px] font-bold text-gray-300 tracking-wider uppercase mb-1">
                   Submissions
                 </Text>
-                <Text className="font-poppins-bold text-2xl text-[#FED65B]">
+                <Text style={{ color: secondaryColor }} className="font-poppins-bold text-2xl">
                   {submittedCount}/{totalStudentsCount}
                 </Text>
                 
                 {/* Horizontal Progress Bar */}
                 <View className="h-1.5 w-full bg-white/20 rounded-full mt-2.5 overflow-hidden">
                   <View
-                    style={{ width: `${submissionsPercent}%` }}
-                    className="h-full bg-[#D4AF37] rounded-full"
+                    style={{ width: `${submissionsPercent}%`, backgroundColor: secondaryColor }}
+                    className="h-full rounded-full"
                   />
                 </View>
               </View>
@@ -452,7 +461,7 @@ export default function HomeworkInsightsScreen() {
                 <Text className="font-opensans text-[9px] font-bold text-gray-300 tracking-wider uppercase mb-1">
                   Avg. AI Score
                 </Text>
-                <Text className="font-poppins-bold text-2xl text-[#FED65B]">
+                <Text style={{ color: secondaryColor }} className="font-poppins-bold text-2xl">
                   {avgAiScore}
                 </Text>
                 <Text className="font-inter text-[9px] text-[#A1A1AA] mt-2.5">
@@ -473,7 +482,7 @@ export default function HomeworkInsightsScreen() {
                 <Ionicons name="document-text" size={20} color="#DC2626" />
               </View>
               <View className="flex-1">
-                <Text className="font-inter-semibold text-xs text-[#0D1B2A]" numberOfLines={1}>
+                <Text style={{ color: primaryColor }} className="font-inter-semibold text-xs" numberOfLines={1}>
                   {getFilenameFromUrl(homework.pdf_url || homework.file_url)}
                 </Text>
                 <Text className="font-inter text-[10px] text-gray-400 mt-0.5">
@@ -485,7 +494,8 @@ export default function HomeworkInsightsScreen() {
             <TouchableOpacity
               onPress={handleOpenPdf}
               activeOpacity={0.8}
-              className="bg-[#0D1B2A] px-4 py-2 rounded-xl"
+              style={{ backgroundColor: primaryColor }}
+              className="px-4 py-2 rounded-xl"
             >
               <Text className="font-poppins-bold text-xs text-white">
                 View PDF
@@ -513,12 +523,12 @@ export default function HomeworkInsightsScreen() {
                   className="bg-white rounded-2xl p-4 flex-row items-center justify-between border border-[#E4E2E1] shadow-sm"
                   style={{
                     borderLeftWidth: item.hasSubmitted ? 4 : 0,
-                    borderLeftColor: "#D4AF37",
+                    borderLeftColor: secondaryColor,
                   }}
                 >
                   <View className="flex-row items-center flex-1 pr-2">
                     {/* Student Avatar */}
-                    <View className="w-10 h-10 rounded-full bg-[#0D1B2A] items-center justify-center mr-3">
+                    <View style={{ backgroundColor: primaryColor }} className="w-10 h-10 rounded-full items-center justify-center mr-3">
                       <Text className="font-poppins-bold text-[11px] text-white">
                         {getInitials(item.fullName)}
                       </Text>
@@ -526,21 +536,25 @@ export default function HomeworkInsightsScreen() {
 
                     {/* Student Info */}
                     <View className="flex-1">
-                      <Text className="font-inter-semibold text-sm text-[#0D1B2A]" numberOfLines={1}>
+                      <Text style={{ color: primaryColor }} className="font-inter-semibold text-sm" numberOfLines={1}>
                         {item.fullName}
                       </Text>
                       
                       {/* Submission status pill */}
                       <View className="flex-row mt-1">
                         <View
-                          className={`px-2 py-0.5 rounded-md ${
-                            item.hasSubmitted ? "bg-[#0D1B2A]" : "bg-[#FED65B]"
-                          }`}
+                          style={{
+                            backgroundColor: item.hasSubmitted ? primaryColor : (secondaryLightColor + "20"),
+                            borderColor: item.hasSubmitted ? "transparent" : (secondaryLightColor + "40"),
+                            borderWidth: 1,
+                          }}
+                          className="px-2 py-0.5 rounded-md"
                         >
                           <Text
-                            className={`font-poppins-bold text-[9px] tracking-wider ${
-                              item.hasSubmitted ? "text-white" : "text-[#735c00]"
-                            }`}
+                            style={{
+                              color: item.hasSubmitted ? "#FFFFFF" : secondaryColor,
+                            }}
+                            className="font-poppins-bold text-[9px] tracking-wider"
                           >
                             {item.hasSubmitted ? "SUBMITTED" : "PENDING"}
                           </Text>
@@ -554,7 +568,7 @@ export default function HomeworkInsightsScreen() {
                     <Text className="font-inter text-[10px] text-gray-400 uppercase tracking-wider">
                       AI Score
                     </Text>
-                    <Text className="font-poppins-bold text-sm text-[#0D1B2A] mt-0.5">
+                    <Text style={{ color: primaryColor }} className="font-poppins-bold text-sm mt-0.5">
                       {item.aiScore !== null ? item.aiScore : "—"}
                     </Text>
                   </View>

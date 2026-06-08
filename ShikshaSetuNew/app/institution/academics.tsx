@@ -14,29 +14,6 @@ import { useAuth } from "../../src/hooks/useAuth";
 import { useQuery } from "../../src/hooks/useQuery";
 import { getClassesPerformance, getSubjectAnalytics } from "../../src/repositories/academicRepository";
 
-const colors = {
-  // Primary
-  navyBlue: '#0D1B2A',
-  royalBlue: '#162A56',
-  gold: '#D4AF37',
-  lightGold: '#F2C14E',
-
-  // Neutrals
-  charcoal: '#333333',
-  steelGray: '#6B7280',
-  lightGray: '#E5E7EB',
-  cream: '#F7F3EB',
-  white: '#FFFFFF',
-
-  // Semantic
-  success: '#15803d',
-  successBg: '#dcfce7',
-  warning: '#854d0e',
-  warningBg: '#fef9c3',
-  danger: '#991b1b',
-  dangerBg: '#fee2e2',
-};
-
 const typography = {
   h1: { fontFamily: 'Poppins_700Bold', fontSize: 32, lineHeight: 38 },
   h2: { fontFamily: 'Poppins_600SemiBold', fontSize: 22, lineHeight: 29 },
@@ -46,14 +23,6 @@ const typography = {
   bodyMd: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 22 },
   bodySm: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 21 },
   caption: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, letterSpacing: 0.24 },
-};
-
-const cardShadow = {
-  shadowColor: colors.navyBlue,
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 8,
-  elevation: 2,
 };
 
 const getSubjectEmoji = (name: string): string => {
@@ -91,13 +60,39 @@ const getDifficulty = (avgMarks: number): "LOW" | "MEDIUM" | "HIGH" => {
 };
 
 export default function AcademicsPortal() {
+  const { institutionId, theme } = useAuth();
+  
+  const colors = {
+    navyBlue: theme?.colors?.primary ?? '#0D1B2A',
+    royalBlue: theme?.colors?.primaryAlt ?? '#162A56',
+    gold: theme?.colors?.secondary ?? '#D4AF37',
+    lightGold: theme?.colors?.secondaryLight ?? '#F2C14E',
+    charcoal: theme?.colors?.charcoal ?? '#333333',
+    steelGray: theme?.colors?.steelGray ?? '#6B7280',
+    lightGray: theme?.colors?.lightGray ?? '#E5E7EB',
+    cream: theme?.colors?.cream ?? '#F7F3EB',
+    white: theme?.colors?.white ?? '#FFFFFF',
+    success: theme?.colors?.success ?? '#15803d',
+    successBg: theme?.colors?.success ? theme.colors.success + '20' : '#dcfce7',
+    warning: theme?.colors?.warning ?? '#854d0e',
+    warningBg: theme?.colors?.warning ? theme.colors.warning + '20' : '#fef9c3',
+    danger: theme?.colors?.danger ?? '#991b1b',
+    dangerBg: theme?.colors?.danger ? theme.colors.danger + '20' : '#fee2e2',
+  };
+
+  const cardShadow = {
+    shadowColor: colors.navyBlue,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  };
+
   const [selectedClass, setSelectedClass] = useState<string>("Grade 10-B");
   const [showAllClasses, setShowAllClasses] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"marks" | "score">("marks");
   const [tooltipSubject, setTooltipSubject] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-
-  const { institutionId } = useAuth();
 
   const { data: classesPerformance, isLoading: loadingClasses } = useQuery(
     () => getClassesPerformance(institutionId || ""),

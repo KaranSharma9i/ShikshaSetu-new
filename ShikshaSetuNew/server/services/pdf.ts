@@ -77,7 +77,7 @@ export class PdfService {
     try {
       const html = this.buildHtmlTemplate(content, req, logoDataUri);
 
-      await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 });
+      await page.setContent(html, { waitUntil: "networkidle0" as any, timeout: 30000 });
 
       await page.evaluate(() => {
         return new Promise<void>((resolve) => {
@@ -114,7 +114,7 @@ export class PdfService {
         `,
       });
 
-      return pdfBuffer;
+      return Buffer.from(pdfBuffer);
     } finally {
       await page.close();
     }
@@ -196,7 +196,7 @@ export class PdfService {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%) rotate(-30deg);
-      opacity: 0.07;
+      opacity: 0.15;
       z-index: 0;
       pointer-events: none;
       width: 420px;
