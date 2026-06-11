@@ -75,15 +75,13 @@ Rules:
 1. Follow CBSE curriculum guidelines and standard question patterns strictly.
 2. Questions must be appropriate for ${req.grade} students.
 3. MCQ options must be labeled A, B, C, D as plain strings in an array.
-4. Assertion-Reason questions must follow the standard CBSE format with
-   Assertion and Reason statements and 4 options:
-   A) Both Assertion and Reason are true and Reason is the correct explanation
-   B) Both Assertion and Reason are true but Reason is not the correct explanation
-   C) Assertion is true but Reason is false
-   D) Assertion is false but Reason is true
-5. Case Study questions must include a short paragraph passage followed by
-   sub-questions.
-6. For non-MCQ types, options must be null.
+4. Assertion-Reason questions must follow the standard CBSE format. In the JSON, the Assertion statement must be in the "question" field, the Reason statement must be in the "reason" field, and the "options" field must be an array containing exactly these 4 strings:
+   "A. Both Assertion (A) and Reason (R) are true, and Reason (R) is the correct explanation of Assertion (A)."
+   "B. Both Assertion (A) and Reason (R) are true, but Reason (R) is not the correct explanation of Assertion (A)."
+   "C. Assertion (A) is true, but Reason (R) is false."
+   "D. Assertion (A) is false, but Reason (R) is true."
+5. Case Study questions must include a short paragraph passage in the "question" field, and a "sub_questions" array containing sub-questions (e.g. MCQ questions with options).
+6. For non-MCQ types (except ASSERTION_REASON options and CASE_STUDY sub_questions options), options must be null.
 7. Number questions sequentially from 1 across all types.
 8. Do not include answers or marking scheme.
 
@@ -98,6 +96,32 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
     },
     {
       "question_number": 2,
+      "type": "ASSERTION_REASON",
+      "question": "<Assertion statement>",
+      "reason": "<Reason statement>",
+      "options": [
+        "A. Both Assertion (A) and Reason (R) are true, and Reason (R) is the correct explanation of Assertion (A).",
+        "B. Both Assertion (A) and Reason (R) are true, but Reason (R) is not the correct explanation of Assertion (A).",
+        "C. Assertion (A) is true, but Reason (R) is false.",
+        "D. Assertion (A) is false, but Reason (R) is true."
+      ]
+    },
+    {
+      "question_number": 3,
+      "type": "CASE_STUDY",
+      "question": "<Passage text>",
+      "options": null,
+      "sub_questions": [
+        {
+          "question_number": "3.1",
+          "type": "MCQ",
+          "question": "...",
+          "options": ["A. ...", "B. ...", "C. ...", "D. ..."]
+        }
+      ]
+    },
+    {
+      "question_number": 4,
       "type": "SHORT",
       "question": "...",
       "options": null
@@ -279,13 +303,38 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
     }
 
     for (let i = 0; i < case_study; i++) {
+      const qNum = num++;
       questions.push({
-        question_number: num++,
+        question_number: qNum,
         type: "CASE_STUDY",
         question: `Case Study ${i + 1}: Read the passage below and answer the sub-questions.\n\nPassage: In a classroom experiment regarding ${
           req.title || req.topic_description || "the topic"
-        }, students observed the following trends...\n\nSub-questions:\n1. What is the dependent variable?\n2. Justify the observed relationship.`,
+        }, students observed the trends and recorded the data as shown.`,
         options: null,
+        sub_questions: [
+          {
+            question_number: `${qNum}.1`,
+            type: "MCQ",
+            question: "What is the primary factor observed in this experiment?",
+            options: [
+              "A. Temperature",
+              "B. Volume",
+              "C. Pressure",
+              "D. Concentration"
+            ]
+          },
+          {
+            question_number: `${qNum}.2`,
+            type: "MCQ",
+            question: "Identify the independent variable.",
+            options: [
+              "A. Time",
+              "B. Distance",
+              "C. Velocity",
+              "D. Force"
+            ]
+          }
+        ]
       });
     }
 
@@ -293,12 +342,13 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
       questions.push({
         question_number: num++,
         type: "ASSERTION_REASON",
-        question: `Assertion-Reason Question ${i + 1}:\nAssertion: The topic is highly relevant for class study.\nReason: It forms the foundation for advanced concepts in the curriculum.`,
+        question: "The topic is highly relevant for class study.",
+        reason: "It forms the foundation for advanced concepts in the curriculum.",
         options: [
-          "A) Both Assertion and Reason are true and Reason is the correct explanation",
-          "B) Both Assertion and Reason are true but Reason is not the correct explanation",
-          "C) Assertion is true but Reason is false",
-          "D) Assertion is false but Reason is true",
+          "A. Both Assertion (A) and Reason (R) are true, and Reason (R) is the correct explanation of Assertion (A).",
+          "B. Both Assertion (A) and Reason (R) are true, but Reason (R) is not the correct explanation of Assertion (A).",
+          "C. Assertion (A) is true, but Reason (R) is false.",
+          "D. Assertion (A) is false, but Reason (R) is true."
         ],
       });
     }

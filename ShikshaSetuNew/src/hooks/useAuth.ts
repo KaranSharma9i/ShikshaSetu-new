@@ -34,7 +34,7 @@ export function useAuth() {
     user,
     // Clerk compatibility flags
     isSignedIn: !!context.userId,
-    isLoaded: !context.isLoading,
+    isLoaded: context.isLoaded,
     // Institution theme
     theme: context.theme,
     institutionName: context.institutionName,

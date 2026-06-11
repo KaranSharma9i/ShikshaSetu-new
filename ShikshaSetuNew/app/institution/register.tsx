@@ -19,6 +19,8 @@ import BottomNavBar from "../../components/institution/BottomNavBar";
 import { useAuth } from "../../src/hooks/useAuth";
 import { registerStudent, appointTeacher, getNextStudentCode, getSectionsForClass, getSubjectsForTeacherForm, getClassesWithSectionsForTeacherForm } from "../../src/repositories/registrationRepository";
 import { handleError } from "../../src/utils/error";
+import { deriveInstitutionPrefix } from "../../src/utils/deriveInstitutionPrefix";
+import { supabase } from "../../src/lib/supabase";
 
 const CLASSES = [
   "LKG",
@@ -40,7 +42,7 @@ const CLASSES = [
 export default function RegisterUser() {
   const router = useRouter();
   const { type } = useLocalSearchParams<{ type?: string }>();
-  const { institutionId, theme } = useAuth();
+  const { institutionId, institutionName, theme } = useAuth();
   const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
   const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
   const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
@@ -63,7 +65,11 @@ export default function RegisterUser() {
   } | null>(null);
   
   // Student Form State
-  const [studentCode, setStudentCode] = useState("GS-STU-0001");
+  const [studentCode, setStudentCode] = useState(
+    institutionName
+      ? `${deriveInstitutionPrefix(institutionName)}-STU-0001`
+      : "SCH-STU-0001"
+  );
   const [studentName, setStudentName] = useState("");
   const [studentGrade, setStudentGrade] = useState("LKG");
   const [studentSection, setStudentSection] = useState("A");
@@ -102,6 +108,10 @@ export default function RegisterUser() {
   const [classSectionsList, setClassSectionsList] = useState<{ class_name: string; section_name: string; label: string }[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(false);
+
+  // Dynamic data for student form classes
+  const [studentClasses, setStudentClasses] = useState<{ id: string; name: string }[]>([]);
+  const [loadingStudentClasses, setLoadingStudentClasses] = useState(true);
 
   // Date picker visibility
   const [showTeacherDobPicker, setShowTeacherDobPicker] = useState(false);
@@ -147,6 +157,36 @@ export default function RegisterUser() {
         .finally(() => setLoadingClasses(false));
     }
   }, [institutionId, regType]);
+
+  // Load classes dynamically for student form
+  useEffect(() => {
+    const fetchClasses = async () => {
+      setLoadingStudentClasses(true);
+      try {
+        const { data, error } = await supabase
+          .from("classes")
+          .select("id, name")
+          .eq("institution_id", institutionId)
+          .order("grade_number", { ascending: true });
+
+        if (!error && data) {
+          setStudentClasses(data);
+          if (data.length > 0) {
+            const defaultClass = data.find(c => c.name === "LKG") || data[0];
+            setStudentGrade(defaultClass.name);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch classes:", err);
+      } finally {
+        setLoadingStudentClasses(false);
+      }
+    };
+
+    if (institutionId) {
+      fetchClasses();
+    }
+  }, [institutionId]);
 
   const resetForms = () => {
     setStep(1);
@@ -237,8 +277,8 @@ export default function RegisterUser() {
         fullName: res.fullName,
         portalId: res.portalId,
         tempPassword: res.tempPassword,
-        rollNumber: res.portalId.includes("GS-STU-") 
-          ? `#${res.portalId.split("GS-STU-")[1]}` 
+        rollNumber: res.portalId.includes("-STU-") 
+          ? `#${res.portalId.split("-STU-")[1]}` 
           : `#45`,
       });
       setStep(4);
@@ -559,28 +599,41 @@ export default function RegisterUser() {
                     <Text className="font-poppins-semibold text-neutral-charcoal text-xs mb-1.5 ml-1">
                       Class
                     </Text>
-                    <View className="flex-row flex-wrap justify-between gap-y-2 mb-4">
-                      {CLASSES.map((grade) => (
-                        <TouchableOpacity
-                          key={grade}
-                          onPress={() => setStudentGrade(grade)}
-                          className="w-[32%] py-2.5 rounded-lg border items-center"
-                          style={{
-                            backgroundColor: studentGrade === grade ? primaryColor : "#FCFAFA",
-                            borderColor: studentGrade === grade ? primaryColor : "#E5E7EB"
-                          }}
-                        >
-                          <Text
-                            className="text-[10px] font-poppins-semibold"
-                            style={{
-                              color: studentGrade === grade ? secondaryColor : "#75777D"
-                            }}
-                          >
-                            {grade}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    {loadingStudentClasses ? (
+                      <View className="py-4 items-center">
+                        <ActivityIndicator size="small" color={secondaryColor} />
+                      </View>
+                    ) : studentClasses.length === 0 ? (
+                      <Text className="text-xs text-neutral-steel italic my-2 ml-1">
+                        No classes found for this institution
+                      </Text>
+                    ) : (
+                      <View className="flex-row flex-wrap justify-between gap-y-2 mb-4">
+                        {studentClasses.map((cls) => {
+                          const displayName = cls.name.match(/^(Grade|Class|LKG|UKG)/i) ? cls.name : `Grade ${cls.name}`;
+                          return (
+                            <TouchableOpacity
+                              key={cls.id}
+                              onPress={() => setStudentGrade(cls.name)}
+                              className="w-[32%] py-2.5 rounded-lg border items-center"
+                              style={{
+                                backgroundColor: studentGrade === cls.name ? primaryColor : "#FCFAFA",
+                                borderColor: studentGrade === cls.name ? primaryColor : "#E5E7EB"
+                              }}
+                            >
+                              <Text
+                                className="text-[10px] font-poppins-semibold"
+                                style={{
+                                  color: studentGrade === cls.name ? secondaryColor : "#75777D"
+                                }}
+                              >
+                                {displayName}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
 
                     {/* Section Selector */}
                     {studentGrade && sections.length > 0 && (

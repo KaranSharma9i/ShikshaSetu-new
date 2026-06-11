@@ -1,6 +1,7 @@
 import "../global.css";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { AuthProvider } from "@/src/providers/AuthProvider";
+import { useAuth } from "@/src/hooks/useAuth";
 import {
   useFonts,
   Poppins_400Regular,
@@ -20,7 +21,32 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 
+import { LogBox } from 'react-native';
+
+LogBox.ignoreLogs([
+  "You are setting the style `{ shadowOffset: ... }` as a prop",
+  "You are setting the style { shadowOffset: ... } as a prop",
+]);
+
 SplashScreen.preventAutoHideAsync();
+
+function RootNavigationGuard() {
+  const { session, isLoaded } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const inAuthFlow = segments[0] === "auth" || segments[0] === "onboarding";
+
+    if (!session && !inAuthFlow) {
+      router.replace("/auth/signin");
+    }
+  }, [session, isLoaded, segments]);
+
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -59,7 +85,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <RootNavigationGuard />
     </AuthProvider>
   );
 }

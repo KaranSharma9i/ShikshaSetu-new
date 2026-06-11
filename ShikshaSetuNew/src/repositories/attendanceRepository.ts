@@ -2,7 +2,7 @@ import { supabase } from "../lib/supabase";
 
 export interface CalendarDay {
   date: string;
-  type: "present" | "absent" | "holiday" | "weekend";
+  type: "present" | "absent" | "holiday" | "weekend" | "future" | "no_data";
 }
 
 export interface StudentAttendanceSummary {
@@ -82,12 +82,13 @@ async function getAcademicYearId(institutionId: string, year: number, month: num
 }
 
 // Helper to get initials
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
+function getInitials(name: string | null | undefined): string {
+  if (!name || typeof name !== "string") return "??";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   }
-  return name.slice(0, 2).toUpperCase();
+  return name.trim().slice(0, 2).toUpperCase() || "??";
 }
 
 // Badge thresholds
@@ -350,7 +351,7 @@ export async function getStudentAttendanceSummary(
 
       if (dStr > todayStr) {
         // Future dates (greyed out)
-        calendarData.push({ date: dStr, type: "weekend" });
+        calendarData.push({ date: dStr, type: "future" });
       } else if (dayOfWeek === 0 || dayOfWeek === 6) {
         calendarData.push({ date: dStr, type: "weekend" });
       } else if (holidayDates.has(dStr)) {
@@ -358,14 +359,16 @@ export async function getStudentAttendanceSummary(
       } else {
         // Past school day - check if class avg was low (absent) or okay (present)
         const dayStats = dailyRates[dStr];
-        let type: "present" | "absent" = "present";
         if (dayStats && dayStats.total > 0) {
           const rate = (dayStats.present / dayStats.total) * 100;
           if (rate < 85) {
-            type = "absent"; // highlight critical class absence days on calendar!
+            calendarData.push({ date: dStr, type: "absent" });
+          } else {
+            calendarData.push({ date: dStr, type: "present" });
           }
+        } else {
+          calendarData.push({ date: dStr, type: "no_data" });
         }
-        calendarData.push({ date: dStr, type });
       }
     }
 
@@ -630,21 +633,23 @@ export async function getStaffAttendanceSummary(
       const dayOfWeek = dateObj.getDay();
 
       if (dStr > todayStr) {
-        calendarData.push({ date: dStr, type: "weekend" });
+        calendarData.push({ date: dStr, type: "future" });
       } else if (dayOfWeek === 0 || dayOfWeek === 6) {
         calendarData.push({ date: dStr, type: "weekend" });
       } else if (holidayDates.has(dStr)) {
         calendarData.push({ date: dStr, type: "holiday" });
       } else {
         const dayStats = dailyRates[dStr];
-        let type: "present" | "absent" = "present";
         if (dayStats && dayStats.total > 0) {
           const rate = (dayStats.present / dayStats.total) * 100;
           if (rate < 85) {
-            type = "absent";
+            calendarData.push({ date: dStr, type: "absent" });
+          } else {
+            calendarData.push({ date: dStr, type: "present" });
           }
+        } else {
+          calendarData.push({ date: dStr, type: "no_data" });
         }
-        calendarData.push({ date: dStr, type });
       }
     }
 
@@ -859,55 +864,10 @@ export async function generateInsight(
       }
     }
 
-    // Rule 2: Compare monthly average with previous month
-    let prevMonth = month - 1;
-    let prevYear = resolvedYear;
-    if (prevMonth === 0) {
-      prevMonth = 12;
-      prevYear = resolvedYear - 1;
-    }
-
-    const prevAY = await resolveStudentAcademicYear(institutionId, sectionId, prevMonth, prevYear);
-    if (prevAY) {
-      const prevStartDate = `${prevAY.resolvedYear}-${String(prevMonth).padStart(2, "0")}-01`;
-      const prevLastDay = new Date(prevAY.resolvedYear, prevMonth, 0).getDate();
-      const prevEndDate = `${prevAY.resolvedYear}-${String(prevMonth).padStart(2, "0")}-${prevLastDay}`;
-
-      const { data: students } = await supabase
-        .from("enrollments")
-        .select("student_id")
-        .eq("section_id", sectionId)
-        .eq("academic_year_id", prevAY.id)
-        .eq("is_active", true)
-        .is("deleted_at", null);
-
-      const prevStudentIds = students?.map(s => s.student_id) || [];
-      if (prevStudentIds.length > 0) {
-        const { data: prevAttendance } = await supabase
-          .from("student_attendance")
-          .select("status")
-          .in("student_id", prevStudentIds)
-          .gte("date", prevStartDate)
-          .lte("date", prevEndDate)
-          .is("deleted_at", null);
-
-        let prevPresent = 0;
-        let prevTotal = 0;
-        prevAttendance?.forEach(att => {
-          if (att.status !== "holiday") {
-            prevTotal++;
-            if (att.status === "present" || att.status === "late") {
-              prevPresent++;
-            }
-          }
-        });
-
-        const prevAvg = prevTotal > 0 ? (prevPresent / prevTotal) * 100 : 0;
-        if (prevAvg > 0 && monthlyAvg < prevAvg - 1) {
-          const diff = Math.round(prevAvg - monthlyAvg);
-          return `Attendance dropped ${diff}% vs last month in ${className || "this class"}.`;
-        }
-      }
+    // Rule 2: Simple threshold insight
+    if (monthlyAvg < 85) {
+      const diff = Math.round(85 - monthlyAvg);
+      return `${className || "This class"} is ${diff}% below the 85% attendance target.`;
     }
 
     return "Attendance is on track this month.";
