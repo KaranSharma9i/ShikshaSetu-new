@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,15 @@ import { useInstitutionDashboard } from "@/hooks/useInstitutionDashboard";
 export default function InstitutionDashboard() {
   const router = useRouter();
   const { metrics, circulars, isLoading, error, refetch } = useInstitutionDashboard();
-  const { theme } = useAuth();
+  const { theme, user, session, isLoaded } = useAuth();
+
+  useEffect(() => {
+    if (isLoaded && !user && !session) {
+      router.replace('/auth/signin');
+    }
+  }, [isLoaded, user, session]);
+
+  if (!isLoaded || !user || !session) return null;
 
   const primaryColor = theme?.colors?.primary ?? "#0F1C2C";
   const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
@@ -32,8 +40,8 @@ export default function InstitutionDashboard() {
   });
 
   const displayMetrics = [
-    { id: "1", title: "Total Students", value: metrics?.totalStudents ?? 0, change: "+24 this month", isPositive: true, icon: "people-outline" },
-    { id: "2", title: "Total Teachers", value: metrics?.totalTeachers ?? 0, change: "+2 this term", isPositive: true, icon: "school-outline" },
+    { id: "1", title: "Total Students", value: metrics?.totalStudents ?? 0, change: metrics?.studentsChange ?? "+0 this month", isPositive: true, icon: "people-outline" },
+    { id: "2", title: "Total Teachers", value: metrics?.totalTeachers ?? 0, change: metrics?.teachersChange ?? "+0 this term", isPositive: true, icon: "school-outline" },
     { id: "3", title: "Fee Collection Rate", value: metrics?.feeCollectionRate ?? "0.0%", change: "Term 1 · 2026-27", isPositive: true, icon: "cash-outline" },
     { id: "4", title: "Student Attendance", value: metrics?.attendanceRate ?? "0.0%", change: "May 2026", isPositive: true, icon: "calendar-outline" },
   ];

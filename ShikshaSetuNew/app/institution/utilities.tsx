@@ -7,18 +7,17 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
-import { schoolData } from "../../constants/schoolData";
 import { useAuth } from "@/src/hooks/useAuth";
 
 export default function UtilitiesHub() {
   const router = useRouter();
-  const { signOut, theme } = useAuth();
+  const { signOut, theme, institutionName, logoUrl, tagline } = useAuth();
 
   const primaryColor = theme?.colors?.primary ?? "#0F1C2C";
   const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
@@ -68,17 +67,17 @@ export default function UtilitiesHub() {
           <View className="bg-white rounded-3xl p-5 border border-gray-200/60 shadow-sm flex-row items-center space-x-4">
             <View className="w-16 h-16 rounded-2xl bg-white border border-gray-100 items-center justify-center overflow-hidden">
               <Image
-                source={schoolData.config.logo}
+                source={logoUrl ? { uri: logoUrl } : require("../../assets/gurukul.png")}
                 style={{ width: 52, height: 52 }}
-                resizeMode="contain"
+                contentFit="contain"
               />
             </View>
             <View className="flex-1">
               <Text className="font-poppins-bold text-base leading-tight" style={{ color: primaryColor }}>
-                {schoolData.config.name}
+                {institutionName || ""}
               </Text>
               <Text className="text-neutral-steel font-inter text-xs mt-0.5">
-                {schoolData.config.tagline}
+                {tagline || ""}
               </Text>
 
             </View>

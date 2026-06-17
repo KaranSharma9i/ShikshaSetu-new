@@ -14,7 +14,7 @@ app.get("/health", (_, res) => res.json({ status: "ok", service: "margam-server"
 app.use("/api/teacher", homeworkRoutes);
 app.use("/api", studentHomeworkRoutes);
 
-app.listen(PORT, () => {
+app.listen(PORT,'0.0.0.0', () => {
   console.log(`Margam server running on port ${PORT}`);
 });
 

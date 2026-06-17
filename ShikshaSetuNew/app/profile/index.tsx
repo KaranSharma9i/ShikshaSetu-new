@@ -21,7 +21,7 @@ import ProfilePhotoUploader from "../../components/student/ProfilePhotoUploader"
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { userId, signOut, theme } = useAuth();
+  const { userId, signOut, theme, user, session, isLoaded } = useAuth();
   
   const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
   const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
@@ -34,11 +34,8 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfileData = async () => {
-    if (!userId) {
-      setError("User session not found.");
-      setIsLoading(false);
-      return;
-    }
+    if (!isLoaded) return;   // auth still initialising — do nothing
+    if (!userId) return;     // signed out, redirect pending — do nothing silently
     setIsLoading(true);
     setError(null);
     try {
@@ -70,10 +67,20 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
-    fetchProfileData();
-  }, [userId]);
+    if (isLoaded && userId) {
+      fetchProfileData();
+    }
+  }, [isLoaded, userId]);
+
+  useEffect(() => {
+    if (isLoaded && !user && !session) {
+      router.replace('/auth/signin');
+    }
+  }, [isLoaded, user, session]);
 
   // Image picking and upload is now handled by ProfilePhotoUploader component
+
+  if (!isLoaded || !user || !session) return null;
 
   if (isLoading) {
     const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 0;

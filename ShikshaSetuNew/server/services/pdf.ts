@@ -62,13 +62,32 @@ export class PdfService {
   }
 
   private async generatePdf(content: GeneratedContent, req: GenerateHomeworkRequest): Promise<Buffer> {
-    const logoPath = path.resolve(__dirname, "../../assets/gurukul.png");
     let logoDataUri = "";
-    try {
-      const logoBase64 = fs.readFileSync(logoPath).toString("base64");
-      logoDataUri = `data:image/png;base64,${logoBase64}`;
-    } catch (err) {
-      console.error(`Failed to read logo watermark from ${logoPath}:`, err);
+    let remoteLogoLoaded = false;
+
+    if (req.logoUrl) {
+      try {
+        const response = await fetch(req.logoUrl);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const mimeType = response.headers.get("content-type") || "image/png";
+          logoDataUri = `data:${mimeType};base64,${buffer.toString("base64")}`;
+          remoteLogoLoaded = true;
+        }
+      } catch (err) {
+        console.error(`Failed to fetch remote logo from ${req.logoUrl}:`, err);
+      }
+    }
+
+    if (!remoteLogoLoaded) {
+      const logoPath = path.resolve(__dirname, "../../assets/gurukul.png");
+      try {
+        const logoBase64 = fs.readFileSync(logoPath).toString("base64");
+        logoDataUri = `data:image/png;base64,${logoBase64}`;
+      } catch (err) {
+        console.error(`Failed to read logo watermark from ${logoPath}:`, err);
+      }
     }
 
     const browser = await getBrowser();
@@ -146,22 +165,77 @@ export class PdfService {
       questionsHtml += `<div class="section-title">${section.title}</div>`;
 
       for (const q of sectionQuestions) {
-        questionsHtml += `
-          <div class="question-block">
-            <div class="question-text">
-              <strong>${q.question_number}.</strong> ${q.question}
-            </div>
-        `;
+        if (q.type === "CASE_STUDY") {
+          questionsHtml += `
+            <div class="question-block">
+              <div class="question-text">
+                <strong>${q.question_number}.</strong> ${q.question}
+              </div>
+          `;
 
-        if (q.options && q.options.length > 0) {
-          questionsHtml += `<div class="options-grid">`;
-          q.options.forEach((opt) => {
-            questionsHtml += `<div class="option-item">${opt}</div>`;
-          });
+          if (q.sub_questions && q.sub_questions.length > 0) {
+            q.sub_questions.forEach((subQ) => {
+              questionsHtml += `
+                <div class="sub-question-block" style="margin-left: 20px; margin-top: 8px; page-break-inside: avoid;">
+                  <div class="question-text">
+                    <strong>${subQ.question_number}.</strong> ${subQ.question}
+                  </div>
+              `;
+              if (subQ.options && subQ.options.length > 0) {
+                questionsHtml += `<div class="options-grid">`;
+                subQ.options.forEach((opt) => {
+                  questionsHtml += `<div class="option-item">${opt}</div>`;
+                });
+                questionsHtml += `</div>`;
+              }
+              questionsHtml += `</div>`;
+            });
+          }
+
+          questionsHtml += `</div>`;
+        } else if (q.type === "ASSERTION_REASON") {
+          const cleanAssertion = q.question.replace(/^(Assertion\s*\(?[AR]?\)?\s*:\s*)/i, "");
+          const cleanReason = q.reason ? q.reason.replace(/^(Reason\s*\(?[AR]?\)?\s*:\s*)/i, "") : "";
+
+          questionsHtml += `
+            <div class="question-block">
+              <div class="question-text">
+                <strong>${q.question_number}.</strong> Assertion (A): ${cleanAssertion}
+              </div>
+              ${cleanReason ? `
+              <div class="question-text" style="margin-top: 4px;">
+                Reason (R): ${cleanReason}
+              </div>
+              ` : ""}
+          `;
+
+          if (q.options && q.options.length > 0) {
+            questionsHtml += `<div class="options-list" style="margin-left: 20px; margin-top: 6px;">`;
+            q.options.forEach((opt) => {
+              questionsHtml += `<div class="option-item" style="margin-bottom: 4px;">${opt}</div>`;
+            });
+            questionsHtml += `</div>`;
+          }
+
+          questionsHtml += `</div>`;
+        } else {
+          questionsHtml += `
+            <div class="question-block">
+              <div class="question-text">
+                <strong>${q.question_number}.</strong> ${q.question}
+              </div>
+          `;
+
+          if (q.options && q.options.length > 0) {
+            questionsHtml += `<div class="options-grid">`;
+            q.options.forEach((opt) => {
+              questionsHtml += `<div class="option-item">${opt}</div>`;
+            });
+            questionsHtml += `</div>`;
+          }
+
           questionsHtml += `</div>`;
         }
-
-        questionsHtml += `</div>`;
       }
     }
 
@@ -307,7 +381,7 @@ export class PdfService {
     <!-- Header Block -->
     <table class="header-table">
       <tr>
-        <td class="header-cell-left"><strong>Institution:</strong> Gurukul Shikshalaya</td>
+        <td class="header-cell-left"><strong>Institution:</strong> ${req.institutionName || "Gurukul Shikshalaya"}</td>
         <td class="header-cell-right"><strong>Due Date:</strong> ${req.due_date}</td>
       </tr>
     </table>

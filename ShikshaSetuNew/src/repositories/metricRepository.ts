@@ -405,6 +405,8 @@ export interface InstitutionDashboardMetrics {
   totalFeesCollected: number;
   totalFeesExpected: number;
   feeCollectionRate: string;
+  studentsChange: string;
+  teachersChange: string;
 }
 
 export async function getInstitutionDashboardMetrics(
@@ -506,6 +508,48 @@ export async function getInstitutionDashboardMetrics(
       attendanceRate = `${((presentCount / attendanceData.length) * 100).toFixed(1)}%`;
     }
 
+    // 5. Delta Calculations (Bug 1 Fix)
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+
+    // 5.1. Get academic year starts_on date (or fallback to start of current calendar year)
+    let startsOnStr = `${currentYear}-01-01`;
+    const { data: ayCurrent } = await supabase
+      .from("academic_years")
+      .select("starts_on")
+      .eq("institution_id", institutionId)
+      .eq("is_current", true)
+      .maybeSingle();
+
+    if (ayCurrent?.starts_on) {
+      startsOnStr = ayCurrent.starts_on;
+    }
+    const startsOnDateStr = `${startsOnStr}T00:00:00.000Z`;
+
+    // 5.2. Students Delta: Count students created this calendar month
+    const startOfMonth = new Date(Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0));
+    const startOfMonthStr = startOfMonth.toISOString();
+
+    const { count: studentsCountThisMonth, error: studentsMonthError } = await supabase
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .eq("institution_id", institutionId)
+      .gte("created_at", startOfMonthStr);
+
+    if (studentsMonthError) throw studentsMonthError;
+    const studentsChange = `+${studentsCountThisMonth || 0} this month`;
+
+    // 5.3. Teachers Delta: Count teachers created in the current term
+    const { count: teachersCountThisTerm, error: teachersTermError } = await supabase
+      .from("teachers")
+      .select("*", { count: "exact", head: true })
+      .eq("institution_id", institutionId)
+      .gte("created_at", startsOnDateStr);
+
+    if (teachersTermError) throw teachersTermError;
+    const teachersChange = `+${teachersCountThisTerm || 0} this term`;
+
     return {
       totalStudents: studentsCount || 0,
       totalTeachers: teachersCount || 0,
@@ -513,6 +557,8 @@ export async function getInstitutionDashboardMetrics(
       totalFeesCollected,
       totalFeesExpected,
       feeCollectionRate,
+      studentsChange,
+      teachersChange,
     };
   } catch (error) {
     console.error("Error in getInstitutionDashboardMetrics:", error);
@@ -523,6 +569,8 @@ export async function getInstitutionDashboardMetrics(
       totalFeesCollected: 0,
       totalFeesExpected: 0,
       feeCollectionRate: "0.0%",
+      studentsChange: "+0 this month",
+      teachersChange: "+0 this term",
     };
   }
 }

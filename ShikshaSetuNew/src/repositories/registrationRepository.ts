@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import * as Crypto from "expo-crypto";
+import { deriveInstitutionPrefix } from "../utils/deriveInstitutionPrefix";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -125,11 +126,20 @@ export async function getNextStudentCode(institutionId: string): Promise<string>
       .eq("institution_id", institutionId);
 
     if (error) throw error;
+
+    // Fetch institution name to derive prefix
+    const { data: instData } = await supabase
+      .from("institutions")
+      .select("name")
+      .eq("id", institutionId)
+      .single();
+
+    const prefix = deriveInstitutionPrefix(instData?.name || "");
     const nextNum = (count || 0) + 1;
-    return `GS-STU-${String(nextNum).padStart(4, "0")}`;
+    return `${prefix}-STU-${String(nextNum).padStart(4, "0")}`;
   } catch (error) {
     console.error("Error in getNextStudentCode:", error);
-    return "GS-STU-0001";
+    return "SCH-STU-0001";
   }
 }
 
@@ -236,15 +246,25 @@ export async function registerStudent(
     if (ayErr) throw ayErr;
 
     // 5. Query matching class
-    const gradeClass = params.grade.replace(/^(Grade|Class)\s+/i, "").trim();
-    const { data: classData, error: clsErr } = await supabase
+    let { data: classData, error: clsErr } = await supabase
       .from("classes")
       .select("id")
       .eq("institution_id", institutionId)
-      .eq("name", gradeClass)
+      .eq("name", params.grade)
       .maybeSingle();
 
-    if (clsErr) throw clsErr;
+    if (clsErr || !classData) {
+      const gradeClass = params.grade.replace(/^(Grade|Class)\s+/i, "").trim();
+      const { data: fallbackData, error: fbErr } = await supabase
+        .from("classes")
+        .select("id")
+        .eq("institution_id", institutionId)
+        .eq("name", gradeClass)
+        .maybeSingle();
+      
+      if (fbErr) throw fbErr;
+      classData = fallbackData;
+    }
 
     // 6. Query section for class (use custom selected section)
     let sectionId = "";
@@ -391,9 +411,18 @@ export async function appointTeacher(
       .eq("institution_id", institutionId);
 
     if (countErr) throw countErr;
+
+    // Fetch institution name to derive prefix
+    const { data: instData } = await supabase
+      .from("institutions")
+      .select("name")
+      .eq("id", institutionId)
+      .single();
+
+    const prefix = deriveInstitutionPrefix(instData?.name || "");
     const nextNum = (count || 0) + 1;
     const employeeCode = `TCH${String(nextNum).padStart(3, "0")}`;
-    const loginId = `GS-TCH-${String(nextNum).padStart(3, "0")}`;
+    const loginId = `${prefix}-TCH-${String(nextNum).padStart(3, "0")}`;
 
     // Extract Date of Joining and parse it to generate plain-text temp password as DDMMYYYY
     const parsedDoj = parseDob(params.doj);
@@ -495,18 +524,28 @@ export async function appointTeacher(
 
 export async function getSectionsForClass(institutionId: string, gradeName: string): Promise<string[]> {
   try {
-    const gradeClass = gradeName.replace(/^(Grade|Class)\s+/i, "").trim();
-    
     // 1. Get class_id
-    const { data: classData, error: clsErr } = await supabase
+    let { data: classData, error: clsErr } = await supabase
       .from("classes")
       .select("id")
       .eq("institution_id", institutionId)
-      .eq("name", gradeClass)
+      .eq("name", gradeName)
       .maybeSingle();
 
     if (clsErr || !classData) {
-      console.warn("Class not found for fetching sections:", gradeClass);
+      const gradeClass = gradeName.replace(/^(Grade|Class)\s+/i, "").trim();
+      const { data: fallbackData } = await supabase
+        .from("classes")
+        .select("id")
+        .eq("institution_id", institutionId)
+        .eq("name", gradeClass)
+        .maybeSingle();
+      
+      classData = fallbackData;
+    }
+
+    if (!classData) {
+      console.warn("Class not found for fetching sections:", gradeName);
       return ["A"];
     }
 

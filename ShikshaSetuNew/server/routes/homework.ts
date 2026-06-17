@@ -140,10 +140,20 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
     // 5. Generate and Upload PDF
     let pdfUrl: string | null = null;
     try {
+      const { data: institution } = await supabase
+        .from("institutions")
+        .select("logo_url, name")
+        .eq("id", req.body.institution_id)
+        .single();
+
       pdfUrl = await pdfService.generateAndUpload(
         generatedContent,
         newHomeworkRow.id,
-        req.body
+        {
+          ...req.body,
+          logoUrl: institution?.logo_url || null,
+          institutionName: institution?.name || null,
+        }
       );
 
       // 6. Update the homework row with PDF URL
@@ -222,7 +232,14 @@ router.post("/homework/publish", async (req: Request, res: Response) => {
     const sectionName = (sectionObj as any)?.name || "";
     const subjectName = (subjectObj as any)?.name || "";
 
-    // 2. Build PDF generation request payload
+    // 2. Fetch institution details for dynamic header/logo
+    const { data: institution } = await supabase
+      .from("institutions")
+      .select("logo_url, name")
+      .eq("id", hw.institution_id)
+      .single();
+
+    // 3. Build PDF generation request payload
     const pdfReq = {
       grade: gradeName,
       subject: subjectName,
@@ -238,9 +255,11 @@ router.post("/homework/publish", async (req: Request, res: Response) => {
       academic_year_id: hw.academic_year_id,
       due_date: hw.due_date,
       difficulty: hw.difficulty,
+      logoUrl: institution?.logo_url || null,
+      institutionName: institution?.name || null,
     };
 
-    // 3. Generate and Upload PDF
+    // 4. Generate and Upload PDF
     let pdfUrl: string | null = null;
     try {
       pdfUrl = await pdfService.generateAndUpload(

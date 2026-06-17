@@ -15,11 +15,20 @@ export interface QuestionConfig {
   assertion_reason: number;
 }
 
+export interface SubQuestion {
+  question_number: string | number;
+  type: QuestionType;
+  question: string;
+  options?: string[] | null;
+}
+
 export interface GeneratedQuestion {
   question_number: number;
   type: QuestionType;
   question: string;
   options: string[] | null; // only for MCQ, null for all others
+  sub_questions?: SubQuestion[];
+  reason?: string;
 }
 
 export interface GeneratedContent {
@@ -50,4 +59,6 @@ export interface GenerateHomeworkRequest {
   academic_year_id: string;
   due_date: string;        // ISO date string
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  logoUrl?: string | null;
+  institutionName?: string | null;
 }

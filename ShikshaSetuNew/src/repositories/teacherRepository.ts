@@ -924,17 +924,18 @@ export async function getClassPerformanceCardData(
 }
 
 function getServerUrl(): string {
-  let serverUrl = process.env.EXPO_PUBLIC_SERVER_URL;
+  // Explicit env var always wins
+  if (process.env.EXPO_PUBLIC_SERVER_URL) {
+    return process.env.EXPO_PUBLIC_SERVER_URL;
+  }
   if (__DEV__) {
     const hostUri = Constants.expoConfig?.hostUri;
     if (hostUri) {
       const host = hostUri.split(':')[0];
-      serverUrl = `http://${host}:3001`;
-    } else {
-      serverUrl = 'http://localhost:3001';
+      return `http://${host}:3001`;
     }
   }
-  return serverUrl || 'http://localhost:3001';
+  return 'http://localhost:3001';
 }
 
 export async function generateHomework(payload: {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/src/hooks/useAuth";
 import { getInstitutionAttendance, ClassAttendanceBreakdown } from "@/src/repositories/attendanceRepository";
 
@@ -32,6 +32,14 @@ export function useInstitutionAttendance(initialDate?: string) {
     setState(prev => ({ ...prev, selectedDate: date }));
   };
 
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const fetchData = useCallback(async (date: string) => {
     if (role && role !== "institution_admin") return;
     if (!institutionId) return;
@@ -40,19 +48,23 @@ export function useInstitutionAttendance(initialDate?: string) {
 
     try {
       const breakdownData = await getInstitutionAttendance(institutionId, date);
-      setState(prev => ({
-        ...prev,
-        breakdown: breakdownData,
-        isLoading: false,
-        error: null,
-      }));
+      if (isMounted.current) {
+        setState(prev => ({
+          ...prev,
+          breakdown: breakdownData,
+          isLoading: false,
+          error: null,
+        }));
+      }
     } catch (err: any) {
       console.error("Error loading institution attendance breakdown:", err);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: err?.message || "Failed to load attendance breakdown.",
-      }));
+      if (isMounted.current) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: err?.message || "Failed to load attendance breakdown.",
+        }));
+      }
     }
   }, [institutionId, role]);
 

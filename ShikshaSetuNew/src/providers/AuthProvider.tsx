@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Session } from "@supabase/supabase-js";
+import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { AuthContext, AuthState, UserRole } from "../context/AuthContext";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [authState, setAuthState] = useState<AuthState>({
     userId: null,
     institutionId: null,
@@ -225,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         await fetchUserProfile(session);
+        setIsLoaded(true);
       }
     );
 
@@ -244,14 +247,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error signing out from Supabase:", error);
+    } finally {
+      setAuthState({
+        userId: null,
+        institutionId: null,
+        role: null,
+        fullName: null,
+        email: null,
+        session: null,
+        isLoading: false,
+        theme: null,
+        institutionName: null,
+        logoUrl: null,
+        tagline: null,
+      });
+      router.replace("/auth/signin");
     }
   };
 
   return (
-    <AuthContext.Provider value={{ ...authState, signIn, signOut }}>
+    <AuthContext.Provider value={{ ...authState, signIn, signOut, isLoaded }}>
       {children}
     </AuthContext.Provider>
   );

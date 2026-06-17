@@ -36,11 +36,59 @@ export default function AttendanceAnalysisScreen() {
   const { isLoaded, isSignedIn, role, userId, institutionId, fullName, theme } = useAuth();
   
   const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
+  const primaryAltColor = theme?.colors?.primaryAlt ?? "#162A56";
   const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
   const secondaryLightColor = theme?.colors?.secondaryLight ?? "#F2C14E";
   const creamColor = theme?.colors?.cream ?? "#F5F0E8";
   const dangerColor = theme?.colors?.danger ?? "#EF4444";
+  const steelGrayColor = theme?.colors?.steelGray ?? "#6B7280";
+  const warningColor = theme?.colors?.warning ?? "#EAB308";
+  const lightGrayColor = theme?.colors?.lightGray ?? "#E5E7EB";
+  const successColor = theme?.colors?.success ?? "#22C55E";
+  const whiteColor = theme?.colors?.white ?? "#FFFFFF";
+  const charcoalColor = theme?.colors?.charcoal ?? "#333333";
   
+  // Navigation and Selection States
+  const [activeTab, setActiveTab] = useState<TabName>("student");
+  const [currentMonth, setCurrentMonth] = useState(5); // Default: May
+  const [currentYear, setCurrentYear] = useState(2026); // Default: 2026
+  
+  // Section and Department chips
+  const [sections, setSections] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>("All");
+
+  // Search filter
+  const [searchVal, setSearchVal] = useState("");
+
+  // Data States
+  const [studentSummary, setStudentSummary] = useState<{
+    monthlyAvg: number;
+    criticalDays: number;
+    calendarData: CalendarDay[];
+    insight: string;
+    resolvedYear: number;
+  } | null>(null);
+  const [studentList, setStudentList] = useState<StudentAttendanceListItem[]>([]);
+
+  const [staffSummary, setStaffSummary] = useState<{
+    monthlyAvg: number;
+    staffOnLeaveToday: number;
+    calendarData: CalendarDay[];
+    insight: string;
+    resolvedYear: number;
+  } | null>(null);
+  const [staffList, setStaffList] = useState<StaffAttendanceListItem[]>([]);
+
+  // Loading and Error States
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Teacher/Admin profile avatar state
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+
   const {
     breakdown: dailyBreakdown,
     isLoading: isDailyLoading,
@@ -89,54 +137,14 @@ export default function AttendanceAnalysisScreen() {
   };
 
   const filteredDailyBreakdown = (dailyBreakdown || []).filter((item) => {
-    const searchLower = searchVal.trim().toLowerCase();
+    if (!item) return false;
+    const searchLower = (searchVal || "").trim().toLowerCase();
     if (!searchLower) return true;
     return (
-      item.className.toLowerCase().includes(searchLower) ||
-      item.sectionName.toLowerCase().includes(searchLower)
+      (item.className || "").toLowerCase().includes(searchLower) ||
+      (item.sectionName || "").toLowerCase().includes(searchLower)
     );
   });
-
-  // Navigation and Selection States
-  const [activeTab, setActiveTab] = useState<TabName>("student");
-  const [currentMonth, setCurrentMonth] = useState(5); // Default: May
-  const [currentYear, setCurrentYear] = useState(2026); // Default: 2026
-  
-  // Section and Department chips
-  const [sections, setSections] = useState<{ id: string; name: string }[]>([]);
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [selectedDept, setSelectedDept] = useState<string>("All");
-
-  // Search filter
-  const [searchVal, setSearchVal] = useState("");
-
-  // Data States
-  const [studentSummary, setStudentSummary] = useState<{
-    monthlyAvg: number;
-    criticalDays: number;
-    calendarData: CalendarDay[];
-    insight: string;
-    resolvedYear: number;
-  } | null>(null);
-  const [studentList, setStudentList] = useState<StudentAttendanceListItem[]>([]);
-
-  const [staffSummary, setStaffSummary] = useState<{
-    monthlyAvg: number;
-    staffOnLeaveToday: number;
-    calendarData: CalendarDay[];
-    insight: string;
-    resolvedYear: number;
-  } | null>(null);
-  const [staffList, setStaffList] = useState<StaffAttendanceListItem[]>([]);
-
-  // Loading and Error States
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Teacher/Admin profile avatar state
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   // 1. Protection & Auth Guard check
   useEffect(() => {
@@ -151,6 +159,7 @@ export default function AttendanceAnalysisScreen() {
 
   // 2. Fetch User Profile photo for avatar
   useEffect(() => {
+    let isActive = true;
     if (userId) {
       supabase
         .from("users")
@@ -158,26 +167,30 @@ export default function AttendanceAnalysisScreen() {
         .eq("id", userId)
         .maybeSingle()
         .then(({ data }) => {
-          if (data?.profile_photo_url) {
+          if (isActive && data?.profile_photo_url) {
             setProfilePhoto(data.profile_photo_url);
           }
         });
     }
+    return () => { isActive = false; };
   }, [userId]);
 
   // 3. Fetch initial filter options (Sections for student, Departments for staff)
   useEffect(() => {
+    let isActive = true;
     if (!institutionId) return;
 
     async function loadFilterOptions() {
       try {
         const sectionsData = await getInstitutionSections(institutionId!);
+        if (!isActive) return;
         setSections(sectionsData);
         if (sectionsData.length > 0) {
           setSelectedSectionId(sectionsData[0].id);
         }
 
         const deptData = await getDepartments(institutionId!);
+        if (!isActive) return;
         setDepartments(deptData);
       } catch (err) {
         console.error("Failed to load initial chip selectors:", err);
@@ -185,6 +198,7 @@ export default function AttendanceAnalysisScreen() {
     }
 
     loadFilterOptions();
+    return () => { isActive = false; };
   }, [institutionId]);
 
   // 4. Fetch Attendance Data based on active state (Tab, Month, Selection)
@@ -196,7 +210,6 @@ export default function AttendanceAnalysisScreen() {
     try {
       if (activeTab === "student") {
         if (!selectedSectionId) {
-          setIsLoading(false);
           return;
         }
         
@@ -214,20 +227,22 @@ export default function AttendanceAnalysisScreen() {
           return;
         }
 
-        const summary = await getStudentAttendanceSummary(
-          institutionId!,
-          selectedSectionId,
-          resolvedAY.id,
-          resolvedAY.resolvedYear,
-          currentMonth
-        );
-        const list = await getStudentAttendanceList(
-          institutionId!,
-          selectedSectionId,
-          resolvedAY.id,
-          resolvedAY.resolvedYear,
-          currentMonth
-        );
+        const [summary, list] = await Promise.all([
+          getStudentAttendanceSummary(
+            institutionId!,
+            selectedSectionId,
+            resolvedAY.id,
+            resolvedAY.resolvedYear,
+            currentMonth
+          ),
+          getStudentAttendanceList(
+            institutionId!,
+            selectedSectionId,
+            resolvedAY.id,
+            resolvedAY.resolvedYear,
+            currentMonth
+          ),
+        ]);
         if (activeCheck && !activeCheck.active) return;
         setStudentSummary(summary);
         setStudentList(list);
@@ -245,20 +260,22 @@ export default function AttendanceAnalysisScreen() {
           return;
         }
 
-        const summary = await getStaffAttendanceSummary(
-          institutionId!,
-          resolvedAY.id,
-          resolvedAY.resolvedYear,
-          currentMonth,
-          selectedDept
-        );
-        const list = await getStaffAttendanceList(
-          institutionId!,
-          resolvedAY.id,
-          resolvedAY.resolvedYear,
-          currentMonth,
-          selectedDept
-        );
+        const [summary, list] = await Promise.all([
+          getStaffAttendanceSummary(
+            institutionId!,
+            resolvedAY.id,
+            resolvedAY.resolvedYear,
+            currentMonth,
+            selectedDept
+          ),
+          getStaffAttendanceList(
+            institutionId!,
+            resolvedAY.id,
+            resolvedAY.resolvedYear,
+            currentMonth,
+            selectedDept
+          ),
+        ]);
         if (activeCheck && !activeCheck.active) return;
         setStaffSummary(summary);
         setStaffList(list);
@@ -310,27 +327,44 @@ export default function AttendanceAnalysisScreen() {
   };
 
   // Initials computation
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/);
+  const getInitials = (name: string | null | undefined) => {
+    if (!name || typeof name !== "string") return "??";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return name.trim().slice(0, 2).toUpperCase() || "??";
   };
 
   // Filtering local list data
-  const filteredStudents = studentList.filter(s =>
-    s.studentName.toLowerCase().includes(searchVal.toLowerCase())
-  );
+  const filteredStudents = studentList.filter(s => {
+    if (!s) return false;
+    const name = s.studentName || "";
+    const term = searchVal || "";
+    return name.toLowerCase().includes(term.toLowerCase());
+  });
 
-  const filteredStaff = staffList.filter(t =>
-    t.teacherName.toLowerCase().includes(searchVal.toLowerCase()) ||
-    t.subject.toLowerCase().includes(searchVal.toLowerCase())
-  );
+  const filteredStaff = staffList.filter(t => {
+    if (!t) return false;
+    const name = t.teacherName || "";
+    const subj = t.subject || "";
+    const term = searchVal || "";
+    return (
+      name.toLowerCase().includes(term.toLowerCase()) ||
+      subj.toLowerCase().includes(term.toLowerCase())
+    );
+  });
 
   // Render Calendar Grid Component
   const renderCalendar = (calendarData: CalendarDay[], resolvedYear: number) => {
     if (!calendarData || calendarData.length === 0) return null;
+
+    const todayLabel = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long', 
+      day: 'numeric',
+      year: 'numeric'
+    });
 
     // Find spacers (which weekday does 1st of month fall on)
     // getDay returns 0: Sunday, 1: Monday, ..., 6: Saturday
@@ -340,104 +374,152 @@ export default function AttendanceAnalysisScreen() {
     const spacers = Array(firstDayIndex).fill(null);
     const allCells = [...spacers, ...calendarData];
 
+    // Pad allCells to always be a multiple of 7
+    const paddedCells = [...allCells];
+    while (paddedCells.length % 7 !== 0) {
+      paddedCells.push(null);
+    }
+
+    // Chunk paddedCells into rows of 7
+    const rows = [];
+    for (let i = 0; i < paddedCells.length; i += 7) {
+      rows.push(paddedCells.slice(i, i + 7));
+    }
+
     return (
-      <View style={[styles.cardShadow, { borderRadius: 24 }]}>
-        <View style={{ backgroundColor: "white", borderRadius: 24, marginTop: 16 }}>
-          <View className="bg-white rounded-3xl p-5 border border-gray-100">
-            {/* Month Heading */}
-            <View className="flex-row justify-between items-center mb-4">
-              <TouchableOpacity onPress={prevMonth} className="p-1">
-                <Ionicons name="chevron-back" size={20} color={primaryColor} />
-              </TouchableOpacity>
-              <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>
-                {getMonthName(currentMonth)} {resolvedYear}
-              </Text>
-              <TouchableOpacity onPress={nextMonth} className="p-1">
-                <Ionicons name="chevron-forward" size={20} color={primaryColor} />
-              </TouchableOpacity>
-            </View>
+      <View style={{ backgroundColor: whiteColor, borderRadius: 24, marginTop: 16, padding: 20, borderWidth: 1, borderColor: lightGrayColor }}>
+        {/* Month Heading */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <TouchableOpacity onPress={prevMonth} style={{ padding: 4 }}>
+            <Ionicons name="chevron-back" size={20} color={primaryColor} />
+          </TouchableOpacity>
+          <Text style={{ fontFamily: "Poppins-Bold", fontSize: 16, color: primaryColor }}>
+            {getMonthName(currentMonth)} {resolvedYear}
+          </Text>
+          <TouchableOpacity onPress={nextMonth} style={{ padding: 4 }}>
+            <Ionicons name="chevron-forward" size={20} color={primaryColor} />
+          </TouchableOpacity>
+        </View>
 
-            {/* Legend */}
-            <View className="flex-row justify-end items-center space-x-4 mb-4">
-              <View className="flex-row items-center space-x-1">
-                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: secondaryColor }} />
-                <Text className="text-[10px] font-inter text-[#75777D]">Holiday</Text>
-              </View>
-              <View className="flex-row items-center space-x-1">
-                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
-                <Text className="text-[10px] font-inter text-[#75777D]">School Day</Text>
-              </View>
-              <View className="flex-row items-center space-x-1">
-                <View className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: creamColor }} />
-                <Text className="text-[10px] font-inter text-[#75777D]">Weekend/Future</Text>
-              </View>
-            </View>
+        {/* Legend */}
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, gap: 16 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: warningColor }} />
+            <Text style={{ fontSize: 10, fontFamily: "Inter-Regular", color: steelGrayColor }}>Holiday</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: primaryColor }} />
+            <Text style={{ fontSize: 10, fontFamily: "Inter-Regular", color: steelGrayColor }}>School Day</Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: creamColor, borderWidth: 1, borderColor: lightGrayColor }} />
+            <Text style={{ fontSize: 10, fontFamily: "Inter-Regular", color: steelGrayColor }}>Weekend/Future</Text>
+          </View>
+        </View>
 
-            {/* Weekday Labels */}
-            <View className="flex-row justify-between mb-2">
-              {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((label) => (
-                <View key={label} className="w-[12%] items-center">
-                  <Text className="font-poppins-bold text-[9px] text-[#75777D] tracking-wider">{label}</Text>
-                </View>
-              ))}
+        {/* Weekday Labels */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+          {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((label) => (
+            <View key={label} style={{ width: 42, alignItems: "center" }}>
+              <Text style={{ fontFamily: "Poppins-Bold", fontSize: 9, letterSpacing: 1, color: steelGrayColor }}>{label}</Text>
             </View>
+          ))}
+        </View>
 
-            {/* Grid Cells */}
-            <View className="flex-row flex-wrap justify-start">
-              {allCells.map((cell, idx) => {
+        {/* Grid Cells */}
+        <View>
+          {rows.map((row, rowIdx) => (
+            <View key={`row-${rowIdx}`} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+              {row.map((cell, idx) => {
                 if (cell === null) {
-                  return <View key={`spacer-${idx}`} className="w-[14.28%] aspect-square justify-center items-center" />;
+                  return (
+                    <View key={`spacer-${rowIdx}-${idx}`} style={{ width: 42, height: 40 }} />
+                  );
                 }
 
                 const dateObj = new Date(cell.date);
                 const dayNum = dateObj.getDate();
-                const isToday = cell.date === "2026-05-25";
+                const todayStr = new Date().toISOString().split('T')[0];
+                const isToday = cell.date === todayStr;
 
-                let cellClass = "w-[14.28%] aspect-square justify-center items-center mb-1 relative";
-                let textClass = "font-inter text-xs";
-                let textStyle: any = { color: primaryColor };
-                let bgCircle = null;
+                let textStyle: any = {
+                  fontFamily: "Inter-Regular",
+                  fontSize: 12,
+                  color: primaryColor,
+                };
+                let bgStyle: any = {
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  justifyContent: "center",
+                  alignItems: "center",
+                };
 
                 if (cell.type === "weekend") {
-                  textStyle = { color: "#BCBEC4" };
+                  textStyle = { fontFamily: "Inter-Regular", fontSize: 12, color: steelGrayColor };
+                  bgStyle = { ...bgStyle, backgroundColor: "transparent" };
+                } else if (cell.type === "future" || cell.type === "no_data") {
+                  textStyle = { fontFamily: "Inter-Regular", fontSize: 12, color: steelGrayColor };
+                  bgStyle = { ...bgStyle, backgroundColor: "transparent" };
                 } else if (cell.type === "holiday") {
-                  textClass = "font-poppins-bold text-xs";
-                  textStyle = { color: "white" };
-                  bgCircle = <View className="absolute inset-1 rounded-full justify-center items-center z-[-1]" style={{ backgroundColor: secondaryColor }} />;
+                  textStyle = { fontFamily: "Poppins-Bold", fontSize: 12, color: whiteColor };
+                  bgStyle = { ...bgStyle, backgroundColor: warningColor };
                 } else if (cell.type === "present") {
-                  textClass = "font-poppins-bold text-xs";
-                  textStyle = { color: "white" };
-                  bgCircle = <View className="absolute inset-1 rounded-full justify-center items-center z-[-1]" style={{ backgroundColor: primaryColor }} />;
+                  textStyle = { fontFamily: "Poppins-Bold", fontSize: 12, color: whiteColor };
+                  bgStyle = { ...bgStyle, backgroundColor: primaryColor };
                 } else if (cell.type === "absent") {
-                  // Low class average day highlight (red outline/circle)
-                  textClass = "font-poppins-bold text-xs text-red-600";
-                  textStyle = { color: dangerColor };
-                  bgCircle = <View className="absolute inset-1 rounded-full border-2 bg-red-50 justify-center items-center z-[-1]" style={{ borderColor: dangerColor }} />;
+                  textStyle = { fontFamily: "Poppins-Bold", fontSize: 12, color: dangerColor };
+                  bgStyle = {
+                    ...bgStyle,
+                    borderColor: dangerColor,
+                    borderWidth: 2,
+                    backgroundColor: `${dangerColor}1A`,
+                  };
                 }
 
                 if (isToday) {
-                  // Highlight today with gold outline
-                  bgCircle = <View className="absolute inset-1 rounded-full border-[2.5px] justify-center items-center z-[-1]" style={{ borderColor: secondaryColor }} />;
-                  textClass = "font-poppins-bold text-xs";
-                  textStyle = { color: primaryColor };
+                  bgStyle = {
+                    ...bgStyle,
+                    borderColor: secondaryColor,
+                    borderWidth: 2.5,
+                  };
+                  if (cell.type !== "weekend" && cell.type !== "absent" && cell.type !== "future" && cell.type !== "no_data") {
+                    bgStyle.backgroundColor = primaryColor;
+                    textStyle = { fontFamily: "Poppins-Bold", fontSize: 12, color: whiteColor };
+                  } else if (cell.type === "absent") {
+                    bgStyle.backgroundColor = `${dangerColor}1A`;
+                    textStyle = { fontFamily: "Poppins-Bold", fontSize: 12, color: dangerColor };
+                  } else {
+                    bgStyle.backgroundColor = "transparent";
+                    textStyle = { fontFamily: "Poppins-Bold", fontSize: 12, color: primaryColor };
+                  }
                 }
 
                 return (
-                  <View key={cell.date} className={cellClass}>
-                    {bgCircle}
-                    <Text className={textClass} style={textStyle}>{dayNum}</Text>
+                  <View
+                    key={cell.date}
+                    style={{
+                      width: 42,
+                      height: 40,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <View style={bgStyle}>
+                      <Text style={textStyle}>{dayNum}</Text>
+                    </View>
                   </View>
                 );
               })}
             </View>
+          ))}
+        </View>
 
-            {/* Date Muted Text */}
-            <View className="mt-3 items-center">
-              <Text className="text-[10px] font-inter text-[#75777D] italic">
-                Today is Monday, May 25, 2026
-              </Text>
-            </View>
-          </View>
+        {/* Date Muted Text */}
+        <View style={{ marginTop: 12, alignItems: "center" }}>
+          <Text style={{ fontFamily: "Inter-Regular", fontSize: 10, fontStyle: "italic", color: steelGrayColor }}>
+            Today is {todayLabel}
+          </Text>
         </View>
       </View>
     );
@@ -449,7 +531,7 @@ export default function AttendanceAnalysisScreen() {
       <View className="space-y-4">
         {/* Calendar skeleton */}
         <View className="bg-white rounded-3xl p-5 border border-gray-100 h-64 justify-center items-center animate-pulse">
-          <ActivityIndicator size="small" color="#C9A84C" />
+          <ActivityIndicator size="small" color={secondaryColor} />
         </View>
 
         {/* Stats Row skeleton */}
@@ -521,7 +603,10 @@ export default function AttendanceAnalysisScreen() {
           className="flex-1 py-3 rounded-full items-center"
           style={{ backgroundColor: activeTab === "staff" ? primaryColor : "transparent" }}
         >
-          <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "staff" ? "text-white" : "text-[#75777D]"}`}>
+          <Text 
+            className="font-poppins-bold text-[10px] uppercase tracking-widest"
+            style={{ color: activeTab === "staff" ? "white" : steelGrayColor }}
+          >
             Staff
           </Text>
         </TouchableOpacity>
@@ -533,7 +618,10 @@ export default function AttendanceAnalysisScreen() {
           className="flex-1 py-3 rounded-full items-center"
           style={{ backgroundColor: activeTab === "student" ? primaryColor : "transparent" }}
         >
-          <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "student" ? "text-white" : "text-[#75777D]"}`}>
+          <Text 
+            className="font-poppins-bold text-[10px] uppercase tracking-widest"
+            style={{ color: activeTab === "student" ? "white" : steelGrayColor }}
+          >
             Student
           </Text>
         </TouchableOpacity>
@@ -545,7 +633,10 @@ export default function AttendanceAnalysisScreen() {
           className="flex-1 py-3 rounded-full items-center"
           style={{ backgroundColor: activeTab === "daily" ? primaryColor : "transparent" }}
         >
-          <Text className={`font-poppins-bold text-[10px] uppercase tracking-widest ${activeTab === "daily" ? "text-white" : "text-[#75777D]"}`}>
+          <Text 
+            className="font-poppins-bold text-[10px] uppercase tracking-widest"
+            style={{ color: activeTab === "daily" ? "white" : steelGrayColor }}
+          >
             Daily
           </Text>
         </TouchableOpacity>
@@ -568,7 +659,7 @@ export default function AttendanceAnalysisScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              className="flex-row mb-4"
+              className="flex-row mb-4 min-h-[44px]"
               contentContainerStyle={{ paddingRight: 20 }}
             >
               {sections.map((sec) => {
@@ -579,8 +670,8 @@ export default function AttendanceAnalysisScreen() {
                     onPress={() => setSelectedSectionId(sec.id)}
                     className="px-4 py-2.5 rounded-xl mr-2.5 border"
                     style={{
-                      backgroundColor: isSelected ? primaryColor : "white",
-                      borderColor: isSelected ? primaryColor : "#D1D5DB"
+                      backgroundColor: isSelected ? primaryColor : whiteColor,
+                      borderColor: isSelected ? primaryColor : lightGrayColor
                     }}
                   >
                     <Text className="font-poppins-semibold text-xs" style={{ color: isSelected ? "white" : primaryColor }}>
@@ -592,20 +683,20 @@ export default function AttendanceAnalysisScreen() {
             </ScrollView>
 
             {/* Search Bar */}
-            <View style={{ backgroundColor: "white", borderRadius: 9999, marginBottom: 8 }}>
-              <View style={styles.searchBarShadow} className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
-                <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
+            <View style={{ backgroundColor: whiteColor, borderRadius: 9999, marginBottom: 8 }}>
+              <View className="relative bg-white border rounded-full flex-row items-center px-4 py-2.5" style={{ borderColor: lightGrayColor }}>
+                <Ionicons name="search-outline" size={16} color={steelGrayColor} className="mr-2" />
                 <TextInput
                   className="flex-grow font-inter text-xs py-0 outline-none"
                   style={{ color: primaryColor }}
                   placeholder="Search students..."
-                  placeholderTextColor="#75777D"
+                  placeholderTextColor={steelGrayColor}
                   value={searchVal}
                   onChangeText={setSearchVal}
                 />
                 {searchVal.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchVal("")}>
-                    <Ionicons name="close-circle" size={16} color="#75777D" />
+                    <Ionicons name="close-circle" size={16} color={steelGrayColor} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -614,9 +705,9 @@ export default function AttendanceAnalysisScreen() {
             {isLoading ? (
               renderSkeletons()
             ) : error ? (
-              <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
+              <View style={{ backgroundColor: whiteColor, borderRadius: 24, marginTop: 16 }}>
                 <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
-                  <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
+                  <Ionicons name="alert-circle-outline" size={40} color={dangerColor} />
                   <Text className="font-poppins-semibold text-sm mt-2 text-center" style={{ color: primaryColor }}>{error}</Text>
                   <TouchableOpacity onPress={() => loadAttendanceData()} className="mt-4 px-6 py-2 rounded-xl" style={{ backgroundColor: primaryColor }}>
                     <Text className="text-white font-poppins-semibold text-xs">Retry</Text>
@@ -632,7 +723,7 @@ export default function AttendanceAnalysisScreen() {
                 {studentSummary && (
                   <View className="flex-row space-x-3 mt-4">
                     {/* Left Card: Monthly Average */}
-                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: primaryColor, borderRadius: 24 }]}>
+                    <View style={{ flex: 1, backgroundColor: primaryColor, borderRadius: 24 }}>
                       <View className="p-4 rounded-3xl border border-slate-800 flex-1" style={{ backgroundColor: primaryColor }}>
                         <Text
                           className="font-poppins-bold text-[9px] uppercase tracking-widest"
@@ -644,8 +735,8 @@ export default function AttendanceAnalysisScreen() {
                           {studentSummary.monthlyAvg}%
                         </Text>
                         <View className="flex-row items-center space-x-1 mt-1">
-                           <Ionicons name="trending-up" size={12} color="#4CAF50" />
-                          <Text className="font-inter-semibold text-[9px] text-[#4CAF50] font-bold">
+                           <Ionicons name="trending-up" size={12} color={successColor} />
+                          <Text className="font-inter-semibold text-[9px] font-bold" style={{ color: successColor }}>
                             +1.2% vs average
                           </Text>
                         </View>
@@ -653,15 +744,15 @@ export default function AttendanceAnalysisScreen() {
                     </View>
 
                     {/* Right Card: Critical Days */}
-                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: "white", borderRadius: 24 }]}>
+                    <View style={{ flex: 1, backgroundColor: whiteColor, borderRadius: 24 }}>
                       <View className="bg-white p-4 rounded-3xl border border-gray-100 flex-1">
-                        <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
+                        <Text className="font-poppins-bold text-[9px] uppercase tracking-widest" style={{ color: steelGrayColor }}>
                           Critical Days
                         </Text>
                         <Text className="font-poppins-bold text-2xl mt-2" style={{ color: dangerColor }}>
                           {String(studentSummary.criticalDays).padStart(2, "0")}
                         </Text>
-                        <Text className="font-inter text-[9px] text-[#75777D] mt-1">
+                        <Text className="font-inter text-[9px] mt-1" style={{ color: steelGrayColor }}>
                           Below 85% target
                         </Text>
                       </View>
@@ -677,43 +768,45 @@ export default function AttendanceAnalysisScreen() {
                     </Text>
                     <TouchableOpacity onPress={() => console.log("Navigating to view all students")}>
                       <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
-                        View All
                       </Text>
                     </TouchableOpacity>
                   </View>
 
                   {/* Student Cards */}
                   {filteredStudents.length === 0 ? (
-                    <Text className="text-center py-6 text-xs text-[#75777D] font-inter italic">
+                    <Text className="text-center py-6 text-xs font-inter italic" style={{ color: steelGrayColor }}>
                       No matching students found.
                     </Text>
                   ) : (
                     filteredStudents.map((item, index) => {
-                      const percent = item.attendancePercent;
+                      const percent = Number(item.attendancePercent) || 0;
                       let badgeStyle = {};
-                      let badgeTextColor = "#75777D";
+                      let badgeTextColor = steelGrayColor;
 
                       if (item.status === "excellent") {
-                        badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
-                        badgeTextColor = "#4CAF50";
+                        badgeStyle = { borderColor: `${successColor}80`, backgroundColor: `${successColor}1A` };
+                        badgeTextColor = successColor;
                       } else if (item.status === "leadership") {
-                        badgeStyle = { borderColor: "#bfdbfe", backgroundColor: "rgba(219, 234, 254, 0.5)" };
-                        badgeTextColor = "#2196F3";
+                        badgeStyle = { borderColor: `${primaryAltColor}80`, backgroundColor: `${primaryAltColor}1A` };
+                        badgeTextColor = primaryAltColor;
                       } else if (item.status === "warning") {
                         badgeStyle = { borderColor: `${secondaryColor}4D`, backgroundColor: `${secondaryColor}0D` };
                         badgeTextColor = secondaryColor;
                       } else if (item.status === "critical") {
-                        badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
+                        badgeStyle = { borderColor: `${dangerColor}80`, backgroundColor: `${dangerColor}1A` };
                         badgeTextColor = dangerColor;
                       }
 
                       return (
-                        <View key={item.studentId ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
+                        <View 
+                          key={item.studentId ?? index} 
+                          style={{ backgroundColor: whiteColor, borderRadius: 24, marginBottom: 12, padding: 16, borderWidth: 1, borderColor: lightGrayColor }}
+                        >
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Grey Initials Avatar */}
                                 <View className="w-10 h-10 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
-                                  <Text className="font-poppins-bold text-xs text-[#75777D]">
+                                  <Text className="font-poppins-bold text-xs" style={{ color: steelGrayColor }}>
                                     {item.initials}
                                   </Text>
                                 </View>
@@ -721,7 +814,7 @@ export default function AttendanceAnalysisScreen() {
                                   <Text className="font-poppins-bold text-xs leading-tight" style={{ color: primaryColor }}>
                                     {item.studentName}
                                   </Text>
-                                  <Text className="text-[10px] font-inter text-[#75777D] mt-0.5">
+                                  <Text className="text-[10px] font-inter mt-0.5" style={{ color: steelGrayColor }}>
                                     Present {item.presentDays}/{item.totalDays} days
                                   </Text>
                                 </View>
@@ -754,24 +847,7 @@ export default function AttendanceAnalysisScreen() {
                   )}
                 </View>
 
-                {/* Insight Card */}
-                {studentSummary && (
-                  <View style={[styles.insightShadow, { backgroundColor: `${secondaryColor}15`, borderRadius: 24, marginTop: 20 }]}>
-                    <View className="p-5 rounded-3xl border flex-row space-x-3 items-start" style={{ backgroundColor: `${secondaryColor}15`, borderColor: `${secondaryColor}33` }}>
-                      <View className="p-2 rounded-xl" style={{ backgroundColor: secondaryColor }}>
-                        <Ionicons name="bulb" size={16} color="white" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
-                          Attendance Insight
-                        </Text>
-                        <Text className="font-inter text-xs text-slate-700 leading-relaxed mt-1">
-                          {studentSummary.insight}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
+
               </View>
             )}
           </View>
@@ -796,8 +872,8 @@ export default function AttendanceAnalysisScreen() {
                 onPress={() => setSelectedDept("All")}
                 className="px-4 py-2.5 rounded-xl mr-2.5 border"
                 style={{
-                  backgroundColor: selectedDept === "All" ? primaryColor : "white",
-                  borderColor: selectedDept === "All" ? primaryColor : "#D1D5DB"
+                  backgroundColor: selectedDept === "All" ? primaryColor : whiteColor,
+                  borderColor: selectedDept === "All" ? primaryColor : lightGrayColor
                 }}
               >
                 <Text className="font-poppins-semibold text-xs" style={{ color: selectedDept === "All" ? "white" : primaryColor }}>
@@ -812,8 +888,8 @@ export default function AttendanceAnalysisScreen() {
                     onPress={() => setSelectedDept(dept)}
                     className="px-4 py-2.5 rounded-xl mr-2.5 border"
                     style={{
-                      backgroundColor: isSelected ? primaryColor : "white",
-                      borderColor: isSelected ? primaryColor : "#D1D5DB"
+                      backgroundColor: isSelected ? primaryColor : whiteColor,
+                      borderColor: isSelected ? primaryColor : lightGrayColor
                     }}
                   >
                     <Text className="font-poppins-semibold text-xs" style={{ color: isSelected ? "white" : primaryColor }}>
@@ -825,20 +901,20 @@ export default function AttendanceAnalysisScreen() {
             </ScrollView>
 
             {/* Search Bar */}
-            <View style={[styles.searchBarShadow, { backgroundColor: "white", borderRadius: 9999, marginBottom: 8 }]}>
-              <View className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
-                <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
+            <View style={{ backgroundColor: whiteColor, borderRadius: 9999, marginBottom: 8 }}>
+              <View className="relative bg-white border rounded-full flex-row items-center px-4 py-2.5" style={{ borderColor: lightGrayColor }}>
+                <Ionicons name="search-outline" size={16} color={steelGrayColor} className="mr-2" />
                 <TextInput
                   className="flex-grow font-inter text-xs py-0 outline-none"
                   style={{ color: primaryColor }}
                   placeholder="Search staff..."
-                  placeholderTextColor="#75777D"
+                  placeholderTextColor={steelGrayColor}
                   value={searchVal}
                   onChangeText={setSearchVal}
                 />
                 {searchVal.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchVal("")}>
-                    <Ionicons name="close-circle" size={16} color="#75777D" />
+                    <Ionicons name="close-circle" size={16} color={steelGrayColor} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -847,7 +923,7 @@ export default function AttendanceAnalysisScreen() {
             {isLoading ? (
               renderSkeletons()
             ) : error ? (
-              <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
+              <View style={{ backgroundColor: whiteColor, borderRadius: 24, marginTop: 16 }}>
                 <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
                   <Ionicons name="alert-circle-outline" size={40} color={dangerColor} />
                   <Text className="font-poppins-semibold text-sm mt-2 text-center" style={{ color: primaryColor }}>{error}</Text>
@@ -865,7 +941,7 @@ export default function AttendanceAnalysisScreen() {
                 {staffSummary && (
                   <View className="flex-row space-x-3 mt-4">
                     {/* Left Card: Department Average */}
-                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: primaryColor, borderRadius: 24 }]}>
+                    <View style={{ flex: 1, backgroundColor: primaryColor, borderRadius: 24 }}>
                       <View className="p-4 rounded-3xl border flex-1" style={{ backgroundColor: primaryColor, borderColor: primaryColor }}>
                         <Text 
                           className="font-poppins-bold text-[9px] uppercase tracking-widest"
@@ -877,8 +953,8 @@ export default function AttendanceAnalysisScreen() {
                           {staffSummary.monthlyAvg}%
                         </Text>
                         <View className="flex-row items-center space-x-1 mt-1">
-                          <Ionicons name="checkmark-circle" size={12} color="#4CAF50" />
-                          <Text className="font-inter-semibold text-[9px] text-[#4CAF50] font-bold">
+                          <Ionicons name="checkmark-circle" size={12} color={successColor} />
+                          <Text className="font-inter-semibold text-[9px] font-bold" style={{ color: successColor }}>
                             Attendance is stable
                           </Text>
                         </View>
@@ -886,15 +962,15 @@ export default function AttendanceAnalysisScreen() {
                     </View>
 
                     {/* Right Card: Staff On Leave Today */}
-                    <View style={[styles.cardShadow, { flex: 1, backgroundColor: "white", borderRadius: 24 }]}>
+                    <View style={{ flex: 1, backgroundColor: whiteColor, borderRadius: 24 }}>
                       <View className="bg-white p-4 rounded-3xl border border-gray-100 flex-1">
-                        <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
+                        <Text className="font-poppins-bold text-[9px] uppercase tracking-widest" style={{ color: steelGrayColor }}>
                           On Leave Today
                         </Text>
                         <Text className="font-poppins-bold text-2xl mt-2" style={{ color: primaryColor }}>
                           {String(staffSummary.staffOnLeaveToday).padStart(2, "0")}
                         </Text>
-                        <Text className="font-inter text-[9px] text-[#75777D] mt-1">
+                        <Text className="font-inter text-[9px] mt-1" style={{ color: steelGrayColor }}>
                           Active planned leaves
                         </Text>
                       </View>
@@ -910,38 +986,40 @@ export default function AttendanceAnalysisScreen() {
                     </Text>
                     <TouchableOpacity onPress={() => console.log("Navigating to view all teachers")}>
                       <Text className="font-poppins-bold text-xs" style={{ color: secondaryColor }}>
-                        View All
                       </Text>
                     </TouchableOpacity>
                   </View>
 
                   {/* Staff Cards */}
                   {filteredStaff.length === 0 ? (
-                    <Text className="text-center py-6 text-xs text-[#75777D] font-inter italic">
+                    <Text className="text-center py-6 text-xs font-inter italic" style={{ color: steelGrayColor }}>
                       No matching staff found.
                     </Text>
                   ) : (
                     filteredStaff.map((item, index) => {
-                      const percent = item.attendancePercent;
+                      const percent = Number(item.attendancePercent) || 0;
                       let badgeStyle = {};
-                      let badgeTextColor = "#75777D";
+                      let badgeTextColor = steelGrayColor;
 
                       if (item.status === "excellent") {
-                        badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
-                        badgeTextColor = "#4CAF50";
+                        badgeStyle = { borderColor: `${successColor}80`, backgroundColor: `${successColor}1A` };
+                        badgeTextColor = successColor;
                       } else if (item.status === "leadership") {
-                        badgeStyle = { borderColor: "#bfdbfe", backgroundColor: "rgba(219, 234, 254, 0.5)" };
-                        badgeTextColor = "#2196F3";
+                        badgeStyle = { borderColor: `${primaryAltColor}80`, backgroundColor: `${primaryAltColor}1A` };
+                        badgeTextColor = primaryAltColor;
                       } else if (item.status === "warning") {
                         badgeStyle = { borderColor: `${secondaryColor}4D`, backgroundColor: `${secondaryColor}0D` };
                         badgeTextColor = secondaryColor;
                       } else if (item.status === "critical") {
-                        badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
+                        badgeStyle = { borderColor: `${dangerColor}80`, backgroundColor: `${dangerColor}1A` };
                         badgeTextColor = dangerColor;
                       }
 
                       return (
-                        <View key={item.teacherId ?? index} style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} className="bg-white p-4 rounded-3xl border border-gray-100">
+                        <View 
+                          key={item.teacherId ?? index} 
+                          style={{ backgroundColor: whiteColor, borderRadius: 24, marginBottom: 12, padding: 16, borderWidth: 1, borderColor: lightGrayColor }}
+                        >
                             <View className="flex-row items-center justify-between">
                               <View className="flex-row items-center space-x-3 flex-1">
                                 {/* Gold Initials Avatar */}
@@ -954,10 +1032,10 @@ export default function AttendanceAnalysisScreen() {
                                   <Text className="font-poppins-bold text-xs leading-tight" style={{ color: primaryColor }}>
                                     {item.teacherName}
                                   </Text>
-                                  <Text className="text-[10px] font-inter text-[#75777D] mt-0.5 font-semibold">
+                                  <Text className="text-[10px] font-inter mt-0.5 font-semibold" style={{ color: steelGrayColor }}>
                                     {item.subject}
                                   </Text>
-                                  <Text className="text-[9px] font-inter text-[#BCBEC4] mt-0.5">
+                                  <Text className="text-[9px] font-inter mt-0.5" style={{ color: steelGrayColor }}>
                                     Attended {item.presentDays}/{item.totalDays} days
                                   </Text>
                                 </View>
@@ -991,7 +1069,7 @@ export default function AttendanceAnalysisScreen() {
 
                 {/* Insight Card */}
                 {staffSummary && (
-                  <View style={[styles.insightShadow, { backgroundColor: `${secondaryColor}15`, borderRadius: 24, marginTop: 20 }]}>
+                  <View style={{ backgroundColor: `${secondaryColor}15`, borderRadius: 24, marginTop: 20 }}>
                     <View className="p-5 rounded-3xl border flex-row space-x-3 items-start" style={{ backgroundColor: `${secondaryColor}15`, borderColor: `${secondaryColor}33` }}>
                       <View className="p-2 rounded-xl" style={{ backgroundColor: secondaryColor }}>
                         <Ionicons name="bulb" size={16} color="white" />
@@ -1016,14 +1094,14 @@ export default function AttendanceAnalysisScreen() {
         {activeTab === "daily" && (
           <View>
             {/* Date Navigation Header */}
-            <View style={[styles.cardShadow, { borderRadius: 24, marginBottom: 16 }]}>
+            <View style={{ borderRadius: 24, marginBottom: 16 }}>
               <View className="bg-white rounded-3xl p-5 border border-gray-100 flex-row justify-between items-center">
                 <TouchableOpacity onPress={() => adjustDailyDate(-1)} className="p-2 bg-slate-50 border border-slate-200 rounded-full">
                   <Ionicons name="chevron-back" size={18} color={primaryColor} />
                 </TouchableOpacity>
                 
                 <View className="items-center flex-1">
-                  <Text className="font-poppins-bold text-xs text-[#75777D] uppercase tracking-widest">
+                  <Text className="font-poppins-bold text-xs uppercase tracking-widest" style={{ color: steelGrayColor }}>
                     Selected Date
                   </Text>
                   <Text className="font-poppins-bold text-sm mt-1 text-center" style={{ color: primaryColor }}>
@@ -1038,20 +1116,20 @@ export default function AttendanceAnalysisScreen() {
             </View>
 
             {/* Search Bar */}
-            <View style={{ backgroundColor: "white", borderRadius: 9999, marginBottom: 16 }}>
-              <View style={styles.searchBarShadow} className="relative bg-white border border-gray-300 rounded-full flex-row items-center px-4 py-2.5">
-                <Ionicons name="search-outline" size={16} color="#75777D" className="mr-2" />
+            <View style={{ backgroundColor: whiteColor, borderRadius: 9999, marginBottom: 16 }}>
+              <View style={{ borderColor: lightGrayColor }} className="relative bg-white border rounded-full flex-row items-center px-4 py-2.5">
+                <Ionicons name="search-outline" size={16} color={steelGrayColor} className="mr-2" />
                 <TextInput
                   className="flex-grow font-inter text-xs py-0 outline-none"
                   style={{ color: primaryColor }}
                   placeholder="Search classes or sections..."
-                  placeholderTextColor="#75777D"
+                  placeholderTextColor={steelGrayColor}
                   value={searchVal}
                   onChangeText={setSearchVal}
                 />
                 {searchVal.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchVal("")}>
-                    <Ionicons name="close-circle" size={16} color="#75777D" />
+                    <Ionicons name="close-circle" size={16} color={steelGrayColor} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1060,7 +1138,7 @@ export default function AttendanceAnalysisScreen() {
             {isDailyLoading ? (
               renderSkeletons()
             ) : dailyError ? (
-              <View style={[styles.cardShadow, { backgroundColor: "white", borderRadius: 24, marginTop: 16 }]}>
+              <View style={{ backgroundColor: whiteColor, borderRadius: 24, marginTop: 16 }}>
                 <View className="bg-white rounded-3xl p-6 items-center border border-gray-200">
                   <Ionicons name="alert-circle-outline" size={40} color={dangerColor} />
                   <Text className="font-poppins-semibold text-sm mt-2 text-center" style={{ color: primaryColor }}>{dailyError}</Text>
@@ -1081,7 +1159,7 @@ export default function AttendanceAnalysisScreen() {
                   return (
                     <View className="flex-row space-x-3 mb-4">
                       {/* Card 1: Attendance Rate */}
-                      <View style={[styles.cardShadow, { flex: 1, backgroundColor: primaryColor, borderRadius: 24 }]}>
+                      <View style={{ flex: 1, backgroundColor: primaryColor, borderRadius: 24 }}>
                         <View className="p-4 rounded-3xl border flex-1" style={{ backgroundColor: primaryColor, borderColor: primaryColor }}>
                           <Text
                             className="font-poppins-bold text-[9px] uppercase tracking-widest"
@@ -1092,16 +1170,16 @@ export default function AttendanceAnalysisScreen() {
                           <Text className="font-poppins-bold text-2xl mt-2" style={{ color: secondaryColor }}>
                             {overallPercent}%
                           </Text>
-                          <Text className="font-inter text-[9px] text-[#4CAF50] mt-1 font-semibold">
+                          <Text className="font-inter text-[9px] mt-1 font-semibold" style={{ color: successColor }}>
                             Active Students
                           </Text>
                         </View>
                       </View>
 
                       {/* Card 2: Student Counts */}
-                      <View style={[styles.cardShadow, { flex: 1, backgroundColor: "white", borderRadius: 24 }]}>
+                      <View style={{ flex: 1, backgroundColor: whiteColor, borderRadius: 24 }}>
                         <View className="bg-white p-4 rounded-3xl border border-gray-100 flex-1">
-                          <Text className="font-poppins-bold text-[9px] text-[#75777D] uppercase tracking-widest">
+                          <Text className="font-poppins-bold text-[9px] uppercase tracking-widest" style={{ color: steelGrayColor }}>
                             Present / Absent
                           </Text>
                           <Text className="font-poppins-bold text-lg mt-2" style={{ color: primaryColor }}>
@@ -1123,7 +1201,7 @@ export default function AttendanceAnalysisScreen() {
                   </Text>
 
                   {filteredDailyBreakdown.length === 0 ? (
-                    <Text className="text-center py-6 text-xs text-[#75777D] font-inter italic">
+                    <Text className="text-center py-6 text-xs font-inter italic" style={{ color: steelGrayColor }}>
                       No matching classes found.
                     </Text>
                   ) : (
@@ -1132,13 +1210,13 @@ export default function AttendanceAnalysisScreen() {
                       
                       // Status check based on attendance percent
                       let status = "critical";
-                      let badgeStyle = { borderColor: "#fecaca", backgroundColor: "rgba(254, 226, 226, 0.5)" };
+                      let badgeStyle = { borderColor: `${dangerColor}80`, backgroundColor: `${dangerColor}1A` };
                       let badgeTextColor = dangerColor;
                       
                       if (percent >= 90) {
                         status = "excellent";
-                        badgeStyle = { borderColor: "#a7f3d0", backgroundColor: "rgba(209, 250, 229, 0.5)" };
-                        badgeTextColor = "#4CAF50";
+                        badgeStyle = { borderColor: `${successColor}80`, backgroundColor: `${successColor}1A` };
+                        badgeTextColor = successColor;
                       } else if (percent >= 80) {
                         status = "warning";
                         badgeStyle = { borderColor: `${secondaryColor}4D`, backgroundColor: `${secondaryColor}0D` };
@@ -1148,19 +1226,18 @@ export default function AttendanceAnalysisScreen() {
                       return (
                         <View 
                           key={`${item.classId}-${item.sectionId}`} 
-                          style={{ backgroundColor: "white", borderRadius: 24, marginBottom: 12, ...styles.cardShadow }} 
-                          className="bg-white p-4 rounded-3xl border border-gray-100"
+                          style={{ backgroundColor: whiteColor, borderRadius: 24, marginBottom: 12, padding: 16, borderWidth: 1, borderColor: lightGrayColor }}
                         >
                           <View className="flex-row items-center justify-between">
                             <View className="flex-row items-center space-x-3 flex-1">
                               <View className="w-10 h-10 rounded-full bg-slate-100 items-center justify-center border border-slate-200">
-                                <Ionicons name="school-outline" size={18} color="#75777D" />
+                                <Ionicons name="school-outline" size={18} color={steelGrayColor} />
                               </View>
                               <View className="flex-1">
                                 <Text className="font-poppins-bold text-xs leading-tight" style={{ color: primaryColor }}>
                                   {item.className} - {item.sectionName}
                                 </Text>
-                                <Text className="text-[10px] font-inter text-[#75777D] mt-0.5">
+                                <Text className="text-[10px] font-inter mt-0.5" style={{ color: steelGrayColor }}>
                                   Present: {item.presentCount}/{item.totalCount} | Absent: {item.absentCount}
                                 </Text>
                               </View>
@@ -1195,7 +1272,7 @@ export default function AttendanceAnalysisScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const SHADOWS = {
   cardShadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -1219,4 +1296,4 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-});
+};

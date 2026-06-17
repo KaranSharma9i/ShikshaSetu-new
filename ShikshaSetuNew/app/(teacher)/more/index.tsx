@@ -9,7 +9,7 @@ import ProfilePhotoUploader from "@/components/teacher/ProfilePhotoUploader";
 
 export default function MoreMenuScreen() {
   const router = useRouter();
-  const { userId, signOut, theme } = useAuth();
+  const { userId, signOut, theme, user, session, isLoaded } = useAuth();
   const primaryColor = theme?.colors?.primary ?? "#0D1B2A";
   const secondaryColor = theme?.colors?.secondary ?? "#D4AF37";
   const secondaryLightColor = theme?.colors?.secondaryLight ?? "#ffe088";
@@ -21,8 +21,9 @@ export default function MoreMenuScreen() {
 
   const fetchProfileData = async () => {
     if (!userId) {
-      setError("User session not found.");
-      setIsLoading(false);
+      if (isLoaded) {
+        console.error("fetchProfileData: userId is missing but auth is loaded.");
+      }
       return;
     }
     setIsLoading(true);
@@ -46,6 +47,14 @@ export default function MoreMenuScreen() {
   useEffect(() => {
     fetchProfileData();
   }, [userId]);
+
+  useEffect(() => {
+    if (isLoaded && !user && !session) {
+      router.replace('/auth/signin');
+    }
+  }, [isLoaded, user, session]);
+
+  if (!isLoaded || !user || !session) return null;
 
   const menuItems = [
     {
