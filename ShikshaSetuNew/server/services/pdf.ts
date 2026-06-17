@@ -1,4 +1,4 @@
-import puppeteer, { Browser } from "puppeteer";
+import { Browser } from "puppeteer-core";
 import fs from "fs";
 import path from "path";
 import { supabase } from "../config";
@@ -8,12 +8,26 @@ let browserInstance: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!browserInstance) {
-    browserInstance = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    const isProd = process.env.NODE_ENV === "production" || process.env.RENDER;
+    if (isProd) {
+      // Dynamic require to prevent loading on local dev environments where these are devDependencies
+      const puppeteerCore = require("puppeteer-core");
+      const chromium = require("@sparticuz/chromium");
+      browserInstance = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      });
+    } else {
+      const puppeteer = require("puppeteer");
+      browserInstance = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      });
+    }
   }
-  return browserInstance;
+  return browserInstance!;
 }
 
 export class PdfService {
@@ -81,10 +95,14 @@ export class PdfService {
     }
 
     if (!remoteLogoLoaded) {
-      const logoPath = path.resolve(__dirname, "../../assets/gurukul.png");
+      const logoPath = path.resolve(process.cwd(), "assets/gurukul.png");
       try {
-        const logoBase64 = fs.readFileSync(logoPath).toString("base64");
-        logoDataUri = `data:image/png;base64,${logoBase64}`;
+        if (fs.existsSync(logoPath)) {
+          const logoBase64 = fs.readFileSync(logoPath).toString("base64");
+          logoDataUri = `data:image/png;base64,${logoBase64}`;
+        } else {
+          console.warn(`Local logo watermark fallback not found at ${logoPath}`);
+        }
       } catch (err) {
         console.error(`Failed to read logo watermark from ${logoPath}:`, err);
       }
@@ -373,9 +391,11 @@ export class PdfService {
 </head>
 <body>
   <!-- Watermark -->
+  ${logoDataUri ? `
   <div class="watermark-container">
     <img class="watermark-img" src="${logoDataUri}" />
   </div>
+  ` : ""}
 
   <div class="content-wrapper">
     <!-- Header Block -->

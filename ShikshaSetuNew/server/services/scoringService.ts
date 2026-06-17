@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { geminiService } from "./gemini";
 
 export interface ScoringResult {
   overall_score: number;
@@ -21,12 +21,6 @@ export interface ScoringParams {
 }
 
 export async function scoreHomework(params: ScoringParams): Promise<ScoringResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY environment variable");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
 
   let prompt = `You are the AI homework evaluator for Margam ERP. Evaluate the student's homework submission from the image provided.
   
@@ -78,9 +72,8 @@ Additionally, because the student is on the Pro tier, you must also provide:
 
 Respond with ONLY this JSON structure. Do not wrap the JSON output in markdown blocks (like \`\`\`json).`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-lite",
-    contents: [
+  const response = await geminiService.generateContentWithFallback(
+    [
       {
         role: "user",
         parts: [
@@ -89,12 +82,12 @@ Respond with ONLY this JSON structure. Do not wrap the JSON output in markdown b
         ]
       }
     ],
-    config: {
+    {
       maxOutputTokens: 2048,
       temperature: 0.1,
       responseMimeType: "application/json",
     }
-  });
+  );
 
   const text = response.text;
   if (!text) {

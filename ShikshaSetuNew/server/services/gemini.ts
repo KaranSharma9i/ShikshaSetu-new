@@ -16,6 +16,87 @@ export class GeminiService {
     return this.ai;
   }
 
+  private isRetryableGeminiError(error: any): boolean {
+    if (!error) return false;
+
+    // Check HTTP status code (numeric)
+    if (error.status === 429 || error.status === 503) {
+      return true;
+    }
+
+    // Parse error message if it's JSON to find standard Google API error status strings
+    if (typeof error.message === 'string') {
+      if (error.message.includes('"UNAVAILABLE"') || error.message.includes('"RESOURCE_EXHAUSTED"')) {
+        return true;
+      }
+      try {
+        const parsed = JSON.parse(error.message);
+        const apiStatus = parsed?.error?.status;
+        if (apiStatus === 'UNAVAILABLE' || apiStatus === 'RESOURCE_EXHAUSTED') {
+          return true;
+        }
+      } catch {
+        // Ignore JSON parse errors
+      }
+    }
+
+    return false;
+  }
+
+  async generateContentWithFallback(
+    contents: any,
+    config?: any
+  ): Promise<any> {
+    const aiClient = this.getClient();
+
+    const defaultChain = [
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash',
+    ];
+
+    const envModel = process.env.GEMINI_MODEL;
+    const modelChain: string[] = [];
+    if (envModel) {
+      modelChain.push(envModel);
+    }
+    for (const m of defaultChain) {
+      if (!modelChain.includes(m)) {
+        modelChain.push(m);
+      }
+    }
+
+    let lastError: any = null;
+
+    for (const model of modelChain) {
+      try {
+        console.log(`[GeminiService] Attempting generation using model: ${model}`);
+        const response = await aiClient.models.generateContent({
+          model,
+          contents,
+          config,
+        });
+        console.log(`[GeminiService] Generation succeeded using model: ${model}`);
+        return response;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`[GeminiService] Model ${model} failed:`, error.message || error);
+
+        if (this.isRetryableGeminiError(error)) {
+          console.warn(`[GeminiService] Error is retryable. Falling back to the next model...`);
+          continue;
+        } else {
+          console.error(`[GeminiService] Non-retryable error encountered. Aborting chain.`);
+          throw error;
+        }
+      }
+    }
+
+    console.error(`[GeminiService] All models in the fallback chain failed.`);
+    throw lastError || new Error("All models in the fallback chain failed");
+  }
+
   async generateHomework(req: GenerateHomeworkRequest): Promise<GeneratedContent> {
     const { mcq, very_short, short, long, case_study, assertion_reason } = req.question_config;
     const totalQuestions =
@@ -37,8 +118,6 @@ export class GeminiService {
       console.warn("Using mock homework generation because GEMINI_API_KEY is missing or the default placeholder.");
       return this.generateMockHomework(req, totalQuestions);
     }
-
-    const aiClient = this.getClient();
 
     const prompt = `You are an expert CBSE curriculum question paper setter for Indian schools.
 Generate a homework assignment for the following:
@@ -130,12 +209,8 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
 }`;
 
     try {
-      const response = await aiClient.models.generateContent({
-        model: "gemini-2.5-flash-lite",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
+      const response = await this.generateContentWithFallback(prompt, {
+        responseMimeType: "application/json",
       });
 
       const text = response.text;
@@ -172,7 +247,19 @@ Respond with ONLY this JSON structure, no markdown, no explanation:
         console.warn("Gemini API key is invalid. Falling back to mock homework generation.");
         return this.generateMockHomework(req, totalQuestions);
       }
-      throw new Error(`Gemini Service Error: ${error.message}`);
+
+      let userFriendlyMessage = error.message;
+      if (typeof error.message === "string") {
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed?.error?.message) {
+            userFriendlyMessage = parsed.error.message;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+      }
+      throw new Error(`Gemini Service Error: ${userFriendlyMessage}`);
     }
   }
 

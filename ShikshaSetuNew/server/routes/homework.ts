@@ -169,7 +169,20 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
       }
     } catch (pdfError: any) {
       console.error("PDF Generation/Upload Error:", pdfError);
-      // Don't block the teacher from seeing questions: keep pdfUrl as null, return 200
+      
+      // Update generation_status to failed in the database
+      try {
+        await supabase
+          .from("homework")
+          .update({ generation_status: "failed" })
+          .eq("id", newHomeworkRow.id);
+      } catch (dbError) {
+        console.error("Failed to update homework generation_status to failed:", dbError);
+      }
+
+      return res.status(500).json({
+        error: `PDF generation/upload failed: ${pdfError.message}`
+      });
     }
 
     // 7. Return response
@@ -269,19 +282,30 @@ router.post("/homework/publish", async (req: Request, res: Response) => {
       );
     } catch (pdfError: any) {
       console.error("PDF Regeneration/Upload Error on Publish:", pdfError);
+
+      // Update database status to 'failed'
+      try {
+        await supabase
+          .from("homework")
+          .update({ generation_status: "failed" })
+          .eq("id", homework_id);
+      } catch (dbError) {
+        console.error("Failed to update homework generation_status to failed on publish:", dbError);
+      }
+
+      return res.status(500).json({
+        error: `PDF generation/upload failed on publish: ${pdfError.message}`
+      });
     }
 
-    // 4. Update the homework row in database
+    // 5. Update the homework row in database (only runs if PDF succeeded)
     const updatePayload: any = {
       generated_content: generated_content,
       generation_status: "published",
       status: "active",
+      pdf_url: pdfUrl,
       updated_at: new Date().toISOString(),
     };
-
-    if (pdfUrl) {
-      updatePayload.pdf_url = pdfUrl;
-    }
 
     const { error: updateError } = await supabase
       .from("homework")
