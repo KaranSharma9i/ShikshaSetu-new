@@ -81,7 +81,12 @@ export class PdfService {
 
     if (req.logoUrl) {
       try {
-        const response = await fetch(req.logoUrl);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const response = await fetch(req.logoUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
@@ -111,25 +116,39 @@ export class PdfService {
     const browser = await getBrowser();
     const page = await browser.newPage();
 
-    try {
-      const html = this.buildHtmlTemplate(content, req, logoDataUri);
+    page.on("console", (msg) => console.log("PUPPETEER CONSOLE:", msg.text()));
+    page.on("pageerror", (err: any) => console.error("PUPPETEER PAGE ERROR:", err.message || err));
+    page.on("requestfailed", (request) =>
+      console.error("PUPPETEER REQUEST FAILED:", request.url(), request.failure()?.errorText)
+    );
 
-      await page.setContent(html, { waitUntil: "networkidle0" as any, timeout: 30000 });
+    try {
+      const port = process.env.PORT || process.env.SERVER_PORT || 3001;
+      const baseUrl = `http://127.0.0.1:${port}`;
+      const html = this.buildHtmlTemplate(content, req, logoDataUri, baseUrl);
+
+      await page.setContent(html, { waitUntil: "load", timeout: 30000 });
+
+      // Wait for KaTeX JS bundle to load and execute
+      await page.waitForFunction(() => typeof (globalThis as any).renderMathInElement === "function", { timeout: 10000 });
 
       await page.evaluate(() => {
         return new Promise<void>((resolve) => {
-          // @ts-ignore
-          if (window.renderMathInElement) {
-            // @ts-ignore
-            window.renderMathInElement(document.body, {
-              delimiters: [
-                { left: "$$", right: "$$", display: true },
-                { left: "$", right: "$", display: false },
-                { left: "\\(", right: "\\)", display: false },
-              ],
-            });
-          }
-          resolve();
+          const win = globalThis as any;
+          const doc = win.document;
+          // Wait for custom fonts to load completely
+          doc.fonts.ready.then(() => {
+            if (win.renderMathInElement) {
+              win.renderMathInElement(doc.body, {
+                delimiters: [
+                  { left: "$$", right: "$$", display: true },
+                  { left: "$", right: "$", display: false },
+                  { left: "\\(", right: "\\)", display: false },
+                ],
+              });
+            }
+            resolve();
+          });
         });
       });
 
@@ -160,7 +179,8 @@ export class PdfService {
   private buildHtmlTemplate(
     content: GeneratedContent,
     req: GenerateHomeworkRequest,
-    logoDataUri: string
+    logoDataUri: string,
+    baseUrl: string
   ): string {
     const gradeSectionText = req.section_name ? `${req.grade} - ${req.section_name}` : req.grade;
     const topicText = content.metadata.topic || req.topic_description;
@@ -264,13 +284,76 @@ export class PdfService {
   <meta charset="UTF-8">
   <title>${req.title}</title>
   
-  <!-- Google Fonts for Poppins and Noto Sans Devanagari -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Local Fonts (Noto Sans Devanagari and Poppins) -->
+  <style>
+    /* Noto Sans Devanagari 400 */
+    @font-face {
+      font-family: 'Noto Sans Devanagari';
+      font-style: normal;
+      font-weight: 400;
+      src: url('${baseUrl}/assets/fonts/NotoSansDevanagari-400-devanagari.woff2') format('woff2');
+      unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+    }
+    /* Noto Sans Devanagari 700 */
+    @font-face {
+      font-family: 'Noto Sans Devanagari';
+      font-style: normal;
+      font-weight: 700;
+      src: url('${baseUrl}/assets/fonts/NotoSansDevanagari-700-devanagari.woff2') format('woff2');
+      unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+    }
+    /* Poppins 400 Latin */
+    @font-face {
+      font-family: 'Poppins';
+      font-style: normal;
+      font-weight: 400;
+      src: url('${baseUrl}/assets/fonts/Poppins-400-latin.woff2') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    /* Poppins 400 Devanagari */
+    @font-face {
+      font-family: 'Poppins';
+      font-style: normal;
+      font-weight: 400;
+      src: url('${baseUrl}/assets/fonts/Poppins-400-devanagari.woff2') format('woff2');
+      unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+    }
+    /* Poppins 500 Latin */
+    @font-face {
+      font-family: 'Poppins';
+      font-style: normal;
+      font-weight: 500;
+      src: url('${baseUrl}/assets/fonts/Poppins-500-latin.woff2') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    /* Poppins 500 Devanagari */
+    @font-face {
+      font-family: 'Poppins';
+      font-style: normal;
+      font-weight: 500;
+      src: url('${baseUrl}/assets/fonts/Poppins-500-devanagari.woff2') format('woff2');
+      unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+    }
+    /* Poppins 700 Latin */
+    @font-face {
+      font-family: 'Poppins';
+      font-style: normal;
+      font-weight: 700;
+      src: url('${baseUrl}/assets/fonts/Poppins-700-latin.woff2') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    /* Poppins 700 Devanagari */
+    @font-face {
+      font-family: 'Poppins';
+      font-style: normal;
+      font-weight: 700;
+      src: url('${baseUrl}/assets/fonts/Poppins-700-devanagari.woff2') format('woff2');
+      unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+    }
+  </style>
   
-  <!-- KaTeX CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <!-- KaTeX CSS served locally -->
+  <link rel="stylesheet" href="${baseUrl}/katex/katex.min.css">
   
   <style>
     body {
@@ -423,9 +506,9 @@ export class PdfService {
     ${questionsHtml}
   </div>
   
-  <!-- KaTeX JavaScript dependencies -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <!-- KaTeX JavaScript served locally -->
+  <script defer src="${baseUrl}/katex/katex.min.js"></script>
+  <script defer src="${baseUrl}/katex/contrib/auto-render.min.js"></script>
 </body>
 </html>
     `;
