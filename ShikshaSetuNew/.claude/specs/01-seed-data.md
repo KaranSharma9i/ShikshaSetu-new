@@ -51,7 +51,7 @@ The `classes` table enforces `grade_number BETWEEN 1 AND 13`. Map pre-primary as
 | `pincode` | `206122` |
 | `phone` | `+91-5683-220101` |
 | `email` | `info@gurukulsiksha.edu.in` |
-| `logo_url` | `https://assets.margam.app/demo/gurukul-logo.png` |
+| `logo_url` | `https://fsdqlsbdbbfpqzvrptgk.supabase.co/storage/v1/object/public/institution-logos/gurukul.png` |
 | `status` | `active` |
 | `subscription_ends_at` | `2026-03-31 00:00:00+05:30` |
 

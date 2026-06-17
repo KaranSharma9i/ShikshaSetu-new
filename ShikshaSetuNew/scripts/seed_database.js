@@ -248,7 +248,7 @@ async function seed() {
 
     const instRes = await pgClient.query(`
       INSERT INTO institutions (name, code, address, city, state, pincode, phone, email, logo_url, tagline, status, subscription_ends_at, theme)
-      VALUES ('Gurukul Shikshalaya', 'GS-AUR-001', 'Civil Lines, Near Collectorate, Auraiya', 'Auraiya', 'Uttar Pradesh', '206122', '+91-5683-220101', 'info@gurukulsiksha.edu.in', 'https://assets.margam.app/demo/gurukul-logo.png', 'Digital Backbone of Institutions', 'active', '2026-03-31 00:00:00+05:30', $1)
+      VALUES ('Gurukul Shikshalaya', 'GS-AUR-001', 'Civil Lines, Near Collectorate, Auraiya', 'Auraiya', 'Uttar Pradesh', '206122', '+91-5683-220101', 'info@gurukulsiksha.edu.in', 'https://fsdqlsbdbbfpqzvrptgk.supabase.co/storage/v1/object/public/institution-logos/gurukul.png', 'Digital Backbone of Institutions', 'active', '2026-03-31 00:00:00+05:30', $1)
       RETURNING id;
     `, [JSON.stringify(themeData)]);
     const institutionId = instRes.rows[0].id;
