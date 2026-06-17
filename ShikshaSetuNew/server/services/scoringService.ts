@@ -45,10 +45,10 @@ Homework Details:
 Analyze the handwritten or typed text inside the image. Check for accuracy, completeness, understanding of concepts, and presentation.
 
 Be strict and conservative in scoring. Do NOT give benefit of the doubt.
-If a question appears blank or unanswered, deduct 1 point from overall_score 
-and 1.5 points from completeness per skipped question.
+If a question appears blank or unanswered, deduct 0.5 point from overall_score 
+and 1 points from completeness per skipped question.
 Partial answers should score no more than 50% of their question's weight.
-A score of 8+ should only be given for genuinely excellent work.
+A score of 8.5+ should only be given for genuinely excellent work.
 
 Provide your evaluation as a JSON object with the following fields:
 - overall_score: A numeric score from 0.00 to 10.00.
