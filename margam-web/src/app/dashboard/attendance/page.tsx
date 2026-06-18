@@ -1,18 +1,48 @@
-export default function AttendancePage() {
-  return (
-    <div className="space-y-6 font-body">
-      <div className="border-b border-light-gray pb-5">
-        <h1 className="text-3xl font-bold tracking-tight text-primary font-heading">Attendance</h1>
-        <p className="text-steel-gray mt-1 font-caption">Student and staff attendance records and summaries</p>
-      </div>
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import { getInstitutionSections, getDepartments } from '@/lib/repositories/attendance'
+import AttendanceClient from './AttendanceClient'
 
-      <div className="bg-white border border-light-gray rounded-2xl p-8 max-w-2xl text-center shadow-sm">
-        <h3 className="text-xl font-semibold text-charcoal mb-2 font-heading">Attendance Analytics Coming Soon</h3>
-        <p className="text-steel-gray text-sm max-w-md mx-auto font-body">
-          The Student and staff attendance overview metrics, calendars, and tables will be created in Batch 9.
-        </p>
-      </div>
-    </div>
+export default async function AttendancePage() {
+  const supabase = await createClient()
+
+  // 1. Retrieve and authenticate user session
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  // 2. Retrieve user profile for institution association
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('role, institution_id')
+    .eq('id', user.id)
+    .single()
+
+  if (userError || !userData?.institution_id) {
+    redirect('/auth/unauthorized')
+  }
+
+  // Enforce role checks
+  if (userData.role !== 'institution_admin') {
+    redirect('/auth/unauthorized')
+  }
+
+  const institutionId = userData.institution_id
+
+  // 3. Fetch initial sections and departments lists for chip selectors
+  const [sections, departments] = await Promise.all([
+    getInstitutionSections(supabase, institutionId),
+    getDepartments(supabase, institutionId),
+  ])
+
+  return (
+    <AttendanceClient
+      initialSections={sections}
+      initialDepartments={departments}
+    />
   )
 }
-

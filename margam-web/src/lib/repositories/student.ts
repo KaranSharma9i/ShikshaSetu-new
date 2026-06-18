@@ -310,8 +310,8 @@ export async function getStudentMarks(
       const rawMax = Number(r.exam?.total_marks) || 100
       const rawObt = r.marks_obtained !== null ? Number(r.marks_obtained) : null
       
-      let max_marks = 100
-      let marks_obtained = rawObt !== null ? Math.round((rawObt / rawMax) * 100) : null
+      const max_marks = 100
+      const marks_obtained = rawObt !== null ? Math.round((rawObt / rawMax) * 100) : null
       
       let grade = r.grade
       if (!grade && marks_obtained !== null) {

@@ -129,7 +129,7 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 6 | Teacher Management | [x] Completed |
 | 7 | Fees | [x] Completed |
 | 8 | Circulars | [x] Completed |
-| 9 | Attendance | [ ] Not started |
+| 9 | Attendance | [x] Completed |
 | 10 | ID Cards (new) | [ ] Not started |
 | 11 | Admit Cards (new) | [ ] Not started |
 | 12 | Promote to Class (new) | [ ] Not started |
