@@ -1,0 +1,506 @@
+'use client'
+
+import { useState } from 'react'
+import { StudentProfile, SubjectMarkItem, PreviousResultItem, StudentAIScoreSummary } from '@/lib/repositories/student'
+
+interface StudentProfileTabsProps {
+  profile: StudentProfile
+  marks: SubjectMarkItem[]
+  results: PreviousResultItem[]
+  aiSummary: StudentAIScoreSummary
+}
+
+type TabName = 'personal' | 'marks' | 'results' | 'ai'
+
+export default function StudentProfileTabs({
+  profile,
+  marks,
+  results,
+  aiSummary,
+}: StudentProfileTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabName>('personal')
+  const [aiFilter, setAiFilter] = useState<'this_term' | 'this_year' | 'all_time'>('this_term')
+
+  const tabs: { id: TabName; label: string; icon: React.ReactNode }[] = [
+    {
+      id: 'personal',
+      label: 'Personal Info',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'marks',
+      label: 'Academic Marks',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'results',
+      label: 'Academic History',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      ),
+    },
+    {
+      id: 'ai',
+      label: 'AI Homework Insights',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+      ),
+    },
+  ]
+
+  // Render visual line chart using inline SVG
+  const renderSVGChart = () => {
+    const history = aiSummary.history
+    if (history.length === 0) {
+      return (
+        <div className="py-12 text-center text-steel-gray/60 text-sm font-body border border-dashed border-light-gray rounded-xl">
+          No AI homework scoring logs found.
+        </div>
+      )
+    }
+
+    const width = 550
+    const height = 240
+    const paddingLeft = 45
+    const paddingRight = 20
+    const paddingTop = 25
+    const paddingBottom = 35
+
+    const chartWidth = width - paddingLeft - paddingRight
+    const chartHeight = height - paddingTop - paddingBottom
+
+    // Generate coordinates
+    const points = history.map((pt, idx) => {
+      const x = paddingLeft + (idx * chartWidth) / Math.max(1, history.length - 1)
+      // Map score 0-100 to chart coordinates (Y=0 is at top, so we invert)
+      const y = height - paddingBottom - (pt.score * chartHeight) / 100
+      return { x, y, label: pt.date, score: pt.score }
+    })
+
+    // Construct path string
+    const linePath = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+    const areaPath = points.length > 0 
+      ? `${linePath} L ${points[points.length - 1].x} ${height - paddingBottom} L ${points[0].x} ${height - paddingBottom} Z` 
+      : ''
+
+    // Grid lines scores (100, 75, 50, 25, 0)
+    const gridScores = [100, 75, 50, 25, 0]
+
+    return (
+      <div className="w-full overflow-x-auto pt-4">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[500px] h-auto overflow-visible">
+          <defs>
+            <linearGradient id="chart-area-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--secondary)" stopOpacity="0.24" />
+              <stop offset="100%" stopColor="var(--secondary)" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines and Y labels */}
+          {gridScores.map((score) => {
+            const y = height - paddingBottom - (score * chartHeight) / 100
+            return (
+              <g key={score} className="opacity-45">
+                <line
+                  x1={paddingLeft}
+                  y1={y}
+                  x2={width - paddingRight}
+                  y2={y}
+                  stroke="var(--light-gray)"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                />
+                <text
+                  x={paddingLeft - 8}
+                  y={y + 3.5}
+                  textAnchor="end"
+                  className="fill-steel-gray text-[10px] font-semibold font-caption"
+                >
+                  {score}%
+                </text>
+              </g>
+            )
+          })}
+
+          {/* X axis labels (Dates) */}
+          {points.map((p, idx) => (
+            <text
+              key={idx}
+              x={p.x}
+              y={height - 12}
+              textAnchor="middle"
+              className="fill-steel-gray text-[9.5px] font-bold font-caption"
+            >
+              {p.label}
+            </text>
+          ))}
+
+          {/* Gradient area fill */}
+          {areaPath && (
+            <path
+              d={areaPath}
+              fill="url(#chart-area-grad)"
+              className="transition-all duration-500 ease-in-out"
+            />
+          )}
+
+          {/* Line path */}
+          {linePath && (
+            <path
+              d={linePath}
+              fill="none"
+              stroke="var(--secondary)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="transition-all duration-500 ease-in-out"
+            />
+          )}
+
+          {/* Circle markers & score text */}
+          {points.map((p, idx) => (
+            <g key={idx} className="group cursor-pointer">
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r="4.5"
+                fill="var(--white)"
+                stroke="var(--secondary)"
+                strokeWidth="2.5"
+                className="transition-all duration-200 group-hover:r-6 group-hover:stroke-primary"
+              />
+              <text
+                x={p.x}
+                y={p.y - 9}
+                textAnchor="middle"
+                className="fill-charcoal text-[9.5px] font-extrabold font-heading bg-white"
+              >
+                {Math.round(p.score)}%
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Tabs Header bar */}
+      <div className="bg-white border border-light-gray/60 rounded-2xl p-2 shadow-sm flex flex-wrap gap-1">
+        {tabs.map((tab) => {
+          const active = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold font-body transition-all cursor-pointer select-none active:scale-[0.98] ${
+                active
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-steel-gray hover:bg-cream/45 hover:text-charcoal'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Tabs Content card */}
+      <div className="bg-white border border-light-gray/60 rounded-2xl p-6 md:p-8 shadow-sm min-h-[350px]">
+        {/* TAB 1: PERSONAL INFORMATION */}
+        {activeTab === 'personal' && (
+          <div className="space-y-6 animate-fade-in">
+            <h3 className="text-lg font-bold text-charcoal border-b border-light-gray/40 pb-3 font-heading">
+              Personal Profile
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-8">
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Full Name
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">{profile.full_name}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Admission Code
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">{profile.student_code}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Roll Number
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">{profile.roll_number}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Class & Section
+                </span>
+                <span className="text-sm font-semibold text-primary font-heading">
+                  Class {profile.class_name} — Section {profile.section_name}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Date of Birth
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">
+                  {profile.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Gender
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body capitalize">{profile.gender || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Blood Group
+                </span>
+                <span className="text-sm font-semibold text-danger font-body uppercase">{profile.blood_group || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Admission Date
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">
+                  {profile.admission_date ? new Date(profile.admission_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="text-lg font-bold text-charcoal border-b border-light-gray/40 pb-3 pt-4 font-heading">
+              Guardian & Contact Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-8">
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Guardian Name
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">{profile.guardian_name || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Guardian Phone
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">{profile.guardian_phone || 'N/A'}</span>
+              </div>
+              <div className="md:col-span-2">
+                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">
+                  Residential Address
+                </span>
+                <span className="text-sm font-semibold text-charcoal font-body">{profile.address || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: ACADEMIC MARKS */}
+        {activeTab === 'marks' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex justify-between items-center border-b border-light-gray/40 pb-3">
+              <h3 className="text-lg font-bold text-charcoal font-heading">
+                Subject-wise Examination Marks
+              </h3>
+              <span className="text-xs font-bold text-primary bg-primary/5 px-3 py-1 rounded-full font-caption">
+                Term: Half Yearly Exam
+              </span>
+            </div>
+
+            <div className="overflow-x-auto border border-light-gray/40 rounded-xl">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-cream/15 border-b border-light-gray/40">
+                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Subject</th>
+                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Max Marks</th>
+                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Marks Obtained</th>
+                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Grade</th>
+                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Teacher Remarks</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-light-gray/30">
+                  {marks.map((mark) => (
+                    <tr key={mark.subject_id} className="hover:bg-cream/5">
+                      <td className="py-3.5 px-4 text-sm font-bold text-charcoal font-heading">{mark.subject_name}</td>
+                      <td className="py-3.5 px-4 text-sm font-semibold text-steel-gray text-center font-body">{mark.max_marks}</td>
+                      <td className="py-3.5 px-4 text-sm font-extrabold text-charcoal text-center font-body">
+                        {mark.marks_obtained !== null ? mark.marks_obtained : '-'}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold font-heading ${
+                          mark.grade === 'A+' || mark.grade === 'A' 
+                            ? 'bg-success/10 text-success' 
+                            : mark.grade === 'B' || mark.grade === 'C' 
+                              ? 'bg-amber-500/10 text-amber-600' 
+                              : 'bg-danger/10 text-danger'
+                        }`}>
+                          {mark.grade || '-'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-xs font-medium text-steel-gray font-body">{mark.remarks || 'No remarks added'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Averages summary card */}
+            {marks.length > 0 && (
+              <div className="p-4 bg-cream/10 border border-light-gray/40 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Calculated Term Average</p>
+                  <p className="text-[10px] text-steel-gray font-caption mt-0.5">Weighted average across all subjects</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-lg font-black text-charcoal font-heading">
+                      {Math.round(
+                        marks.reduce((acc, m) => acc + (m.marks_obtained || 0), 0) / marks.length
+                      )}%
+                    </p>
+                    <p className="text-[10px] font-bold text-success font-caption">PASSING STATUS: PASS</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-lg bg-success/10 text-success font-black flex items-center justify-center text-sm font-heading">
+                    A
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: ACADEMIC HISTORY */}
+        {activeTab === 'results' && (
+          <div className="space-y-6 animate-fade-in">
+            <h3 className="text-lg font-bold text-charcoal border-b border-light-gray/40 pb-3 font-heading">
+              Academic Enrolment History
+            </h3>
+
+            <div className="space-y-4">
+              {results.map((res) => (
+                <div
+                  key={res.id}
+                  className="flex items-center justify-between p-5 bg-cream/25 border border-light-gray/40 rounded-xl hover:bg-cream/40 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/5 text-primary flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l9-5-9-5-9 5 9 5zm0 0v6m0 0v6m0-6H9m3 0h3" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-charcoal font-heading">{res.class_name}</p>
+                      <p className="text-xs text-steel-gray font-caption mt-0.5">Final Consolidated Assessment</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-extrabold text-charcoal font-heading">{res.percentage}</p>
+                    <span className="text-[10px] font-semibold text-success bg-success/5 px-2 py-0.5 border border-success/15 rounded-md font-caption mt-1 inline-block">
+                      {res.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: AI HOMEWORK INSIGHTS */}
+        {activeTab === 'ai' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-light-gray/40 pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-charcoal font-heading">
+                  AI-Assisted Homework History
+                </h3>
+                <p className="text-xs text-steel-gray font-caption mt-0.5">
+                  Submissions processed and graded via automated AI pipeline
+                </p>
+              </div>
+              <div className="flex bg-cream/35 border border-light-gray/60 rounded-xl p-1 gap-1 w-fit">
+                {(['this_term', 'this_year', 'all_time'] as const).map((filterOpt) => (
+                  <button
+                    key={filterOpt}
+                    onClick={() => setAiFilter(filterOpt)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold font-caption uppercase tracking-wider transition-all cursor-pointer ${
+                      aiFilter === filterOpt
+                        ? 'bg-white text-primary shadow-sm'
+                        : 'text-steel-gray hover:text-charcoal'
+                    }`}
+                  >
+                    {filterOpt.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Overall Score metrics grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Current AI Score</p>
+                  <p className="text-2xl font-black text-charcoal mt-1.5 font-heading">
+                    {Math.round(aiSummary.current)}%
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Term Trend</p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span className={`text-sm font-extrabold font-heading ${aiSummary.isPositive ? 'text-success' : 'text-danger'}`}>
+                      {aiSummary.trend}
+                    </span>
+                    <span className="text-[10px] text-steel-gray font-caption">vs last submission</span>
+                  </div>
+                </div>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  aiSummary.isPositive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                }`}>
+                  {aiSummary.isPositive ? (
+                    <svg className="w-6 h-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Inline SVG Chart */}
+            <div className="bg-cream/5 border border-light-gray/40 rounded-xl p-4 md:p-6 shadow-inner">
+              <h4 className="text-xs font-bold text-steel-gray uppercase tracking-wider font-caption mb-4">
+                Performance Trajectory
+              </h4>
+              {renderSVGChart()}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
