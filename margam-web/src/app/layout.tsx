@@ -89,8 +89,9 @@ export default async function RootLayout({
       lang="en"
       className={`${poppins.variable} ${inter.variable} ${openSans.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       style={themeStyles}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>{children}</body>
     </html>
   );
 }

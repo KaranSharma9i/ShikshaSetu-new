@@ -486,6 +486,52 @@ export interface Database {
           updated_at?: string;
         };
       };
+      id_card_settings: {
+        Row: {
+          institution_id: string;
+          selected_template: string;
+          template_config: any;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          institution_id: string;
+          selected_template?: string;
+          template_config?: any;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          institution_id?: string;
+          selected_template?: string;
+          template_config?: any;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      admit_card_settings: {
+        Row: {
+          institution_id: string;
+          selected_template: string;
+          template_config: any;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          institution_id: string;
+          selected_template?: string;
+          template_config?: any;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          institution_id?: string;
+          selected_template?: string;
+          template_config?: any;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;

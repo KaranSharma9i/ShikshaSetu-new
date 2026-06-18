@@ -15,6 +15,8 @@ export interface TeacherListItem {
   phone: string
   performanceScore: number
   assigned_classes: string[]
+  date_of_joining?: string | null
+  address?: string | null
 }
 
 export interface TeacherProfile {
@@ -79,6 +81,8 @@ export async function getTeachersList(
       employee_code,
       specialization,
       qualification,
+      date_of_joining,
+      address,
       user:users!inner (
         full_name,
         profile_photo_url,
@@ -150,7 +154,9 @@ export async function getTeachersList(
       email: user?.email || '',
       phone: user?.phone || '',
       performanceScore: performanceScore,
-      assigned_classes: Array.from(assignedClassesSet)
+      assigned_classes: Array.from(assignedClassesSet),
+      date_of_joining: t.date_of_joining,
+      address: t.address
     }
   })
 

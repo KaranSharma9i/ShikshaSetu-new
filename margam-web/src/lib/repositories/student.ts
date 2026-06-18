@@ -15,6 +15,11 @@ export interface StudentListItem {
   section_name: string
   class_id: string
   section_id: string
+  blood_group?: string | null
+  guardian_name?: string | null
+  guardian_phone?: string | null
+  date_of_birth?: string | null
+  address?: string | null
 }
 
 export interface StudentProfile {
@@ -102,6 +107,9 @@ export async function getStudentsList(
       student_code,
       guardian_name,
       guardian_phone,
+      blood_group,
+      date_of_birth,
+      address,
       user:users!inner (
         full_name,
         profile_photo_url,
@@ -149,6 +157,11 @@ export async function getStudentsList(
       section_name: section?.name || '',
       class_id: classObj?.id || '',
       section_id: section?.id || '',
+      blood_group: s.blood_group,
+      guardian_name: s.guardian_name,
+      guardian_phone: s.guardian_phone,
+      date_of_birth: s.date_of_birth,
+      address: s.address,
     }
   })
 

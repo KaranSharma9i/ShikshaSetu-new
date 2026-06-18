@@ -121,6 +121,25 @@ export default function Sidebar() {
         </svg>
       ),
     },
+    {
+      name: 'ID Cards',
+      path: '/dashboard/id-cards',
+      icon: (active: boolean) => (
+        <svg
+          className={`w-5 h-5 transition-colors ${active ? 'text-white' : 'text-white/60 group-hover:text-white'}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.333 0 4 .667 4 2v1H5v-1c0-1.333 2.667-2 4-2z"
+          />
+        </svg>
+      ),
+    },
   ]
 
   return (
