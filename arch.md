@@ -490,4 +490,48 @@ ShikshaSetu/
         0034_add_users_student_select_policy.sql
         0035_add_circular_category.sql
         0036_extend_holidays_as_events.sql
+        0037_add_theme_to_institutions.sql
+        0038_register_student_rpc.sql
+  margam-web/
+    .env.local.example
+    .gitignore
+    eslint.config.mjs
+    next-env.d.ts
+    next.config.ts
+    package.json
+    postcss.config.mjs
+    tsconfig.json
+    src/
+      middleware.ts
+      providers/
+        InstitutionProvider.tsx
+      utils/
+        supabase/
+          client.ts
+          server.ts
+      app/
+        globals.css
+        layout.tsx
+        page.tsx
+        auth/
+          unauthorized/
+            route.ts
+        login/
+          page.tsx
+        dashboard/
+          Header.tsx
+          Sidebar.tsx
+          layout.tsx
+          page.tsx
+          attendance/
+            page.tsx
+          circulars/
+            page.tsx
+          fees/
+            page.tsx
+          students/
+            page.tsx
+          teachers/
+            page.tsx
+
 ```
