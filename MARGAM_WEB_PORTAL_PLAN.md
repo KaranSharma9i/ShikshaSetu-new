@@ -125,7 +125,7 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 2 | Institution Theming on Web | [x] Completed |
 | 3 | Server-Side Repository Layer + Dashboard | [x] Completed |
 | 4 | Student Management (List + Profile) | [x] Completed |
-| 5 | Student Management (Add/Edit + Admissions) | [ ] Not started |
+| 5 | Student Management (Add/Edit + Admissions) | [x] Completed |
 | 6 | Teacher Management | [ ] Not started |
 | 7 | Fees | [ ] Not started |
 | 8 | Circulars | [ ] Not started |
