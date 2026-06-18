@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { StudentProfile, SubjectMarkItem, PreviousResultItem, StudentAIScoreSummary } from '@/lib/repositories/student'
 
 interface StudentProfileTabsProps {
@@ -8,15 +9,38 @@ interface StudentProfileTabsProps {
   marks: SubjectMarkItem[]
   results: PreviousResultItem[]
   aiSummary: StudentAIScoreSummary
+  feeDetails: {
+    fees: Array<{
+      id: string
+      fee_name: string
+      amount: number
+      amount_paid: number
+      pending_amount: number
+      due_date: string | null
+      status: 'paid' | 'pending' | 'overdue'
+    }>
+    payments: Array<{
+      id: string
+      amount_paid: number
+      payment_date: string
+      payment_method: string | null
+      notes: string | null
+      fee_name: string
+    }>
+    totalDue: number
+    totalPaid: number
+    totalPending: number
+  }
 }
 
-type TabName = 'personal' | 'marks' | 'results' | 'ai'
+type TabName = 'personal' | 'marks' | 'results' | 'ai' | 'fees'
 
 export default function StudentProfileTabs({
   profile,
   marks,
   results,
   aiSummary,
+  feeDetails,
 }: StudentProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabName>('personal')
   const [aiFilter, setAiFilter] = useState<'this_term' | 'this_year' | 'all_time'>('this_term')
@@ -55,6 +79,15 @@ export default function StudentProfileTabs({
       icon: (
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'fees',
+      label: 'Fees & Payments',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
     },
@@ -497,6 +530,169 @@ export default function StudentProfileTabs({
                 Performance Trajectory
               </h4>
               {renderSVGChart()}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: FEES & PAYMENTS */}
+        {activeTab === 'fees' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-light-gray/40 pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-charcoal font-heading">
+                  Student Fee Ledger
+                </h3>
+                <p className="text-xs text-steel-gray font-caption mt-0.5">
+                  Assigned fee structures, recorded transactions, and outstanding dues
+                </p>
+              </div>
+              <div>
+                <Link
+                  href={`/dashboard/fees/record-payment?studentId=${profile.id}`}
+                  className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold text-primary bg-secondary hover:bg-secondary-light border border-secondary/20 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Record Payment
+                </Link>
+              </div>
+            </div>
+
+            {/* Quick Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl">
+                <span className="text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption block">Total Assigned Dues</span>
+                <span className="text-lg font-black text-primary font-heading mt-1 block">
+                  {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(feeDetails.totalDue)}
+                </span>
+              </div>
+              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl">
+                <span className="text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption block">Fees Paid</span>
+                <span className="text-lg font-black text-success font-heading mt-1 block">
+                  {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(feeDetails.totalPaid)}
+                </span>
+              </div>
+              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl">
+                <span className="text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption block">Outstanding Balance</span>
+                <span className="text-lg font-black text-danger font-heading mt-1 block">
+                  {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(feeDetails.totalPending)}
+                </span>
+              </div>
+            </div>
+
+            {/* Fee structures table */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">
+                Fee Structures & Dues Breakdown
+              </h4>
+              <div className="bg-white border border-light-gray/60 rounded-xl overflow-hidden shadow-sm">
+                {feeDetails.fees.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-steel-gray/80 italic font-body">
+                    No fee allocations set up for this student&apos;s class.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-light-gray/60 bg-cream/15 font-bold text-steel-gray">
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Fee Particular</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Total Amount</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Amount Paid</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Balance Due</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Due Date</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-light-gray/40 font-body">
+                        {feeDetails.fees.map((fee) => (
+                          <tr key={fee.id} className="hover:bg-cream/10 transition-colors">
+                            <td className="py-3 px-4 font-semibold text-charcoal">{fee.fee_name}</td>
+                            <td className="py-3 px-4 font-semibold text-charcoal">
+                              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(fee.amount)}
+                            </td>
+                            <td className="py-3 px-4 text-success font-medium">
+                              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(fee.amount_paid)}
+                            </td>
+                            <td className="py-3 px-4 text-danger font-bold">
+                              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(fee.pending_amount)}
+                            </td>
+                            <td className="py-3 px-4 text-steel-gray">
+                              {fee.due_date
+                                ? new Date(fee.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : 'N/A'}
+                            </td>
+                            <td className="py-3 px-4">
+                              {fee.status === 'paid' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                                  Paid
+                                </span>
+                              ) : fee.status === 'overdue' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-danger/10 text-danger border border-danger/20">
+                                  Overdue
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning border border-warning/20">
+                                  Pending
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Payments History log */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">
+                Payment History
+              </h4>
+              <div className="bg-white border border-light-gray/60 rounded-xl overflow-hidden shadow-sm">
+                {feeDetails.payments.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-steel-gray/80 italic font-body">
+                    No transactions logged for this student yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-light-gray/60 bg-cream/15 font-bold text-steel-gray">
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Transaction Date</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Particular</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Amount Paid</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Payment Method</th>
+                          <th className="py-3 px-4 font-caption uppercase tracking-wider">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-light-gray/40 font-body">
+                        {feeDetails.payments.map((p) => (
+                          <tr key={p.id} className="hover:bg-cream/10 transition-colors">
+                            <td className="py-3 px-4 text-steel-gray">
+                              {new Date(p.payment_date).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </td>
+                            <td className="py-3 px-4 font-semibold text-charcoal">{p.fee_name}</td>
+                            <td className="py-3 px-4 text-success font-bold">
+                              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.amount_paid)}
+                            </td>
+                            <td className="py-3 px-4 text-steel-gray font-caption uppercase tracking-wider">{p.payment_method || 'N/A'}</td>
+                            <td className="py-3 px-4 text-steel-gray max-w-xs truncate" title={p.notes || ''}>{p.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

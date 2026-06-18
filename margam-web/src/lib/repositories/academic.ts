@@ -85,3 +85,21 @@ export async function getAllSectionsForInstitution(
   }))
 }
 
+export async function getAcademicYears(
+  supabase: SupabaseClient<Database>,
+  institutionId: string
+) {
+  const { data, error } = await supabase
+    .from('academic_years')
+    .select('id, label, is_current, starts_on, ends_on')
+    .eq('institution_id', institutionId)
+    .order('starts_on', { ascending: false })
+
+  if (error) {
+    console.error('Error in getAcademicYears:', error)
+    return []
+  }
+  return data || []
+}
+
+

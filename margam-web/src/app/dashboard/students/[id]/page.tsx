@@ -7,6 +7,7 @@ import {
   getStudentPreviousResults,
   getStudentAIScores,
 } from '@/lib/repositories/student'
+import { getStudentFees } from '@/lib/repositories/fees'
 import StudentProfileTabs from './StudentProfileTabs'
 
 export default async function StudentDetailPage({
@@ -50,10 +51,11 @@ export default async function StudentDetailPage({
   }
 
   // Fetch student performance details in parallel
-  const [marks, results, aiSummary] = await Promise.all([
+  const [marks, results, aiSummary, feeDetails] = await Promise.all([
     getStudentMarks(supabase, institutionId, studentId),
     getStudentPreviousResults(supabase, institutionId, studentId),
     getStudentAIScores(supabase, institutionId, studentId, 'this_term'),
+    getStudentFees(supabase, studentId),
   ])
 
   const getInitials = (name: string) => {
@@ -175,6 +177,7 @@ export default async function StudentDetailPage({
             marks={marks}
             results={results}
             aiSummary={aiSummary}
+            feeDetails={feeDetails}
           />
         </div>
       </div>
