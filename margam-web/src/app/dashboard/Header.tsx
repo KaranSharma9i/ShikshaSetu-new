@@ -33,7 +33,7 @@ export default function Header({
   }
 
   return (
-    <header className="bg-primary-alt border-b border-light-gray/10 px-6 py-4 flex items-center justify-between z-10 font-body">
+    <header className="bg-primary-alt border-b border-light-gray/10 px-6 py-4 flex items-center justify-between z-10 font-body print:hidden">
       <div className="flex items-center gap-4">
         {/* Dynamic Logo with Graceful Fallback */}
         {logoUrl && !imgError ? (

@@ -96,21 +96,24 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 - New migration if needed (exam datesheet linkage)
 - Generate admit card per student (datesheet + student info)
 
-**Batch 12 — Promote to Class (new feature)**
+**Batch 12 — Timetable Management (Period Scheduling) (new feature)**
+- Manage weekly schedules (periods 1–12), assign subjects and teachers to sections, check for conflicts, print section timetables.
+
+**Batch 13 — Promote to Class (new feature)**
 - Bulk promote students from one class/section to another, with current-session subject re-assignment option
 - Uses existing `enrollments`/`academic_years` tables — confirm schema supports this before any new migration
 
-**Batch 13 — Results: Entry + Consolidated View**
+**Batch 14 — Results: Entry + Consolidated View**
 - Subject-wise marks entry (reuse existing `exams`/marks schema from mobile's AI scoring + teacher marks entry, if compatible)
 - Consolidated marks list per class/section (printable)
 
 ### Polish
 
-**Batch 14 — Permissions & Polish**
+**Batch 15 — Permissions & Polish**
 - Confirm 3 institution_admins-per-institution model from mobile carries over correctly (any admin vs. role-restricted actions)
 - Loading states, error states, empty states across all modules built so far
 
-**Batch 15 — Pre-Pilot Review**
+**Batch 16 — Pre-Pilot Review**
 - Full pass: verify every server query filters by `institution_id`
 - Decide if/when RLS gets turned on (per `AGENTS.md`, this happens only before pilot/deployment, as a separate non-data migration)
 - Cross-browser/responsive check
@@ -132,19 +135,20 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 9 | Attendance | [x] Completed |
 | 10 | ID Cards (new) | [x] Completed |
 | 11 | Admit Cards (new) | [x] Completed |
-| 12.0 | Set Up Next Academic Year | [x] Completed |
-| 12.1 | Promote to Class — Schema Migration | [x] Completed |
-| 12.2 | Promote to Class — Mid-Year Move Section | [x] Completed |
-| 12.3 | Promote to Class — Year-End Promote (happy path) | [x] Completed |
-| 12.4 | Promote to Class — Exceptions (Retain/Withdraw/Graduate) | [x] Completed |
-| 12.5 | Promote to Class — Undo | [x] Completed |
-| 13.0 | Results — Schema Migration: Exam Terms + Locking | [x] Completed |
-| 13.1 | Results — Subject-wise Marks Entry | [x] Completed |
-| 13.2 | Results — Individual Report Card PDF | [x] Completed |
-| 13.3 | Results — Class/Section Summary Sheet PDF | [x] Completed |
-| 13.4 | Results — Lock/Unlock Management Dashboard | [x] Completed |
-| 14 | Permissions & Polish | [ ] Not started |
-| 15 | Pre-Pilot Review | [ ] Not started |
+| 12 | Timetable Management (Period Scheduling) | [x] Completed |
+| 13.0 | Set Up Next Academic Year | [x] Completed |
+| 13.1 | Promote to Class — Schema Migration | [x] Completed |
+| 13.2 | Promote to Class — Mid-Year Move Section | [x] Completed |
+| 13.3 | Promote to Class — Year-End Promote (happy path) | [x] Completed |
+| 13.4 | Promote to Class — Exceptions (Retain/Withdraw/Graduate) | [x] Completed |
+| 13.5 | Promote to Class — Undo | [x] Completed |
+| 14.0 | Results — Schema Migration: Exam Terms + Locking | [x] Completed |
+| 14.1 | Results — Subject-wise Marks Entry | [x] Completed |
+| 14.2 | Results — Individual Report Card PDF | [x] Completed |
+| 14.3 | Results — Class/Section Summary Sheet PDF | [x] Completed |
+| 14.4 | Results — Lock/Unlock Management Dashboard | [x] Completed |
+| 15 | Permissions & Polish | [ ] Not started |
+| 16 | Pre-Pilot Review | [ ] Not started |
 
 ---
 

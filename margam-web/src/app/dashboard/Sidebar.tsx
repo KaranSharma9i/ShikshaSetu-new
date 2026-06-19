@@ -160,6 +160,25 @@ export default function Sidebar() {
       ),
     },
     {
+      name: 'Timetable',
+      path: '/dashboard/timetable',
+      icon: (active: boolean) => (
+        <svg
+          className={`w-5 h-5 transition-colors ${active ? 'text-white' : 'text-white/60 group-hover:text-white'}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      ),
+    },
+    {
       name: 'Promotions',
       path: '/dashboard/promotions',
       icon: (active: boolean) => (
@@ -200,7 +219,7 @@ export default function Sidebar() {
   ]
 
   return (
-    <aside className="w-64 bg-primary border-r border-black/5 hidden md:flex flex-col py-6 font-body text-white">
+    <aside className="w-64 bg-primary border-r border-black/5 hidden md:flex flex-col py-6 font-body text-white print:hidden">
       <nav className="flex-1 px-4 space-y-1">
         {navItems.map((item) => {
           const active = pathname === item.path
