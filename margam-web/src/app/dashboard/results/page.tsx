@@ -61,89 +61,89 @@ export default async function ResultsPage() {
           </div>
         </Link>
 
-        {/* Marks Entry - PLACEHOLDER */}
-        <div className="flex flex-col justify-between p-6 bg-white/50 border border-light-gray/40 rounded-2xl opacity-75 shadow-sm select-none relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold rounded-bl-xl font-caption">
-            COMING SOON
-          </div>
+        {/* Marks Entry - ACTIVE */}
+        <Link
+          href="/dashboard/results/marks-entry"
+          className="group flex flex-col justify-between p-6 bg-white border border-light-gray/60 hover:border-primary/20 rounded-2xl hover:bg-cream/10 transition-all duration-300 shadow-sm"
+        >
           <div>
-            <div className="p-3 bg-steel-gray/5 text-steel-gray rounded-xl w-fit">
+            <div className="p-3 bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white rounded-xl w-fit transition-all duration-300">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
-            <h4 className="text-lg font-bold text-charcoal/70 mt-5 font-heading">Subject-wise Marks Entry</h4>
-            <p className="text-xs text-steel-gray/80 font-caption mt-2 leading-relaxed">
+            <h4 className="text-lg font-bold text-charcoal mt-5 font-heading group-hover:text-primary transition-colors">Subject-wise Marks Entry</h4>
+            <p className="text-xs text-steel-gray font-caption mt-2 leading-relaxed">
               Enter and update student marks for specific subjects, check pass/fail markers, and track results submission progress.
             </p>
           </div>
-          <div className="text-[10px] text-steel-gray font-bold mt-6">
-            Module 13.1 — Next Session
+          <div className="flex items-center text-xs font-bold text-primary mt-6 group-hover:translate-x-1 transition-transform">
+            Open Marks Entry &rarr;
           </div>
-        </div>
+        </Link>
 
-        {/* Individual Report Cards - PLACEHOLDER */}
-        <div className="flex flex-col justify-between p-6 bg-white/50 border border-light-gray/40 rounded-2xl opacity-75 shadow-sm select-none relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold rounded-bl-xl font-caption">
-            COMING SOON
-          </div>
+        {/* Individual Report Cards - ACTIVE */}
+        <Link
+          href="/dashboard/results/report-card"
+          className="group flex flex-col justify-between p-6 bg-white border border-light-gray/60 hover:border-primary/20 rounded-2xl hover:bg-cream/10 transition-all duration-300 shadow-sm"
+        >
           <div>
-            <div className="p-3 bg-steel-gray/5 text-steel-gray rounded-xl w-fit">
+            <div className="p-3 bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white rounded-xl w-fit transition-all duration-300">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h4 className="text-lg font-bold text-charcoal/70 mt-5 font-heading">Student Report Cards</h4>
-            <p className="text-xs text-steel-gray/80 font-caption mt-2 leading-relaxed">
+            <h4 className="text-lg font-bold text-charcoal mt-5 font-heading group-hover:text-primary transition-colors">Student Report Cards</h4>
+            <p className="text-xs text-steel-gray font-caption mt-2 leading-relaxed">
               Generate and download detailed, print-ready PDF report cards including subject details, electives, percentage aggregates, rankings, and signature lines.
             </p>
           </div>
-          <div className="text-[10px] text-steel-gray font-bold mt-6">
-            Module 13.2 — Upcoming
+          <div className="flex items-center text-xs font-bold text-primary mt-6 group-hover:translate-x-1 transition-transform">
+            Generate Report Cards &rarr;
           </div>
-        </div>
+        </Link>
 
-        {/* Class Summary Sheets - PLACEHOLDER */}
-        <div className="flex flex-col justify-between p-6 bg-white/50 border border-light-gray/40 rounded-2xl opacity-75 shadow-sm select-none relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold rounded-bl-xl font-caption">
-            COMING SOON
-          </div>
+        {/* Class Summary Sheets - ACTIVE */}
+        <Link
+          href="/dashboard/results/class-summary"
+          className="group flex flex-col justify-between p-6 bg-white border border-light-gray/60 hover:border-primary/20 rounded-2xl hover:bg-cream/10 transition-all duration-300 shadow-sm"
+        >
           <div>
-            <div className="p-3 bg-steel-gray/5 text-steel-gray rounded-xl w-fit">
+            <div className="p-3 bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white rounded-xl w-fit transition-all duration-300">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </div>
-            <h4 className="text-lg font-bold text-charcoal/70 mt-5 font-heading">Class Result Summary</h4>
-            <p className="text-xs text-steel-gray/80 font-caption mt-2 leading-relaxed">
+            <h4 className="text-lg font-bold text-charcoal mt-5 font-heading group-hover:text-primary transition-colors">Class Result Summary</h4>
+            <p className="text-xs text-steel-gray font-caption mt-2 leading-relaxed">
               View class-wide consolidated result spreadsheets and print section summary checklists showing total marks, grades, and ranks.
             </p>
           </div>
-          <div className="text-[10px] text-steel-gray font-bold mt-6">
-            Module 13.3 — Upcoming
+          <div className="flex items-center text-xs font-bold text-primary mt-6 group-hover:translate-x-1 transition-transform">
+            View Class Summary &rarr;
           </div>
-        </div>
+        </Link>
 
-        {/* Lock/Unlock Management - PLACEHOLDER */}
-        <div className="flex flex-col justify-between p-6 bg-white/50 border border-light-gray/40 rounded-2xl opacity-75 shadow-sm select-none relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold rounded-bl-xl font-caption">
-            COMING SOON
-          </div>
+        {/* Lock/Unlock Management - ACTIVE */}
+        <Link
+          href="/dashboard/results/locks"
+          className="group flex flex-col justify-between p-6 bg-white border border-light-gray/60 hover:border-primary/20 rounded-2xl hover:bg-cream/10 transition-all duration-300 shadow-sm"
+        >
           <div>
-            <div className="p-3 bg-steel-gray/5 text-steel-gray rounded-xl w-fit">
+            <div className="p-3 bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white rounded-xl w-fit transition-all duration-300">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h4 className="text-lg font-bold text-charcoal/70 mt-5 font-heading">Manage Exam Locks</h4>
-            <p className="text-xs text-steel-gray/80 font-caption mt-2 leading-relaxed">
+            <h4 className="text-lg font-bold text-charcoal mt-5 font-heading group-hover:text-primary transition-colors">Manage Exam Locks</h4>
+            <p className="text-xs text-steel-gray font-caption mt-2 leading-relaxed">
               Oversight panel to lock or unlock individual subject exams in bulk. Locking prevents any further marks entries across teacher and admin portals.
             </p>
           </div>
-          <div className="text-[10px] text-steel-gray font-bold mt-6">
-            Module 13.4 — Upcoming
+          <div className="flex items-center text-xs font-bold text-primary mt-6 group-hover:translate-x-1 transition-transform">
+            Manage Exam Locks &rarr;
           </div>
-        </div>
+        </Link>
 
       </div>
     </div>

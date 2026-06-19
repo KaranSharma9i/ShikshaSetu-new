@@ -139,10 +139,10 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 12.4 | Promote to Class — Exceptions (Retain/Withdraw/Graduate) | [x] Completed |
 | 12.5 | Promote to Class — Undo | [x] Completed |
 | 13.0 | Results — Schema Migration: Exam Terms + Locking | [x] Completed |
-| 13.1 | Results — Subject-wise Marks Entry | [ ] Not started |
-| 13.2 | Results — Individual Report Card PDF | [ ] Not started |
-| 13.3 | Results — Class/Section Summary Sheet PDF | [ ] Not started |
-| 13.4 | Results — Lock/Unlock Management Dashboard | [ ] Not started |
+| 13.1 | Results — Subject-wise Marks Entry | [x] Completed |
+| 13.2 | Results — Individual Report Card PDF | [x] Completed |
+| 13.3 | Results — Class/Section Summary Sheet PDF | [x] Completed |
+| 13.4 | Results — Lock/Unlock Management Dashboard | [x] Completed |
 | 14 | Permissions & Polish | [ ] Not started |
 | 15 | Pre-Pilot Review | [ ] Not started |
 
