@@ -503,6 +503,17 @@ ShikshaSetu/
     tsconfig.json
     src/
       middleware.ts
+      lib/
+        repositories/
+          academic.ts
+          admitCardSettings.ts
+          attendance.ts
+          circular.ts
+          dashboard.ts
+          fees.ts
+          idCardSettings.ts
+          student.ts
+          teacher.ts
       providers/
         InstitutionProvider.tsx
       utils/
@@ -523,11 +534,19 @@ ShikshaSetu/
           Sidebar.tsx
           layout.tsx
           page.tsx
+          admit-cards/
+            AdmitCardsClient.tsx
+            actions.ts
+            page.tsx
           attendance/
             page.tsx
           circulars/
             page.tsx
           fees/
+            page.tsx
+          id-cards/
+            IDCardsClient.tsx
+            actions.ts
             page.tsx
           students/
             page.tsx

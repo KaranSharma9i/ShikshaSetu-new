@@ -130,8 +130,8 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 7 | Fees | [x] Completed |
 | 8 | Circulars | [x] Completed |
 | 9 | Attendance | [x] Completed |
-| 10 | ID Cards (new) | [ ] Not started |
-| 11 | Admit Cards (new) | [ ] Not started |
+| 10 | ID Cards (new) | [x] Completed |
+| 11 | Admit Cards (new) | [x] Completed |
 | 12 | Promote to Class (new) | [ ] Not started |
 | 13 | Results: Entry + Consolidated View | [ ] Not started |
 | 14 | Permissions & Polish | [ ] Not started |
