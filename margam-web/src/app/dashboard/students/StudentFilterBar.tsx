@@ -29,7 +29,7 @@ export default function StudentFilterBar({ classes, allSections }: StudentFilter
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [classId, setClassId] = useState(searchParams.get('classId') || '')
   const [sectionId, setSectionId] = useState(searchParams.get('sectionId') || '')
-  const [status, setStatus] = useState(searchParams.get('status') || 'all')
+  const [status, setStatus] = useState(searchParams.get('status') || 'active')
 
   // Filter sections based on selected class
   const filteredSections = allSections.filter((sec) => sec.class_id === classId)
@@ -39,7 +39,7 @@ export default function StudentFilterBar({ classes, allSections }: StudentFilter
     setSearch(searchParams.get('search') || '')
     setClassId(searchParams.get('classId') || '')
     setSectionId(searchParams.get('sectionId') || '')
-    setStatus(searchParams.get('status') || 'all')
+    setStatus(searchParams.get('status') || 'active')
   }, [searchParams])
 
   // Helper to push new query params
@@ -47,7 +47,7 @@ export default function StudentFilterBar({ classes, allSections }: StudentFilter
     const params = new URLSearchParams(searchParams.toString())
     
     Object.entries(updates).forEach(([key, value]) => {
-      if (value === null || value === '' || value === 'all') {
+      if (value === null || value === '' || value === 'active') {
         params.delete(key)
       } else {
         params.set(key, value)
@@ -92,13 +92,13 @@ export default function StudentFilterBar({ classes, allSections }: StudentFilter
     setSearch('')
     setClassId('')
     setSectionId('')
-    setStatus('all')
+    setStatus('active')
     startTransition(() => {
       router.push(pathname)
     })
   }
 
-  const hasActiveFilters = search || classId || sectionId || status !== 'all'
+  const hasActiveFilters = search || classId || sectionId || status !== 'active'
 
   return (
     <div className="bg-white border border-light-gray/60 rounded-2xl p-5 shadow-sm space-y-4 animate-fade-in">
@@ -180,7 +180,9 @@ export default function StudentFilterBar({ classes, allSections }: StudentFilter
             <option value="all">All Statuses</option>
             <option value="active">Active</option>
             <option value="suspended">Suspended</option>
-            <option value="inactive">Inactive</option>
+            <option value="withdrawn">Withdrawn</option>
+            <option value="graduated">Graduated</option>
+            <option value="inactive">Inactive (Blocked)</option>
           </select>
         </div>
       </div>

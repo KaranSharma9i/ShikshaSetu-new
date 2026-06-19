@@ -132,8 +132,17 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 9 | Attendance | [x] Completed |
 | 10 | ID Cards (new) | [x] Completed |
 | 11 | Admit Cards (new) | [x] Completed |
-| 12 | Promote to Class (new) | [ ] Not started |
-| 13 | Results: Entry + Consolidated View | [ ] Not started |
+| 12.0 | Set Up Next Academic Year | [x] Completed |
+| 12.1 | Promote to Class — Schema Migration | [x] Completed |
+| 12.2 | Promote to Class — Mid-Year Move Section | [x] Completed |
+| 12.3 | Promote to Class — Year-End Promote (happy path) | [x] Completed |
+| 12.4 | Promote to Class — Exceptions (Retain/Withdraw/Graduate) | [x] Completed |
+| 12.5 | Promote to Class — Undo | [x] Completed |
+| 13.0 | Results — Schema Migration: Exam Terms + Locking | [x] Completed |
+| 13.1 | Results — Subject-wise Marks Entry | [ ] Not started |
+| 13.2 | Results — Individual Report Card PDF | [ ] Not started |
+| 13.3 | Results — Class/Section Summary Sheet PDF | [ ] Not started |
+| 13.4 | Results — Lock/Unlock Management Dashboard | [ ] Not started |
 | 14 | Permissions & Polish | [ ] Not started |
 | 15 | Pre-Pilot Review | [ ] Not started |
 

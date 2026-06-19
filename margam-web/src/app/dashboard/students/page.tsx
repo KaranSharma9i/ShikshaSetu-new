@@ -44,7 +44,7 @@ export default async function StudentsPage({
   const search = resolvedParams.search || ''
   const classId = resolvedParams.classId || ''
   const sectionId = resolvedParams.sectionId || ''
-  const status = resolvedParams.status || 'all'
+  const status = resolvedParams.status || 'active'
 
   // Fetch filters data and list of students
   const [classes, allSections, students] = await Promise.all([
@@ -183,6 +183,14 @@ export default async function StudentsPage({
                       ) : student.status === 'suspended' ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-warning/10 text-warning border border-warning/20">
                           Suspended
+                        </span>
+                      ) : student.status === 'withdrawn' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-steel-gray/10 text-steel-gray border border-steel-gray/20">
+                          Withdrawn
+                        </span>
+                      ) : student.status === 'graduated' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                          Graduated
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-danger/10 text-danger border border-danger/20">

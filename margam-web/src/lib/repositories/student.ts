@@ -110,6 +110,7 @@ export async function getStudentsList(
       blood_group,
       date_of_birth,
       address,
+      status,
       user:users!inner (
         full_name,
         profile_photo_url,
@@ -144,12 +145,24 @@ export async function getStudentsList(
     const section = activeEnrollment?.section
     const classObj = section?.class
 
+    // Determine mapped status
+    let mappedStatus = 'active'
+    if (s.status === 'WITHDRAWN') {
+      mappedStatus = 'withdrawn'
+    } else if (s.status === 'GRADUATED') {
+      mappedStatus = 'graduated'
+    } else if (s.user?.status === 'suspended') {
+      mappedStatus = 'suspended'
+    } else if (s.user?.status === 'inactive') {
+      mappedStatus = 'inactive'
+    }
+
     return {
       id: s.id,
       student_code: s.student_code,
       full_name: s.user?.full_name || '',
       profile_photo_url: s.user?.profile_photo_url || null,
-      status: s.user?.status || 'active',
+      status: mappedStatus,
       email: s.user?.email || '',
       phone: s.user?.phone || s.guardian_phone || '',
       roll_number: activeEnrollment?.roll_number || 'N/A',
@@ -168,6 +181,9 @@ export async function getStudentsList(
   // Apply filters on mapped array
   if (filters.status && filters.status !== 'all') {
     results = results.filter(r => r.status === filters.status)
+  } else if (!filters.status) {
+    // Hide withdrawn/graduated students by default if no status is specified
+    results = results.filter(r => r.status === 'active' || r.status === 'suspended')
   }
   if (filters.classId) {
     results = results.filter(r => r.class_id === filters.classId)
@@ -788,4 +804,264 @@ export async function updateStudent(
     return false
   }
 }
+
+export async function getEnrollmentsForSectionMove(
+  supabase: SupabaseClient<Database>,
+  institutionId: string,
+  academicYearId: string,
+  sectionId: string
+) {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select(`
+      id,
+      roll_number,
+      student_id,
+      student:students!inner (
+        id,
+        student_code,
+        institution_id,
+        user:users!inner (
+          full_name,
+          profile_photo_url
+        )
+      )
+    `)
+    .eq('is_active', true)
+    .eq('academic_year_id', academicYearId)
+    .eq('section_id', sectionId)
+    .eq('student.institution_id', institutionId)
+
+  if (error) {
+    console.error('Error in getEnrollmentsForSectionMove:', error)
+    return []
+  }
+
+  return (data || []).map((e: any) => ({
+    enrollment_id: e.id,
+    roll_number: e.roll_number,
+    student_id: e.student_id,
+    student_code: e.student?.student_code || '',
+    full_name: e.student?.user?.full_name || '',
+    profile_photo_url: e.student?.user?.profile_photo_url || null,
+  }))
+}
+
+export async function moveEnrollmentsSection(
+  supabase: SupabaseClient<Database>,
+  institutionId: string,
+  enrollmentIds: string[],
+  targetSectionId: string
+) {
+  try {
+    // 1. Verify target section exists and belongs to the same institution
+    const { data: sectionData, error: sectionErr } = await (supabase
+      .from('sections')
+      .select('id, class:classes!inner(institution_id)')
+      .eq('id', targetSectionId)
+      .maybeSingle() as any)
+
+    if (sectionErr || !sectionData) {
+      return { success: false, error: 'Target section not found.' }
+    }
+
+    if ((sectionData.class as any)?.institution_id !== institutionId) {
+      return { success: false, error: 'Unauthorized target section.' }
+    }
+
+    // 2. Fetch the enrollments and verify they belong to this institution
+    const { data: enrollmentsData, error: enrollmentsErr } = await (supabase
+      .from('enrollments')
+      .select('id, student:students!inner(institution_id)')
+      .in('id', enrollmentIds) as any)
+
+    if (enrollmentsErr || !enrollmentsData) {
+      return { success: false, error: 'Failed to verify selected students.' }
+    }
+
+    const invalidEnrollment = enrollmentsData.find((e: any) => (e.student as any)?.institution_id !== institutionId)
+    if (invalidEnrollment || enrollmentsData.length !== enrollmentIds.length) {
+      return { success: false, error: 'Unauthorized: Some student enrollments belong to another institution.' }
+    }
+
+    // 3. Update the section_id on the selected enrollments
+    const { error: updateErr } = await (supabase
+      .from('enrollments') as any)
+      .update({
+        section_id: targetSectionId,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', enrollmentIds)
+
+    if (updateErr) {
+      console.error('Error in moveEnrollmentsSection update:', updateErr)
+      return { success: false, error: updateErr.message }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in moveEnrollmentsSection:', error)
+    return { success: false, error: error.message || 'An unexpected error occurred.' }
+  }
+}
+
+export async function getEnrollmentsForPromotion(
+  supabase: SupabaseClient<Database>,
+  institutionId: string,
+  academicYearId: string,
+  sectionId: string,
+  targetAcademicYearId?: string
+) {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select(`
+      id,
+      roll_number,
+      student_id,
+      student:students!inner (
+        id,
+        student_code,
+        institution_id,
+        user:users!inner (
+          full_name,
+          profile_photo_url
+        )
+      )
+    `)
+    .eq('is_active', true)
+    .eq('academic_year_id', academicYearId)
+    .eq('section_id', sectionId)
+    .eq('student.institution_id', institutionId)
+
+  if (error) {
+    console.error('Error in getEnrollmentsForPromotion:', error)
+    return []
+  }
+
+  const enrollments = (data || []).map((e: any) => ({
+    enrollment_id: e.id,
+    roll_number: e.roll_number || '',
+    student_id: e.student_id,
+    student_code: e.student?.student_code || '',
+    full_name: e.student?.user?.full_name || '',
+    profile_photo_url: e.student?.user?.profile_photo_url || null,
+    is_already_enrolled_target: false,
+    target_info: null as string | null
+  }))
+
+  if (targetAcademicYearId && enrollments.length > 0) {
+    const studentIds = enrollments.map(e => e.student_id)
+    const { data: targetData, error: targetError } = await (supabase
+      .from('enrollments')
+      .select(`
+        student_id,
+        section:sections (
+          name,
+          class:classes (
+            name
+          )
+        )
+      `)
+      .eq('academic_year_id', targetAcademicYearId)
+      .in('student_id', studentIds) as any)
+
+    if (!targetError && targetData) {
+      const targetMap = new Map(targetData.map((t: any) => [t.student_id, t.section]))
+      enrollments.forEach(e => {
+        const targetSection: any = targetMap.get(e.student_id)
+        if (targetSection) {
+          e.is_already_enrolled_target = true
+          e.target_info = `${targetSection.class?.name || ''} - ${targetSection.name || ''}`
+        }
+      })
+    }
+  }
+
+  return enrollments
+}
+
+export async function promoteStudents(
+  supabase: SupabaseClient<Database>,
+  params: {
+    institutionId: string
+    fromAcademicYearId: string
+    toAcademicYearId: string
+    performedBy: string
+    promotions: Array<{
+      student_id: string
+      old_enrollment_id: string
+      target_section_id: string
+      roll_number: string
+      elective_class_subject_ids: string[]
+      outcome?: string
+    }>
+  }
+) {
+  const { data, error } = await (supabase as any).rpc('promote_students_transaction', {
+    p_institution_id: params.institutionId,
+    p_from_academic_year_id: params.fromAcademicYearId,
+    p_to_academic_year_id: params.toAcademicYearId,
+    p_performed_by: params.performedBy,
+    p_promotions: params.promotions as any
+  })
+
+  if (error) {
+    console.error('Error in promoteStudents transaction:', error)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, batchId: data }
+}
+
+export async function getPromotionBatches(
+  supabase: SupabaseClient<Database>,
+  institutionId: string
+) {
+  const { data, error } = await (supabase as any).rpc('get_promotion_batches_list', {
+    p_institution_id: institutionId
+  })
+
+  if (error) {
+    console.error('Error fetching promotion batches:', error)
+    return []
+  }
+
+  return (data || []).map((b: any) => ({
+    id: b.id,
+    performedAt: b.performed_at,
+    isUndone: b.is_undone,
+    undoneAt: b.undone_at,
+    fromYearLabel: b.from_year_label,
+    toYearLabel: b.to_year_label,
+    performerName: b.performer_name || 'Admin',
+    undonePerformerName: b.undone_performer_name,
+    studentCount: parseInt(b.student_count || '0', 10),
+  }))
+}
+
+export async function undoPromotionBatch(
+  supabase: SupabaseClient<Database>,
+  batchId: string,
+  undoneBy: string
+) {
+  const { data, error } = await (supabase as any).rpc('undo_promotion_batch_transaction', {
+    p_batch_id: batchId,
+    p_undone_by: undoneBy
+  })
+
+  if (error) {
+    console.error('Error in undoPromotionBatch transaction:', error)
+    return { success: false, error: error.message }
+  }
+
+  const result = data as { success: boolean; error?: string }
+  if (result && !result.success) {
+    return { success: false, error: result.error || 'Failed to undo promotion.' }
+  }
+
+  return { success: true }
+}
+
+
+
 
