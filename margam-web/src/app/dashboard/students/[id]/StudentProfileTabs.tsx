@@ -6,7 +6,11 @@ import { StudentProfile, SubjectMarkItem, PreviousResultItem, StudentAIScoreSumm
 
 interface StudentProfileTabsProps {
   profile: StudentProfile
-  marks: SubjectMarkItem[]
+  marks: {
+    term_name: string
+    is_published: boolean
+    marks: SubjectMarkItem[]
+  }
   results: PreviousResultItem[]
   aiSummary: StudentAIScoreSummary
   feeDetails: {
@@ -94,8 +98,7 @@ export default function StudentProfileTabs({
   ]
 
   // Render visual line chart using inline SVG
-  const renderSVGChart = () => {
-    const history = aiSummary.history
+  const renderSVGChart = (history: typeof aiSummary.history) => {
     if (history.length === 0) {
       return (
         <div className="py-12 text-center text-steel-gray/60 text-sm font-body border border-dashed border-light-gray rounded-xl">
@@ -351,68 +354,88 @@ export default function StudentProfileTabs({
                 Subject-wise Examination Marks
               </h3>
               <span className="text-xs font-bold text-primary bg-primary/5 px-3 py-1 rounded-full font-caption">
-                Term: Half Yearly Exam
+                Term: {marks.term_name}
               </span>
             </div>
 
-            <div className="overflow-x-auto border border-light-gray/40 rounded-xl">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-cream/15 border-b border-light-gray/40">
-                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Subject</th>
-                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Max Marks</th>
-                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Marks Obtained</th>
-                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Grade</th>
-                    <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Teacher Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-light-gray/30">
-                  {marks.map((mark) => (
-                    <tr key={mark.subject_id} className="hover:bg-cream/5">
-                      <td className="py-3.5 px-4 text-sm font-bold text-charcoal font-heading">{mark.subject_name}</td>
-                      <td className="py-3.5 px-4 text-sm font-semibold text-steel-gray text-center font-body">{mark.max_marks}</td>
-                      <td className="py-3.5 px-4 text-sm font-extrabold text-charcoal text-center font-body">
-                        {mark.marks_obtained !== null ? mark.marks_obtained : '-'}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold font-heading ${
-                          mark.grade === 'A+' || mark.grade === 'A' 
-                            ? 'bg-success/10 text-success' 
-                            : mark.grade === 'B' || mark.grade === 'C' 
-                              ? 'bg-amber-500/10 text-amber-600' 
-                              : 'bg-danger/10 text-danger'
-                        }`}>
-                          {mark.grade || '-'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs font-medium text-steel-gray font-body">{mark.remarks || 'No remarks added'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Averages summary card */}
-            {marks.length > 0 && (
-              <div className="p-4 bg-cream/10 border border-light-gray/40 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Calculated Term Average</p>
-                  <p className="text-[10px] text-steel-gray font-caption mt-0.5">Weighted average across all subjects</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-lg font-black text-charcoal font-heading">
-                      {Math.round(
-                        marks.reduce((acc, m) => acc + (m.marks_obtained || 0), 0) / marks.length
-                      )}%
-                    </p>
-                    <p className="text-[10px] font-bold text-success font-caption">PASSING STATUS: PASS</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-lg bg-success/10 text-success font-black flex items-center justify-center text-sm font-heading">
-                    A
-                  </div>
-                </div>
+            {!marks.is_published ? (
+              <div className="py-16 text-center border border-dashed border-light-gray rounded-2xl flex flex-col items-center justify-center space-y-3">
+                <svg className="w-8 h-8 text-steel-gray" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <p className="text-sm font-semibold text-steel-gray font-body">Marks not yet published</p>
               </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto border border-light-gray/40 rounded-xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-cream/15 border-b border-light-gray/40">
+                        <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Subject</th>
+                        <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Max Marks</th>
+                        <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Marks Obtained</th>
+                        <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Grade</th>
+                        <th className="py-3 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Teacher Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-light-gray/30">
+                      {marks.marks.map((mark) => (
+                        <tr key={mark.subject_id} className="hover:bg-cream/5">
+                          <td className="py-3.5 px-4 text-sm font-bold text-charcoal font-heading">{mark.subject_name}</td>
+                          <td className="py-3.5 px-4 text-sm font-semibold text-steel-gray text-center font-body">{mark.max_marks}</td>
+                          <td className="py-3.5 px-4 text-sm font-extrabold text-charcoal text-center font-body">
+                            {mark.marks_obtained !== null ? mark.marks_obtained : '-'}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold font-heading ${
+                              mark.grade === 'A+' || mark.grade === 'A' 
+                                ? 'bg-success/10 text-success' 
+                                : mark.grade === 'B' || mark.grade === 'C' 
+                                  ? 'bg-amber-500/10 text-amber-600' 
+                                  : 'bg-danger/10 text-danger'
+                            }`}>
+                              {mark.grade || '-'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-xs font-medium text-steel-gray font-body">{mark.remarks || 'No remarks added'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Averages summary card */}
+                {marks.marks.length > 0 && (
+                  <div className="p-4 bg-cream/10 border border-light-gray/40 rounded-xl flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Calculated Term Average</p>
+                      <p className="text-[10px] text-steel-gray font-caption mt-0.5">Weighted average across all subjects</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-lg font-black text-charcoal font-heading">
+                          {Math.round(
+                            marks.marks.reduce((acc, m) => acc + (m.marks_obtained || 0), 0) / marks.marks.length
+                          )}%
+                        </p>
+                        <p className="text-[10px] font-bold text-success font-caption">PASSING STATUS: PASS</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-lg bg-success/10 text-success font-black flex items-center justify-center text-sm font-heading">
+                        {(() => {
+                          const avg = Math.round(
+                            marks.marks.reduce((acc, m) => acc + (m.marks_obtained || 0), 0) / marks.marks.length
+                          );
+                          if (avg >= 90) return 'A+';
+                          if (avg >= 80) return 'A';
+                          if (avg >= 70) return 'B';
+                          if (avg >= 60) return 'C';
+                          return 'D';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -425,6 +448,34 @@ export default function StudentProfileTabs({
             </h3>
 
             <div className="space-y-4">
+              {/* Current Term Card */}
+              <div
+                className="flex items-center justify-between p-5 bg-white border-2 border-[#D4AF37] rounded-xl relative overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-2 h-full bg-[#D4AF37]" />
+                <div className="flex items-center gap-3 pl-2">
+                  <div className="w-10 h-10 rounded-full bg-amber-50 text-[#B8860B] flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l9-5-9-5-9 5 9 5zm0 0v6m0 0v6m0-6H9m3 0h3" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-charcoal font-heading">Class {profile.class_name} ({marks.term_name})</p>
+                    <p className="text-xs text-steel-gray font-caption mt-0.5">Current Year In-Progress Term</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-base font-extrabold text-charcoal font-heading">
+                    {marks.is_published && marks.marks.length > 0
+                      ? `${Math.round(marks.marks.reduce((acc, m) => acc + (m.marks_obtained || 0), 0) / marks.marks.length)}%`
+                      : 'In Progress'}
+                  </p>
+                  <span className="text-[10px] font-semibold text-[#B8860B] bg-amber-50 px-2 py-0.5 border border-amber-200 rounded-md font-caption mt-1 inline-block">
+                    Current Term
+                  </span>
+                </div>
+              </div>
+
               {results.map((res) => (
                 <div
                   key={res.id}
@@ -454,85 +505,109 @@ export default function StudentProfileTabs({
         )}
 
         {/* TAB 4: AI HOMEWORK INSIGHTS */}
-        {activeTab === 'ai' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-light-gray/40 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-charcoal font-heading">
-                  AI-Assisted Homework History
-                </h3>
-                <p className="text-xs text-steel-gray font-caption mt-0.5">
-                  Submissions processed and graded via automated AI pipeline
-                </p>
-              </div>
-              <div className="flex bg-cream/35 border border-light-gray/60 rounded-xl p-1 gap-1 w-fit">
-                {(['this_term', 'this_year', 'all_time'] as const).map((filterOpt) => (
-                  <button
-                    key={filterOpt}
-                    onClick={() => setAiFilter(filterOpt)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold font-caption uppercase tracking-wider transition-all cursor-pointer ${
-                      aiFilter === filterOpt
-                        ? 'bg-white text-primary shadow-sm'
-                        : 'text-steel-gray hover:text-charcoal'
-                    }`}
-                  >
-                    {filterOpt.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {activeTab === 'ai' && (() => {
+          const history = aiSummary.history
+          let filteredHistory = [...history]
+          if (aiFilter === 'this_term') {
+            filteredHistory = history.slice(-4)
+          } else if (aiFilter === 'this_year') {
+            filteredHistory = history.slice(-9)
+          }
+          
+          const current = filteredHistory.length > 0 ? filteredHistory[filteredHistory.length - 1].score : 0
+          let trend = '+0.0%'
+          let isPositive = true
+          
+          if (filteredHistory.length > 1) {
+            const prevScore = filteredHistory[filteredHistory.length - 2].score
+            const diff = current - prevScore
+            isPositive = diff >= 0
+            trend = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`
+          } else {
+            trend = '0.0%'
+            isPositive = true
+          }
 
-            {/* Overall Score metrics grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl flex items-center justify-between">
+          return (
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-light-gray/40 pb-3">
                 <div>
-                  <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Current AI Score</p>
-                  <p className="text-2xl font-black text-charcoal mt-1.5 font-heading">
-                    {Math.round(aiSummary.current)}%
+                  <h3 className="text-lg font-bold text-charcoal font-heading">
+                    AI-Assisted Homework History
+                  </h3>
+                  <p className="text-xs text-steel-gray font-caption mt-0.5">
+                    Submissions processed and graded via automated AI pipeline
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+                <div className="flex bg-cream/35 border border-light-gray/60 rounded-xl p-1 gap-1 w-fit">
+                  {(['this_term', 'this_year', 'all_time'] as const).map((filterOpt) => (
+                    <button
+                      key={filterOpt}
+                      onClick={() => setAiFilter(filterOpt)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold font-caption uppercase tracking-wider transition-all cursor-pointer ${
+                        aiFilter === filterOpt
+                          ? 'bg-white text-primary shadow-sm'
+                          : 'text-steel-gray hover:text-charcoal'
+                      }`}
+                    >
+                      {filterOpt.replace('_', ' ')}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Term Trend</p>
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <span className={`text-sm font-extrabold font-heading ${aiSummary.isPositive ? 'text-success' : 'text-danger'}`}>
-                      {aiSummary.trend}
-                    </span>
-                    <span className="text-[10px] text-steel-gray font-caption">vs last submission</span>
+              {/* Overall Score metrics grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Current AI Score</p>
+                    <p className="text-2xl font-black text-charcoal mt-1.5 font-heading">
+                      {Math.round(current)}%
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
                   </div>
                 </div>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  aiSummary.isPositive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-                }`}>
-                  {aiSummary.isPositive ? (
-                    <svg className="w-6 h-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                    </svg>
-                  ) : (
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                  )}
+
+                <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Term Trend</p>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className={`text-sm font-extrabold font-heading ${isPositive ? 'text-success' : 'text-danger'}`}>
+                        {trend}
+                      </span>
+                      <span className="text-[10px] text-steel-gray font-caption">vs last submission</span>
+                    </div>
+                  </div>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    isPositive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                  }`}>
+                    {isPositive ? (
+                      <svg className="w-6 h-6 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Inline SVG Chart */}
-            <div className="bg-cream/5 border border-light-gray/40 rounded-xl p-4 md:p-6 shadow-inner">
-              <h4 className="text-xs font-bold text-steel-gray uppercase tracking-wider font-caption mb-4">
-                Performance Trajectory
-              </h4>
-              {renderSVGChart()}
+              {/* Inline SVG Chart */}
+              <div className="bg-cream/5 border border-light-gray/40 rounded-xl p-4 md:p-6 shadow-inner">
+                <h4 className="text-xs font-bold text-steel-gray uppercase tracking-wider font-caption mb-4">
+                  Performance Trajectory
+                </h4>
+                {renderSVGChart(filteredHistory)}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* TAB 5: FEES & PAYMENTS */}
         {activeTab === 'fees' && (

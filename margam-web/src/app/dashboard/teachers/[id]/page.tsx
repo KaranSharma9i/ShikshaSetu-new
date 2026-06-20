@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getTeacherProfile, getTeacherClasses, getAvailableClassSubjects } from '@/lib/repositories/teacher'
+import { getTeacherProfile, getTeacherClasses, getAvailableClassSubjects, getTeacherPerformanceSummary } from '@/lib/repositories/teacher'
 import TeacherProfileTabs from './TeacherProfileTabs'
 
 export default async function TeacherDetailPage({
@@ -43,10 +43,11 @@ export default async function TeacherDetailPage({
     notFound()
   }
 
-  // Fetch teacher's assigned classes and all available class subjects for assignment
-  const [assignedClasses, allClassSubjects] = await Promise.all([
+  // Fetch teacher's assigned classes, performance, and all available class subjects for assignment
+  const [assignedClasses, allClassSubjects, performanceSummary] = await Promise.all([
     getTeacherClasses(supabase, profile.user_id),
-    getAvailableClassSubjects(supabase, institutionId)
+    getAvailableClassSubjects(supabase, institutionId),
+    getTeacherPerformanceSummary(supabase, profile.user_id, 'this_term')
   ])
 
   const getInitials = (name: string) => {
@@ -57,9 +58,7 @@ export default async function TeacherDetailPage({
     return name.slice(0, 2).toUpperCase()
   }
 
-  // Calculate deterministic performance score
-  const codeSum = profile.employee_code.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
-  const performanceScore = 80 + (codeSum % 16)
+  const performanceScore = performanceSummary.overallScore
 
   return (
     <div className="space-y-6 font-body">
@@ -171,6 +170,7 @@ export default async function TeacherDetailPage({
             profile={profile}
             assignedClasses={assignedClasses}
             allClassSubjects={allClassSubjects}
+            performanceSummary={performanceSummary}
           />
         </div>
       </div>

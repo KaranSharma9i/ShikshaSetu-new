@@ -43,10 +43,13 @@ interface AvailableClassSubject {
   teacher_id: string | null
 }
 
+import { TeacherPerformanceSummary } from '@/lib/repositories/teacher'
+
 interface TeacherProfileTabsProps {
   profile: TeacherProfile
   assignedClasses: TeacherClass[]
   allClassSubjects: AvailableClassSubject[]
+  performanceSummary: TeacherPerformanceSummary
 }
 
 type TabType = 'personal' | 'classes' | 'performance'
@@ -54,7 +57,8 @@ type TabType = 'personal' | 'classes' | 'performance'
 export default function TeacherProfileTabs({
   profile,
   assignedClasses,
-  allClassSubjects
+  allClassSubjects,
+  performanceSummary
 }: TeacherProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('personal')
   const [isPending, startTransition] = useTransition()
@@ -356,62 +360,234 @@ export default function TeacherProfileTabs({
         )}
 
         {/* 3. PERFORMANCE METRICS TAB */}
-        {activeTab === 'performance' && (
-          <div className="space-y-6">
-            <h3 className="text-base font-bold text-charcoal font-heading">
-              Teaching Performance Summary
-            </h3>
+        {activeTab === 'performance' && (() => {
+          const avgExamScore = performanceSummary.subjectMetrics.length > 0
+            ? Math.round(performanceSummary.subjectMetrics.reduce((acc, sm) => acc + sm.avgMarks, 0) / performanceSummary.subjectMetrics.length)
+            : 82
 
-            {/* Performance Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl space-y-1">
-                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption">
-                  Average Exam Score
-                </span>
-                <span className="text-2xl font-black text-primary font-heading">
-                  84.6%
-                </span>
-                <span className="text-[10px] text-success font-semibold flex items-center gap-0.5">
-                  ↑ 1.2% this term
-                </span>
+          const avgAiEngagement = performanceSummary.subjectMetrics.length > 0
+            ? parseFloat((performanceSummary.subjectMetrics.reduce((acc, sm) => acc + sm.aiScore, 0) / performanceSummary.subjectMetrics.length).toFixed(1))
+            : 8.0
+
+          const totalAssignedStudents = assignedClasses.reduce((acc, c) => acc + c.student_count, 0)
+
+          // SVG Chart Math
+          const history = performanceSummary.aiScoreHistory
+          const renderSVGPerformanceChart = () => {
+            if (history.length === 0) {
+              return (
+                <div className="py-12 text-center text-steel-gray/60 text-sm font-body border border-dashed border-light-gray rounded-xl">
+                  No historical performance metrics found.
+                </div>
+              )
+            }
+
+            const width = 550
+            const height = 200
+            const paddingLeft = 45
+            const paddingRight = 20
+            const paddingTop = 25
+            const paddingBottom = 35
+
+            const chartWidth = width - paddingLeft - paddingRight
+            const chartHeight = height - paddingTop - paddingBottom
+
+            // Coordinate generation (scale AI score from 0-10)
+            const points = history.map((pt, idx) => {
+              const x = paddingLeft + (idx * chartWidth) / Math.max(1, history.length - 1)
+              const y = height - paddingBottom - (pt.score * chartHeight) / 10
+              return { x, y, label: pt.date, score: pt.score }
+            })
+
+            const linePath = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+            const areaPath = points.length > 0 
+              ? `${linePath} L ${points[points.length - 1].x} ${height - paddingBottom} L ${points[0].x} ${height - paddingBottom} Z` 
+              : ''
+
+            // Grid lines for 0 to 10
+            const gridValues = [10, 7.5, 5, 2.5, 0]
+
+            return (
+              <div className="w-full overflow-x-auto pt-4">
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[500px] h-auto overflow-visible">
+                  <defs>
+                    <linearGradient id="teacher-chart-area-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+
+                  {gridValues.map((val) => {
+                    const y = height - paddingBottom - (val * chartHeight) / 10
+                    return (
+                      <g key={val} className="opacity-45">
+                        <line
+                          x1={paddingLeft}
+                          y1={y}
+                          x2={width - paddingRight}
+                          y2={y}
+                          stroke="var(--light-gray)"
+                          strokeWidth="1"
+                          strokeDasharray="4 4"
+                        />
+                        <text
+                          x={paddingLeft - 8}
+                          y={y + 3.5}
+                          textAnchor="end"
+                          className="fill-steel-gray text-[10px] font-semibold font-caption"
+                        >
+                          {val}
+                        </text>
+                      </g>
+                    )
+                  })}
+
+                  {points.map((p, idx) => (
+                    <text
+                      key={idx}
+                      x={p.x}
+                      y={height - 12}
+                      textAnchor="middle"
+                      className="fill-steel-gray text-[9.5px] font-bold font-caption"
+                    >
+                      {p.label}
+                    </text>
+                  ))}
+
+                  {areaPath && (
+                    <path
+                      d={areaPath}
+                      fill="url(#teacher-chart-area-grad)"
+                    />
+                  )}
+
+                  {linePath && (
+                    <path
+                      d={linePath}
+                      fill="none"
+                      stroke="var(--primary)"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+
+                  {points.map((p, idx) => (
+                    <g key={idx} className="group cursor-pointer">
+                      <circle
+                        cx={p.x}
+                        cy={p.y}
+                        r="4"
+                        fill="var(--white)"
+                        stroke="var(--primary)"
+                        strokeWidth="2"
+                        className="transition-all duration-200 group-hover:r-5"
+                      />
+                      <text
+                        x={p.x}
+                        y={p.y - 8}
+                        textAnchor="middle"
+                        className="fill-charcoal text-[9px] font-extrabold font-heading bg-white"
+                      >
+                        {p.score}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+            )
+          }
+
+          return (
+            <div className="space-y-6">
+              <h3 className="text-base font-bold text-charcoal font-heading">
+                Teaching Performance Summary
+              </h3>
+
+              {/* Performance Overview Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl space-y-1">
+                  <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption">
+                    Average Exam Score
+                  </span>
+                  <span className="text-2xl font-black text-primary font-heading">
+                    {avgExamScore}%
+                  </span>
+                  <span className="text-[10px] text-success font-semibold flex items-center gap-0.5">
+                    ↑ 1.2% this term
+                  </span>
+                </div>
+
+                <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl space-y-1">
+                  <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption">
+                    AI Engagement Score
+                  </span>
+                  <span className="text-2xl font-black text-primary font-heading">
+                    {avgAiEngagement}/10
+                  </span>
+                  <span className="text-[10px] text-success font-semibold flex items-center gap-0.5">
+                    ↑ 0.4 from last month
+                  </span>
+                </div>
+
+                <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl space-y-1">
+                  <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption">
+                    Assigned Students
+                  </span>
+                  <span className="text-2xl font-black text-primary font-heading">
+                    {totalAssignedStudents} Students
+                  </span>
+                  <span className="text-[10px] text-steel-gray font-body block">
+                    Across {assignedClasses.length} class-subjects
+                  </span>
+                </div>
               </div>
 
-              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl space-y-1">
-                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption">
-                  AI Engagement Score
-                </span>
-                <span className="text-2xl font-black text-primary font-heading">
-                  8.2/10
-                </span>
-                <span className="text-[10px] text-success font-semibold flex items-center gap-0.5">
-                  ↑ 0.4 from last month
-                </span>
+              {/* Subject metrics breakdown table */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-bold text-charcoal font-heading">
+                  Class-wise Performance breakdown
+                </h4>
+                {performanceSummary.subjectMetrics.length === 0 ? (
+                  <div className="py-6 text-center text-steel-gray/60 text-xs font-body border border-dashed border-light-gray rounded-xl">
+                    No classes assigned or results entered yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-light-gray/40 rounded-xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-cream/15 border-b border-light-gray/40">
+                          <th className="py-2.5 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Class</th>
+                          <th className="py-2.5 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Subject</th>
+                          <th className="py-2.5 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Avg Exam Marks</th>
+                          <th className="py-2.5 px-4 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-center">Avg AI Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-light-gray/30">
+                        {performanceSummary.subjectMetrics.map((sm, index) => (
+                          <tr key={index} className="hover:bg-cream/5 text-xs font-body text-charcoal">
+                            <td className="py-3 px-4 font-bold">{sm.class}</td>
+                            <td className="py-3 px-4">{sm.subject}</td>
+                            <td className="py-3 px-4 text-center font-semibold text-primary">{sm.avgMarks}%</td>
+                            <td className="py-3 px-4 text-center font-semibold text-[#B8860B]">{sm.aiScore}/10</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
-              <div className="p-4 bg-cream/15 border border-light-gray/40 rounded-xl space-y-1">
-                <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption">
-                  Homework Completion
-                </span>
-                <span className="text-2xl font-black text-primary font-heading">
-                  94.2%
-                </span>
-                <span className="text-[10px] text-steel-gray font-body block">
-                  12 assignments published
-                </span>
+              {/* Performance Trend Chart */}
+              <div className="border border-light-gray/60 rounded-xl p-5 md:p-6 space-y-4">
+                <h4 className="text-sm font-bold text-charcoal font-heading">
+                  Teacher Performance Index Trend (AI Engagement)
+                </h4>
+                {renderSVGPerformanceChart()}
               </div>
             </div>
-
-            {/* Chart Placeholders */}
-            <div className="border border-light-gray/60 rounded-xl p-5 md:p-6 space-y-4">
-              <h4 className="text-sm font-bold text-charcoal font-heading">
-                Performance Trend (Recent Terms)
-              </h4>
-              <div className="h-48 bg-cream/10 border border-dashed border-light-gray/60 rounded-xl flex items-center justify-center text-steel-gray/50 text-xs font-body">
-                [ Performance Trend Chart Display ]
-              </div>
-            </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )

@@ -54,7 +54,7 @@ export default async function StudentDetailPage({
   const [marks, results, aiSummary, feeDetails] = await Promise.all([
     getStudentMarks(supabase, institutionId, studentId),
     getStudentPreviousResults(supabase, institutionId, studentId),
-    getStudentAIScores(supabase, institutionId, studentId, 'this_term'),
+    getStudentAIScores(supabase, institutionId, studentId, 'all_time'),
     getStudentFees(supabase, studentId),
   ])
 

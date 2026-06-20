@@ -222,50 +222,119 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
 }
 
 // 5. Fetch marks for a student
-export async function getStudentMarks(studentId: string): Promise<SubjectMarkItem[]> {
+export async function getStudentMarks(studentId: string): Promise<{ term_name: string; is_published: boolean; marks: SubjectMarkItem[] }> {
   try {
-    // Fetch Half Yearly exam results for the student
-    const { data: results, error } = await supabase
-      .from("exam_results")
+    // A. Get active enrollment for current year class and section
+    const { data: enrollment, error: enrollError } = await supabase
+      .from("enrollments")
       .select(`
-        marks_obtained,
-        grade,
-        remarks,
-        exam:exams!inner (
+        academic_year_id,
+        section:sections!inner (
+          class_id
+        )
+      `)
+      .eq("student_id", studentId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (enrollError || !enrollment) {
+      if (enrollError) console.error("Error in getStudentMarks enrollment fetch:", enrollError);
+      return { term_name: "Current Term", is_published: false, marks: [] };
+    }
+
+    const classId = (enrollment.section as any)?.class_id;
+    const academicYearId = enrollment.academic_year_id;
+
+    // B. Fetch exam terms for this class & academic year
+    const { data: terms, error: termsError } = await supabase
+      .from("exam_terms")
+      .select("id, name, starts_on, ends_on")
+      .eq("academic_year_id", academicYearId)
+      .eq("class_id", classId)
+      .order("created_at", { ascending: false });
+
+    let currentTermId: string | null = null;
+    let termName = "Current Term";
+    let exams: any[] = [];
+
+    if (!termsError && terms && terms.length > 0) {
+      currentTermId = terms[0].id;
+      termName = terms[0].name;
+
+      // Fetch exams for this term
+      const { data: examData, error: examsError } = await supabase
+        .from("exams")
+        .select(`
           id,
           exam_name,
           total_marks,
+          is_locked,
           subject:subjects!inner (
             id,
             name
           )
-        )
-      `)
-      .eq("student_id", studentId)
-      .eq("exam.exam_name", "Half Yearly"); // Query half yearly marks representing current term
+        `)
+        .eq("exam_term_id", currentTermId)
+        .is("deleted_at", null);
 
-    if (error) throw error;
+      if (!examsError && examData) {
+        exams = examData;
+      }
+    } else {
+      // Fallback: Group current year exams by name, pick the most recent
+      const { data: allExams, error: examsError } = await supabase
+        .from("exams")
+        .select(`
+          id,
+          exam_name,
+          exam_date,
+          total_marks,
+          is_locked,
+          subject:subjects!inner (
+            id,
+            name
+          )
+        `)
+        .eq("class_id", classId)
+        .eq("academic_year_id", academicYearId)
+        .is("exam_term_id", null)
+        .is("deleted_at", null)
+        .order("exam_date", { ascending: false });
 
-    if (!results || results.length === 0) {
-      // Return beautiful default marks so dashboard is populated with realistic data
-      return [
-        { subject_id: "math", subject_name: "Mathematics", max_marks: 100, marks_obtained: 95, grade: "A+", remarks: "Outstanding" },
-        { subject_id: "sci", subject_name: "Science", max_marks: 100, marks_obtained: 88, grade: "A", remarks: "Very Good" },
-        { subject_id: "eng", subject_name: "English", max_marks: 100, marks_obtained: 92, grade: "A+", remarks: "Excellent" },
-        { subject_id: "sst", subject_name: "Social Studies", max_marks: 100, marks_obtained: 85, grade: "A", remarks: "Good" },
-      ];
+      if (!examsError && allExams && allExams.length > 0) {
+        termName = allExams[0].exam_name;
+        exams = allExams.filter(e => e.exam_name === termName);
+      }
     }
 
-    return results.map((r: any) => {
-      // Seed script seeds exams out of 80 marks. Let's scale up to 100 to match design.
-      const rawMax = Number(r.exam?.total_marks) || 80;
-      const rawObt = r.marks_obtained !== null ? Number(r.marks_obtained) : null;
+    if (exams.length === 0) {
+      return { term_name: termName, is_published: false, marks: [] };
+    }
+
+    // C. Check if term is locked (published)
+    const isTermLocked = exams.every(e => e.is_locked);
+
+    // Fetch the exam results for the student in these exams
+    const examIds = exams.map(e => e.id);
+    const { data: results, error: resultsError } = await supabase
+      .from("exam_results")
+      .select("exam_id, marks_obtained, grade, remarks")
+      .eq("student_id", studentId)
+      .in("exam_id", examIds)
+      .is("deleted_at", null);
+
+    if (resultsError) throw resultsError;
+
+    // Map exams to marks
+    const marksList: SubjectMarkItem[] = exams.map((ex: any) => {
+      const res = results?.find(r => r.exam_id === ex.id);
+      const rawMax = Number(ex.total_marks) || 100;
+      const rawObt = res && res.marks_obtained !== null ? Number(res.marks_obtained) : null;
       
-      let max_marks = 100;
-      let marks_obtained = rawObt !== null ? Math.round((rawObt / rawMax) * 100) : null;
+      const max_marks = 100;
+      const marks_obtained = rawObt !== null ? Math.round((rawObt / rawMax) * 100) : null;
       
-      // Determine grade if null
-      let grade = r.grade;
+      let grade = res?.grade || null;
       if (!grade && marks_obtained !== null) {
         if (marks_obtained >= 90) grade = "A+";
         else if (marks_obtained >= 80) grade = "A";
@@ -276,34 +345,111 @@ export async function getStudentMarks(studentId: string): Promise<SubjectMarkIte
       }
 
       return {
-        subject_id: r.exam?.subject?.id || "",
-        subject_name: r.exam?.subject?.name || "Unknown Subject",
+        subject_id: ex.subject?.id || "",
+        subject_name: ex.subject?.name || "Unknown Subject",
         max_marks,
         marks_obtained,
         grade,
-        remarks: r.remarks || (grade === "A+" ? "Outstanding" : grade === "A" ? "Very Good" : "Good"),
+        remarks: res?.remarks || (grade === "A+" ? "Outstanding" : grade === "A" ? "Very Good" : "Good"),
       };
     });
 
+    const hasAnyResults = results && results.length > 0 && results.some(r => r.marks_obtained !== null);
+    const isPublished = isTermLocked && hasAnyResults;
+
+    return {
+      term_name: termName,
+      is_published: !!isPublished,
+      marks: marksList,
+    };
+
   } catch (error) {
     console.error("Error in getStudentMarks repository:", error);
-    return [];
+    return { term_name: "Current Term", is_published: false, marks: [] };
   }
 }
 
-// 6. Fetch previous results (mocked academic history)
+// 6. Fetch previous results (mocked academic history with dynamic query support)
 export async function getStudentPreviousResults(studentId: string): Promise<PreviousResultItem[]> {
-  // Generate deterministic past results based on studentId
-  const sum = studentId.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-  const class9pct = (85 + (sum % 11)).toFixed(1);
-  const class8pct = (87 + (sum % 9)).toFixed(1);
-  const class7pct = (84 + (sum % 13)).toFixed(1);
+  try {
+    // 1. Fetch inactive enrollments
+    const { data: inactiveEnrollments, error: inactiveError } = await supabase
+      .from("enrollments")
+      .select(`
+        id,
+        academic_year_id,
+        academic_year:academic_years!inner (
+          id,
+          name
+        ),
+        section:sections!inner (
+          class_id,
+          class:classes!inner (
+            id,
+            name
+          )
+        )
+      `)
+      .eq("student_id", studentId)
+      .eq("is_active", false)
+      .order("created_at", { ascending: false });
 
-  return [
-    { id: "class9", class_name: "Class 9", percentage: `${class9pct}%`, status: "PASS" },
-    { id: "class8", class_name: "Class 8", percentage: `${class8pct}%`, status: "PASS" },
-    { id: "class7", class_name: "Class 7", percentage: `${class7pct}%`, status: "PASS" },
-  ];
+    const resultsList: PreviousResultItem[] = [];
+
+    if (!inactiveError && inactiveEnrollments && inactiveEnrollments.length > 0) {
+      for (const enroll of inactiveEnrollments) {
+        const classId = (enroll.section as any)?.class_id;
+        const academicYearId = enroll.academic_year_id;
+        const className = (enroll.section as any)?.class?.name || "Unknown Class";
+        const yearName = (enroll.academic_year as any)?.name || "";
+
+        // Fetch all exams for this class and year
+        const { data: exams, error: examsError } = await supabase
+          .from("exams")
+          .select("id, total_marks")
+          .eq("class_id", classId)
+          .eq("academic_year_id", academicYearId)
+          .is("deleted_at", null);
+
+        if (!examsError && exams && exams.length > 0) {
+          const examIds = exams.map(e => e.id);
+          const { data: results, error: resultsError } = await supabase
+            .from("exam_results")
+            .select("exam_id, marks_obtained")
+            .eq("student_id", studentId)
+            .in("exam_id", examIds)
+            .is("deleted_at", null);
+
+          if (!resultsError && results && results.length > 0) {
+            let totalObtained = 0;
+            let totalMax = 0;
+            results.forEach(r => {
+              const exam = exams.find(e => e.id === r.exam_id);
+              if (exam && r.marks_obtained !== null) {
+                totalObtained += Number(r.marks_obtained);
+                totalMax += Number(exam.total_marks) || 100;
+              }
+            });
+
+            if (totalMax > 0) {
+              const percentage = Math.round((totalObtained / totalMax) * 100);
+              resultsList.push({
+                id: enroll.id,
+                class_name: `${className} (${yearName})`,
+                percentage: `${percentage}%`,
+                status: percentage >= 40 ? "PASS" : "FAIL"
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return resultsList;
+  } catch (error) {
+    console.error("Error in getStudentPreviousResults:", error);
+    return [];
+  }
 }
 
 // Helper to format dates to MMM YY (e.g. '2026-05-01' -> 'May 26')
@@ -369,8 +515,7 @@ export async function getStudentAIScores(
       isPositive = diff >= 0;
       trend = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%`;
     } else {
-      // Fallback
-      trend = "+2.4%";
+      trend = "0.0%";
       isPositive = true;
     }
 
