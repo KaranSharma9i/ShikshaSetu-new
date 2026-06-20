@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase";
 import Constants from "expo-constants";
-import { uriToBlob } from "../utils/uploadImage";
+import { uriToArrayBuffer } from "../utils/uploadImage";
 import {
   ClassItem,
   SectionItem,
@@ -1393,13 +1393,13 @@ export async function uploadProfilePhoto(
   fileUri: string,
   mimeType: string
 ): Promise<string> {
-  const blob = await uriToBlob(fileUri);
+  const arrayBuffer = await uriToArrayBuffer(fileUri);
   const fileExt = mimeType.split('/')[1] || 'jpg';
   const filePath = `${userId}/profile.${fileExt}`;
 
   const { error } = await supabase.storage
     .from('avatars')
-    .upload(filePath, blob, {
+    .upload(filePath, arrayBuffer, {
       contentType: mimeType,
       upsert: true  // overwrite existing photo
     });

@@ -73,11 +73,13 @@ function CardPhoto({
   name,
   isCircle,
   borderColor,
+  scale = 1,
 }: {
   src: string | null | undefined
   name: string
   isCircle: boolean
   borderColor: string
+  scale?: number
 }) {
   const [error, setError] = useState(false)
 
@@ -89,28 +91,55 @@ function CardPhoto({
     return n.slice(0, 2).toUpperCase()
   }
 
-  const borderStyle = { borderColor }
-  const shapeClass = isCircle ? 'rounded-full' : 'rounded-xl'
+  const size = 60 * scale
+  const borderRadius = isCircle ? '50%' : `${12 * scale}px`
+  const borderWidth = `${2 * scale}px`
 
   if (src && !error) {
     return (
-      <img
-        src={src}
-        alt={name}
-        onError={() => setError(true)}
-        crossOrigin="anonymous"
-        className={`w-[60px] h-[60px] object-cover border-2 shadow-sm ${shapeClass}`}
-        style={borderStyle}
-      />
+      <div
+        className="relative overflow-hidden shadow-sm flex-shrink-0"
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          borderWidth,
+          borderStyle: 'solid',
+          borderColor,
+          borderRadius,
+        }}
+      >
+        <div
+          className="absolute inset-0 w-full h-full"
+          style={{
+            backgroundImage: `url(${src})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        <img
+          src={src}
+          alt={name}
+          onError={() => setError(true)}
+          crossOrigin="anonymous"
+          className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+        />
+      </div>
     )
   }
 
   return (
     <div
-      className={`w-[60px] h-[60px] flex items-center justify-center text-sm font-bold text-white shadow-sm border-2 ${shapeClass}`}
+      className="flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0"
       style={{
         backgroundColor: 'var(--primary)',
-        ...borderStyle,
+        width: `${size}px`,
+        height: `${size}px`,
+        borderWidth,
+        borderStyle: 'solid',
+        borderColor,
+        borderRadius,
+        fontSize: `${14 * scale}px`,
       }}
     >
       {getInitials(name)}
@@ -125,13 +154,15 @@ function IDCard({
   template,
   theme,
   institution,
+  scale = 1,
 }: {
   person: any
   type: 'student' | 'teacher'
   side: 'front' | 'back'
-  template: 'template_1' | 'template_2' | 'template_3'
+  template: 'template_1' | 'template_2' | 'template_3' | 'template_4'
   theme: any
   institution: any
+  scale?: number
 }) {
   const primaryColor = theme?.colors?.primary ?? '#0D1B2A'
   const secondaryColor = theme?.colors?.secondary ?? '#D4AF37'
@@ -145,8 +176,10 @@ function IDCard({
   const code = type === 'student' ? person?.student_code : person?.employee_code
   
   // Format subtitle
+  const classVal = person?.class_name || 'N/A'
+  const classPrefix = classVal.toLowerCase().startsWith('class') ? '' : 'Class '
   const subtitle = type === 'student'
-    ? `Class ${person?.class_name || 'N/A'} - Sec ${person?.section_name || 'N/A'}`
+    ? `${classPrefix}${classVal} - Sec ${person?.section_name || 'N/A'}`
     : (person?.specialization || 'Teacher')
 
   const logoUrl = institution?.logo_url
@@ -162,24 +195,49 @@ function IDCard({
 
   const renderLogoSection = (isLight: boolean) => {
     const textColor = isLight ? primaryColor : whiteColor
+    const logoBoxSize = 24 * scale
+    const fallbackBoxSize = 20 * scale
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center" style={{ gap: 6 * scale }}>
         {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt={instName}
-            crossOrigin="anonymous"
-            className="w-6 h-6 object-contain rounded-md bg-white p-0.5"
-          />
+          <div
+            className="flex items-center justify-center rounded bg-white overflow-hidden"
+            style={{
+              width: `${logoBoxSize}px`,
+              height: `${logoBoxSize}px`,
+              padding: `${2 * scale}px`,
+            }}
+          >
+            <img
+              src={logoUrl}
+              alt={instName}
+              crossOrigin="anonymous"
+              className="max-w-full max-h-full w-auto h-auto"
+            />
+          </div>
         ) : (
           <div
-            style={{ backgroundColor: isLight ? primaryColor : secondaryColor, color: isLight ? whiteColor : primaryColor }}
-            className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold"
+            style={{
+              backgroundColor: isLight ? primaryColor : secondaryColor,
+              color: isLight ? whiteColor : primaryColor,
+              width: `${fallbackBoxSize}px`,
+              height: `${fallbackBoxSize}px`,
+              fontSize: `${10 * scale}px`,
+              borderRadius: `${4 * scale}px`,
+            }}
+            className="flex items-center justify-center font-bold"
           >
             {getInitials(instName)}
           </div>
         )}
-        <span className="text-[10px] font-bold tracking-tight truncate max-w-[120px]" style={{ color: textColor }}>
+        <span
+          className="font-bold tracking-tight leading-tight break-words"
+          style={{
+            color: textColor,
+            fontSize: `${10 * scale}px`,
+            maxWidth: `${180 * scale}px`,
+          }}
+        >
           {instName}
         </span>
       </div>
@@ -191,13 +249,21 @@ function IDCard({
     if (side === 'front') {
       return (
         <div
-          className="w-[324px] h-[204px] border border-gray-200 rounded-2xl shadow-sm relative overflow-hidden bg-white flex flex-col justify-between p-3 select-none"
-          style={{ fontFamily: 'var(--font-body)' }}
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${324 * scale}px`,
+            height: `${204 * scale}px`,
+            padding: `${12 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {/* Angled header background */}
           <div
-            className="absolute top-0 left-0 w-full h-[54px] z-0"
+            className="absolute top-0 left-0 w-full z-0"
             style={{
+              height: `${54 * scale}px`,
               backgroundColor: primaryColor,
               clipPath: 'polygon(0 0, 100% 0, 100% 80%, 0 100%)',
             }}
@@ -205,44 +271,65 @@ function IDCard({
           {/* Header content */}
           <div className="relative z-10 flex items-start justify-between">
             {renderLogoSection(false)}
-            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/20 text-white leading-none">
+            <span
+              className="font-bold uppercase tracking-wider text-white leading-none"
+              style={{
+                fontSize: `${9 * scale}px`,
+                paddingLeft: `${6 * scale}px`,
+                paddingRight: `${6 * scale}px`,
+                paddingTop: `${2 * scale}px`,
+                paddingBottom: `${2 * scale}px`,
+                borderRadius: `${4 * scale}px`,
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              }}
+            >
               {type === 'student' ? 'Student' : 'Staff'}
             </span>
           </div>
 
           {/* Photo & Basic Details */}
-          <div className="flex items-center gap-3 mt-4 relative z-10 px-1">
+          <div className="flex items-center relative z-10" style={{ gap: `${12 * scale}px`, marginTop: `${16 * scale}px`, paddingLeft: `${4 * scale}px`, paddingRight: `${4 * scale}px` }}>
             <CardPhoto
               src={person?.profile_photo_url}
               name={name}
               isCircle={true}
               borderColor={whiteColor}
+              scale={scale}
             />
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold truncate" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)' }}>
+              <h3 className="font-bold break-words line-clamp-2 leading-tight" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)', fontSize: `${14 * scale}px` }}>
                 {name}
               </h3>
-              <p className="text-[10px] font-semibold truncate" style={{ color: steelGrayColor }}>
+              <p className="font-semibold break-words line-clamp-2 leading-tight" style={{ color: steelGrayColor, fontSize: `${10 * scale}px`, marginTop: `${2 * scale}px` }}>
                 {subtitle}
               </p>
             </div>
           </div>
 
           {/* Stacked Details Grid */}
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100 relative z-10 mt-1">
+          <div
+            className="grid grid-cols-3 relative z-10"
+            style={{
+              gap: `${8 * scale}px`,
+              paddingTop: `${8 * scale}px`,
+              borderTopWidth: `${1 * scale}px`,
+              borderTopColor: '#F3F4F6',
+              marginTop: `${4 * scale}px`
+            }}
+          >
             <div>
-              <span className="block text-[8px] uppercase tracking-wider" style={{ color: steelGrayColor }}>
+              <span className="block uppercase tracking-wider" style={{ color: steelGrayColor, fontSize: `${8 * scale}px` }}>
                 ID Number
               </span>
-              <span className="block text-[10px] font-bold truncate" style={{ color: charcoalColor }}>
+              <span className="block font-bold break-words line-clamp-2" style={{ color: charcoalColor, fontSize: `${10 * scale}px`, marginTop: `${2 * scale}px` }}>
                 {code || 'N/A'}
               </span>
             </div>
             <div>
-              <span className="block text-[8px] uppercase tracking-wider" style={{ color: steelGrayColor }}>
+              <span className="block uppercase tracking-wider" style={{ color: steelGrayColor, fontSize: `${8 * scale}px` }}>
                 {type === 'student' ? 'DOB' : 'Joined'}
               </span>
-              <span className="block text-[10px] font-bold truncate" style={{ color: charcoalColor }}>
+              <span className="block font-bold break-words line-clamp-2" style={{ color: charcoalColor, fontSize: `${10 * scale}px`, marginTop: `${2 * scale}px` }}>
                 {type === 'student'
                   ? (person?.date_of_birth ? new Date(person.date_of_birth).toLocaleDateString('en-GB') : 'N/A')
                   : (person?.date_of_joining ? new Date(person.date_of_joining).toLocaleDateString('en-GB') : 'N/A')
@@ -250,10 +337,10 @@ function IDCard({
               </span>
             </div>
             <div>
-              <span className="block text-[8px] uppercase tracking-wider" style={{ color: steelGrayColor }}>
+              <span className="block uppercase tracking-wider" style={{ color: steelGrayColor, fontSize: `${8 * scale}px` }}>
                 Phone
               </span>
-              <span className="block text-[10px] font-bold truncate" style={{ color: charcoalColor }}>
+              <span className="block font-bold break-words line-clamp-2" style={{ color: charcoalColor, fontSize: `${10 * scale}px`, marginTop: `${2 * scale}px` }}>
                 {type === 'student' ? (person?.guardian_phone || 'N/A') : (person?.phone || 'N/A')}
               </span>
             </div>
@@ -264,65 +351,73 @@ function IDCard({
       // Back side
       return (
         <div
-          className="w-[324px] h-[204px] border border-gray-200 rounded-2xl shadow-sm relative overflow-hidden bg-white flex flex-col justify-between p-3 select-none text-center"
-          style={{ fontFamily: 'var(--font-body)' }}
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none text-center"
+          style={{
+            width: `${324 * scale}px`,
+            height: `${204 * scale}px`,
+            padding: `${12 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {/* Angled header background */}
           <div
-            className="absolute top-0 left-0 w-full h-[36px] z-0"
+            className="absolute top-0 left-0 w-full z-0"
             style={{
+              height: `${36 * scale}px`,
               backgroundColor: primaryColor,
               clipPath: 'polygon(0 0, 100% 0, 100% 85%, 0 100%)',
             }}
           />
-          <div className="relative z-10 h-6 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-white tracking-wide">{instName}</span>
+          <div className="relative z-10 flex items-center justify-center" style={{ height: `${24 * scale}px` }}>
+            <span className="font-bold text-white tracking-wide" style={{ fontSize: `${10 * scale}px` }}>{instName}</span>
           </div>
 
           {/* Institution Address */}
-          <p className="text-[9px] px-4 mt-3 leading-tight" style={{ color: steelGrayColor }}>
+          <p className="px-4 mt-3 leading-tight" style={{ color: steelGrayColor, fontSize: `${9 * scale}px`, marginTop: `${12 * scale}px` }}>
             {instAddress}
           </p>
 
           {/* Details */}
-          <div className="flex-1 flex flex-col justify-center gap-1 my-1 px-6">
+          <div className="flex-1 flex flex-col justify-center my-1" style={{ gap: `${4 * scale}px`, margin: `${4 * scale}px 0`, paddingLeft: `${24 * scale}px`, paddingRight: `${24 * scale}px` }}>
             {type === 'student' ? (
               <>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-100 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Blood Group</span>
-                  <span className="font-bold" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-100" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Blood Group</span>
+                  <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-100 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Guardian Name</span>
-                  <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }}>{person?.guardian_name || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-100" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Guardian Name</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }}>{person?.guardian_name || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-100 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Guardian Phone</span>
-                  <span className="font-bold" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-100" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Guardian Phone</span>
+                  <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-100 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Address</span>
-                  <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-100" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Address</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
                 </div>
               </>
             ) : (
               <>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-100 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Qualification</span>
-                  <span className="font-bold" style={{ color: charcoalColor }}>{person?.qualification || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-100" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Qualification</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }}>{person?.qualification || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-100 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Address</span>
-                  <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-100" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Address</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
                 </div>
               </>
             )}
           </div>
 
           {/* Signature Line */}
-          <div className="flex flex-col items-center justify-end mt-1">
-            <div className="w-24 border-t border-gray-300 mb-0.5"></div>
-            <span className="text-[8px] uppercase tracking-wider font-semibold" style={{ color: steelGrayColor }}>
+          <div className="flex flex-col items-center justify-end" style={{ marginTop: `${4 * scale}px` }}>
+            <div className="border-t border-gray-300" style={{ width: `${96 * scale}px`, marginBottom: `${2 * scale}px`, borderTopWidth: `${1 * scale}px` }}></div>
+            <span className="uppercase tracking-wider font-semibold" style={{ color: steelGrayColor, fontSize: `${8 * scale}px` }}>
               Authorized Signatory
             </span>
           </div>
@@ -336,51 +431,72 @@ function IDCard({
     if (side === 'front') {
       return (
         <div
-          className="w-[324px] h-[204px] border border-gray-200 rounded-2xl shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
-          style={{ fontFamily: 'var(--font-body)' }}
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${324 * scale}px`,
+            height: `${204 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {/* Header band */}
           <div
-            className="w-full h-[40px] px-3 flex items-center justify-between"
-            style={{ backgroundColor: primaryColor }}
+            className="w-full flex items-center justify-between"
+            style={{
+              height: `${40 * scale}px`,
+              paddingLeft: `${12 * scale}px`,
+              paddingRight: `${12 * scale}px`,
+              backgroundColor: primaryColor,
+            }}
           >
             {renderLogoSection(false)}
             <span
-              className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-none"
-              style={{ backgroundColor: secondaryColor, color: primaryColor }}
+              className="font-bold uppercase tracking-wider rounded leading-none"
+              style={{
+                backgroundColor: secondaryColor,
+                color: primaryColor,
+                fontSize: `${8 * scale}px`,
+                paddingLeft: `${6 * scale}px`,
+                paddingRight: `${6 * scale}px`,
+                paddingTop: `${2 * scale}px`,
+                paddingBottom: `${2 * scale}px`,
+                borderRadius: `${4 * scale}px`,
+              }}
             >
               {type === 'student' ? 'Student' : 'Staff'}
             </span>
           </div>
 
           {/* Main content body */}
-          <div className="flex-1 p-3 flex gap-3 items-center">
+          <div className="flex-1 flex items-center" style={{ gap: `${12 * scale}px`, padding: `${12 * scale}px` }}>
             <div className="flex-shrink-0">
               <CardPhoto
                 src={person?.profile_photo_url}
                 name={name}
                 isCircle={true}
                 borderColor={secondaryColor}
+                scale={scale}
               />
             </div>
             
             <div className="flex-1 min-w-0 flex flex-col justify-center h-full">
-              <h3 className="text-sm font-bold truncate" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)' }}>
+              <h3 className="font-bold break-words line-clamp-2 leading-tight" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)', fontSize: `${14 * scale}px` }}>
                 {name}
               </h3>
-              <p className="text-[10px] font-semibold text-secondary mb-2 leading-none">
+              <p className="font-semibold text-secondary leading-tight break-words line-clamp-2" style={{ fontSize: `${10 * scale}px`, marginBottom: `${8 * scale}px` }}>
                 {subtitle}
               </p>
 
               {/* soft rounded panel for details */}
-              <div className="p-2 rounded-xl border border-gray-100 flex flex-col gap-1" style={{ backgroundColor: creamColor }}>
-                <div className="flex justify-between items-center text-[9px]">
-                  <span style={{ color: steelGrayColor }}>ID No:</span>
-                  <span className="font-bold truncate max-w-[80px]" style={{ color: charcoalColor }}>{code || 'N/A'}</span>
+              <div className="border border-gray-100 flex flex-col" style={{ backgroundColor: creamColor, padding: `${8 * scale}px`, borderRadius: `${12 * scale}px`, gap: `${4 * scale}px`, borderWidth: `${1 * scale}px` }}>
+                <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>ID No:</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${120 * scale}px` }}>{code || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px]">
-                  <span style={{ color: steelGrayColor }}>{type === 'student' ? 'DOB:' : 'Joined:'}</span>
-                  <span className="font-bold truncate" style={{ color: charcoalColor }}>
+                <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>{type === 'student' ? 'DOB:' : 'Joined:'}</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor }}>
                     {type === 'student'
                       ? (person?.date_of_birth ? new Date(person.date_of_birth).toLocaleDateString('en-GB') : 'N/A')
                       : (person?.date_of_joining ? new Date(person.date_of_joining).toLocaleDateString('en-GB') : 'N/A')
@@ -392,76 +508,87 @@ function IDCard({
           </div>
 
           {/* Thin accent footer band */}
-          <div className="w-full h-[8px]" style={{ backgroundColor: secondaryColor }} />
+          <div className="w-full" style={{ height: `${8 * scale}px`, backgroundColor: secondaryColor }} />
         </div>
       )
     } else {
       // Back side
       return (
         <div
-          className="w-[324px] h-[204px] border border-gray-200 rounded-2xl shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
-          style={{ fontFamily: 'var(--font-body)' }}
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${324 * scale}px`,
+            height: `${204 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {/* Header band */}
           <div
-            className="w-full h-[40px] px-3 flex items-center justify-center"
-            style={{ backgroundColor: primaryColor }}
+            className="w-full flex items-center justify-center"
+            style={{
+              height: `${40 * scale}px`,
+              paddingLeft: `${12 * scale}px`,
+              paddingRight: `${12 * scale}px`,
+              backgroundColor: primaryColor,
+            }}
           >
-            <span className="text-[10px] font-bold text-white tracking-wide truncate">{instName}</span>
+            <span className="font-bold text-white tracking-wide break-words line-clamp-1" style={{ fontSize: `${10 * scale}px` }}>{instName}</span>
           </div>
 
           {/* Address panel */}
-          <div className="flex-1 p-3 flex flex-col justify-between">
-            <p className="text-[9px] text-center leading-tight px-2" style={{ color: steelGrayColor }}>
+          <div className="flex-1 flex flex-col justify-between" style={{ padding: `${12 * scale}px` }}>
+            <p className="text-center leading-tight" style={{ fontSize: `${9 * scale}px`, color: steelGrayColor, paddingLeft: `${8 * scale}px`, paddingRight: `${8 * scale}px` }}>
               {instAddress}
             </p>
 
             {/* Details panel */}
-            <div className="p-2 rounded-xl border border-gray-100 flex flex-col gap-0.5 mt-0.5 mx-2" style={{ backgroundColor: creamColor }}>
+            <div className="border border-gray-100 flex flex-col" style={{ backgroundColor: creamColor, padding: `${8 * scale}px`, borderRadius: `${12 * scale}px`, gap: `${2 * scale}px`, marginTop: `${2 * scale}px`, marginLeft: `${8 * scale}px`, marginRight: `${8 * scale}px`, borderWidth: `${1 * scale}px` }}>
               {type === 'student' ? (
                 <>
-                  <div className="flex justify-between items-center text-[9px]">
-                    <span style={{ color: steelGrayColor }}>Blood Group:</span>
-                    <span className="font-bold" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
+                  <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                    <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Blood Group:</span>
+                    <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px]">
-                    <span style={{ color: steelGrayColor }}>Guardian Name:</span>
-                    <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }}>{person?.guardian_name || 'N/A'}</span>
+                  <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                    <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Guardian Name:</span>
+                    <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }}>{person?.guardian_name || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px]">
-                    <span style={{ color: steelGrayColor }}>Guardian Phone:</span>
-                    <span className="font-bold" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
+                  <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                    <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Guardian Phone:</span>
+                    <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px]">
-                    <span style={{ color: steelGrayColor }}>Address:</span>
-                    <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                  <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                    <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Address:</span>
+                    <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex justify-between items-center text-[9px]">
-                    <span style={{ color: steelGrayColor }}>Qualification:</span>
-                    <span className="font-bold" style={{ color: charcoalColor }}>{person?.qualification || 'N/A'}</span>
+                  <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                    <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Qualification:</span>
+                    <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }}>{person?.qualification || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[9px]">
-                    <span style={{ color: steelGrayColor }}>Address:</span>
-                    <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                  <div className="flex justify-between items-start" style={{ fontSize: `${9 * scale}px` }}>
+                    <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Address:</span>
+                    <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
                   </div>
                 </>
               )}
             </div>
 
             {/* Signature */}
-            <div className="flex flex-col items-center justify-end mt-2">
-              <div className="w-20 border-t border-gray-300 mb-0.5"></div>
-              <span className="text-[8px] uppercase tracking-wider font-semibold" style={{ color: steelGrayColor }}>
+            <div className="flex flex-col items-center justify-end" style={{ marginTop: `${8 * scale}px` }}>
+              <div className="border-t border-gray-300" style={{ width: `${80 * scale}px`, marginBottom: `${2 * scale}px`, borderTopWidth: `${1 * scale}px` }}></div>
+              <span className="uppercase tracking-wider font-semibold" style={{ color: steelGrayColor, fontSize: `${8 * scale}px` }}>
                 Authorized Signatory
               </span>
             </div>
           </div>
 
           {/* Thin accent footer band */}
-          <div className="w-full h-[8px]" style={{ backgroundColor: secondaryColor }} />
+          <div className="w-full" style={{ height: `${8 * scale}px`, backgroundColor: secondaryColor }} />
         </div>
       )
     }
@@ -472,46 +599,54 @@ function IDCard({
     if (side === 'front') {
       return (
         <div
-          className="w-[324px] h-[204px] border border-gray-200 rounded-2xl shadow-sm relative overflow-hidden bg-white flex flex-col justify-between p-3 select-none"
-          style={{ fontFamily: 'var(--font-body)' }}
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${324 * scale}px`,
+            height: `${204 * scale}px`,
+            padding: `${12 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {/* Thin top accent band */}
-          <div className="absolute top-0 left-0 w-full h-[6px]" style={{ backgroundColor: secondaryColor }} />
+          <div className="absolute top-0 left-0 w-full" style={{ height: `${6 * scale}px`, backgroundColor: secondaryColor }} />
 
           {/* Header */}
-          <div className="flex items-center justify-between mt-1 pb-2 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-gray-100" style={{ marginTop: `${4 * scale}px`, paddingBottom: `${8 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
             {renderLogoSection(true)}
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md leading-none bg-gray-50" style={{ color: primaryColor }}>
+            <span className="font-bold uppercase tracking-wider rounded-md leading-none bg-gray-50" style={{ color: primaryColor, fontSize: `${9 * scale}px`, paddingLeft: `${8 * scale}px`, paddingRight: `${8 * scale}px`, paddingTop: `${2 * scale}px`, paddingBottom: `${2 * scale}px` }}>
               {type === 'student' ? 'Student' : 'Staff'}
             </span>
           </div>
 
           {/* Content */}
-          <div className="flex-1 flex items-center gap-3.5 my-2">
+          <div className="flex-1 flex items-center" style={{ gap: `${14 * scale}px`, marginTop: `${8 * scale}px`, marginBottom: `${8 * scale}px` }}>
             <div className="flex-shrink-0">
               <CardPhoto
                 src={person?.profile_photo_url}
                 name={name}
                 isCircle={false}
                 borderColor={lightGrayColor}
+                scale={scale}
               />
             </div>
             
             <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <h3 className="text-sm font-bold truncate" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)' }}>
+              <h3 className="font-bold break-words line-clamp-2 leading-tight" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)', fontSize: `${14 * scale}px` }}>
                 {name}
               </h3>
-              <p className="text-[10px] font-semibold" style={{ color: primaryColor }}>
+              <p className="font-semibold break-words line-clamp-2 leading-tight" style={{ color: primaryColor, fontSize: `${10 * scale}px` }}>
                 {subtitle}
               </p>
 
-              <div className="mt-2 space-y-0.5">
-                <div className="text-[9px] flex items-center gap-1">
-                  <span className="w-12 text-gray-400">ID No:</span>
+              <div style={{ marginTop: `${8 * scale}px`, gap: `${2 * scale}px` }} className="flex flex-col">
+                <div className="flex items-center" style={{ fontSize: `${9 * scale}px`, gap: `${4 * scale}px` }}>
+                  <span className="text-gray-400" style={{ width: `${48 * scale}px` }}>ID No:</span>
                   <span className="font-bold" style={{ color: charcoalColor }}>{code || 'N/A'}</span>
                 </div>
-                <div className="text-[9px] flex items-center gap-1">
-                  <span className="w-12 text-gray-400">Phone:</span>
+                <div className="flex items-center" style={{ fontSize: `${9 * scale}px`, gap: `${4 * scale}px` }}>
+                  <span className="text-gray-400" style={{ width: `${48 * scale}px` }}>Phone:</span>
                   <span className="font-bold" style={{ color: charcoalColor }}>
                     {type === 'student' ? (person?.guardian_phone || 'N/A') : (person?.phone || 'N/A')}
                   </span>
@@ -521,73 +656,276 @@ function IDCard({
           </div>
 
           {/* Thin bottom band */}
-          <div className="absolute bottom-0 left-0 w-full h-[6px]" style={{ backgroundColor: primaryColor }} />
+          <div className="absolute bottom-0 left-0 w-full" style={{ height: `${6 * scale}px`, backgroundColor: primaryColor }} />
         </div>
       )
     } else {
       // Back side
       return (
         <div
-          className="w-[324px] h-[204px] border border-gray-200 rounded-2xl shadow-sm relative overflow-hidden bg-white flex flex-col justify-between p-3 select-none"
-          style={{ fontFamily: 'var(--font-body)' }}
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${324 * scale}px`,
+            height: `${204 * scale}px`,
+            padding: `${12 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {/* Thin top accent band */}
-          <div className="absolute top-0 left-0 w-full h-[6px]" style={{ backgroundColor: secondaryColor }} />
+          <div className="absolute top-0 left-0 w-full" style={{ height: `${6 * scale}px`, backgroundColor: secondaryColor }} />
 
           {/* Header */}
-          <div className="text-center mt-1 pb-1 border-b border-gray-100">
-            <span className="text-[10px] font-bold tracking-tight" style={{ color: primaryColor }}>{instName}</span>
+          <div className="text-center border-b border-gray-100" style={{ marginTop: `${4 * scale}px`, paddingBottom: `${4 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+            <span className="font-bold tracking-tight" style={{ color: primaryColor, fontSize: `${10 * scale}px` }}>{instName}</span>
           </div>
 
           {/* Details */}
-          <div className="flex-1 flex flex-col justify-center gap-1 py-1 px-4 mt-1">
-            <p className="text-[8px] text-center leading-tight mb-2" style={{ color: steelGrayColor }}>
+          <div className="flex-1 flex flex-col justify-center mt-1" style={{ gap: `${4 * scale}px`, paddingTop: `${4 * scale}px`, paddingBottom: `${4 * scale}px`, paddingLeft: `${16 * scale}px`, paddingRight: `${16 * scale}px`, marginTop: `${4 * scale}px` }}>
+            <p className="text-center leading-tight" style={{ fontSize: `${8 * scale}px`, color: steelGrayColor, marginBottom: `${8 * scale}px` }}>
               {instAddress}
             </p>
             
             {type === 'student' ? (
               <>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-50 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Blood Group</span>
-                  <span className="font-bold" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-50" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Blood Group</span>
+                  <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-50 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Guardian Name</span>
-                  <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }}>{person?.guardian_name || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-50" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Guardian Name</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }}>{person?.guardian_name || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-50 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Guardian Phone</span>
-                  <span className="font-bold" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-50" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Guardian Phone</span>
+                  <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-50 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Address</span>
-                  <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-50" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Address</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
                 </div>
               </>
             ) : (
               <>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-50 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Qualification</span>
-                  <span className="font-bold" style={{ color: charcoalColor }}>{person?.qualification || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-50" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Qualification</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }}>{person?.qualification || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between items-center text-[9px] border-b border-gray-50 pb-0.5">
-                  <span style={{ color: steelGrayColor }}>Address</span>
-                  <span className="font-bold truncate max-w-[120px]" style={{ color: charcoalColor }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                <div className="flex justify-between items-start border-b border-gray-50" style={{ fontSize: `${9 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0" style={{ color: steelGrayColor }}>Address</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${180 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
                 </div>
               </>
             )}
           </div>
 
           {/* Signature */}
-          <div className="flex flex-col items-center mt-1 pb-1">
-            <div className="w-20 border-t border-gray-300 mb-0.5"></div>
-            <span className="text-[8px] uppercase tracking-wider font-semibold" style={{ color: steelGrayColor }}>
+          <div className="flex flex-col items-center" style={{ marginTop: `${4 * scale}px` }}>
+            <div className="border-t border-gray-300" style={{ width: `${80 * scale}px`, marginBottom: `${2 * scale}px`, borderTopWidth: `${1 * scale}px` }}></div>
+            <span className="uppercase tracking-wider font-semibold" style={{ color: steelGrayColor, fontSize: `${8 * scale}px` }}>
               Authorized Signatory
             </span>
           </div>
 
           {/* Thin bottom band */}
-          <div className="absolute bottom-0 left-0 w-full h-[6px]" style={{ backgroundColor: primaryColor }} />
+          <div className="absolute bottom-0 left-0 w-full" style={{ height: `${6 * scale}px`, backgroundColor: primaryColor }} />
+        </div>
+      )
+    }
+  }
+
+  // --- TEMPLATE 4: Portrait + Watermark ---
+  if (template === 'template_4') {
+    if (side === 'front') {
+      return (
+        <div
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${204 * scale}px`,
+            height: `${324 * scale}px`,
+            padding: `${12 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {/* Watermark Logo */}
+          {logoUrl && (
+            <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none opacity-[0.08]">
+              <img
+                src={logoUrl}
+                alt="watermark"
+                crossOrigin="anonymous"
+                style={{
+                  width: `${128 * scale}px`,
+                  height: `${128 * scale}px`,
+                }}
+                className="object-contain"
+              />
+            </div>
+          )}
+
+          {/* Header content */}
+          <div className="relative z-10 flex items-center border-b border-gray-100" style={{ gap: `${6 * scale}px`, paddingBottom: `${8 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+            {logoUrl ? (
+              <div className="flex items-center justify-center rounded bg-white overflow-hidden" style={{ width: `${20 * scale}px`, height: `${20 * scale}px`, padding: `${2 * scale}px` }}>
+                <img
+                  src={logoUrl}
+                  alt={instName}
+                  crossOrigin="anonymous"
+                  className="max-w-full max-h-full w-auto h-auto"
+                />
+              </div>
+            ) : (
+              <div
+                style={{ backgroundColor: primaryColor, color: whiteColor, width: `${16 * scale}px`, height: `${16 * scale}px`, fontSize: `${8 * scale}px` }}
+                className="rounded flex items-center justify-center font-bold"
+              >
+                {getInitials(instName)}
+              </div>
+            )}
+            <span className="font-bold tracking-tight truncate" style={{ color: primaryColor, fontSize: `${9 * scale}px`, maxWidth: `${100 * scale}px` }}>
+              {instName}
+            </span>
+          </div>
+
+          {/* Centered Photo & Badge */}
+          <div className="relative z-10 flex flex-col items-center flex-1 justify-center animate-none" style={{ marginTop: `${12 * scale}px`, gap: `${4 * scale}px` }}>
+            <div className="relative">
+              <CardPhoto
+                src={person?.profile_photo_url}
+                name={name}
+                isCircle={false}
+                borderColor={secondaryColor}
+                scale={scale}
+              />
+              <span
+                className="absolute left-1/2 transform -translate-x-1/2 font-black uppercase tracking-wider rounded-full leading-none shadow-sm"
+                style={{
+                  bottom: `${-8 * scale}px`,
+                  fontSize: `${7 * scale}px`,
+                  paddingLeft: `${8 * scale}px`,
+                  paddingRight: `${8 * scale}px`,
+                  paddingTop: `${2 * scale}px`,
+                  paddingBottom: `${2 * scale}px`,
+                  backgroundColor: primaryColor,
+                  color: whiteColor,
+                }}
+              >
+                {type === 'student' ? 'Student' : 'Staff'}
+              </span>
+            </div>
+
+            {/* Basic Details */}
+            <div className="text-center w-full" style={{ marginTop: `${10 * scale}px`, paddingLeft: `${4 * scale}px`, paddingRight: `${4 * scale}px` }}>
+              <h3 className="font-bold break-words line-clamp-2 leading-tight" style={{ color: charcoalColor, fontFamily: 'var(--font-heading)', fontSize: `${12 * scale}px` }}>
+                {name}
+              </h3>
+              <p className="font-semibold leading-normal mt-0.5 break-words line-clamp-1" style={{ color: secondaryColor, fontSize: `${9 * scale}px`, marginTop: `${2 * scale}px` }}>
+                {subtitle}
+              </p>
+            </div>
+          </div>
+
+          {/* Details Footer Grid */}
+          <div className="relative z-10 border-t border-gray-100 grid grid-cols-2 text-[8px]" style={{ paddingTop: `${8 * scale}px`, gap: `${4 * scale}px`, fontSize: `${8 * scale}px`, marginTop: `${6 * scale}px`, borderTopWidth: `${1 * scale}px` }}>
+            <div>
+              <span className="block uppercase tracking-wider text-gray-400" style={{ fontSize: `${7 * scale}px` }}>ID No</span>
+              <span className="block font-bold truncate" style={{ color: charcoalColor }}>{code || 'N/A'}</span>
+            </div>
+            <div>
+              <span className="block uppercase tracking-wider text-gray-400" style={{ fontSize: `${7 * scale}px` }}>{type === 'student' ? 'DOB' : 'Joined'}</span>
+              <span className="block font-bold truncate" style={{ color: charcoalColor }}>
+                {type === 'student'
+                  ? (person?.date_of_birth ? new Date(person.date_of_birth).toLocaleDateString('en-GB') : 'N/A')
+                  : (person?.date_of_joining ? new Date(person.date_of_joining).toLocaleDateString('en-GB') : 'N/A')
+                }
+              </span>
+            </div>
+          </div>
+        </div>
+      )
+    } else {
+      // Back side
+      return (
+        <div
+          className="border border-gray-200 shadow-sm relative overflow-hidden bg-white flex flex-col justify-between select-none"
+          style={{
+            width: `${204 * scale}px`,
+            height: `${324 * scale}px`,
+            padding: `${12 * scale}px`,
+            borderRadius: `${16 * scale}px`,
+            borderWidth: `${1 * scale}px`,
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {/* Watermark Logo */}
+          {logoUrl && (
+            <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none opacity-[0.08]">
+              <img
+                src={logoUrl}
+                alt="watermark"
+                crossOrigin="anonymous"
+                style={{
+                  width: `${128 * scale}px`,
+                  height: `${128 * scale}px`,
+                }}
+                className="object-contain"
+              />
+            </div>
+          )}
+
+          {/* Header */}
+          <div className="relative z-10 text-center border-b border-gray-100" style={{ paddingBottom: `${6 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+            <span className="font-bold tracking-tight uppercase" style={{ color: primaryColor, fontSize: `${9 * scale}px` }}>ID CARD - DETAILS</span>
+          </div>
+
+          {/* Details */}
+          <div className="relative z-10 flex-1 flex flex-col justify-center text-[8px]" style={{ gap: `${6 * scale}px`, paddingTop: `${8 * scale}px`, paddingBottom: `${8 * scale}px` }}>
+            {type === 'student' ? (
+              <>
+                <div className="flex justify-between items-start border-b border-gray-50 pb-0.5" style={{ fontSize: `${8 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0 text-gray-400">Blood Group</span>
+                  <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.blood_group || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-50 pb-0.5" style={{ fontSize: `${8 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0 text-gray-400">Guardian Name</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${110 * scale}px` }}>{person?.guardian_name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-50 pb-0.5" style={{ fontSize: `${8 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0 text-gray-400">Guardian Phone</span>
+                  <span className="font-bold text-right ml-2" style={{ color: charcoalColor }}>{person?.guardian_phone || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-50 pb-0.5" style={{ fontSize: `${8 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0 text-gray-400">Address</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${110 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-start border-b border-gray-50 pb-0.5" style={{ fontSize: `${8 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0 text-gray-400">Qualification</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${110 * scale}px` }}>{person?.qualification || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-start border-b border-gray-50 pb-0.5" style={{ fontSize: `${8 * scale}px`, paddingBottom: `${2 * scale}px`, borderBottomWidth: `${1 * scale}px` }}>
+                  <span className="flex-shrink-0 text-gray-400">Address</span>
+                  <span className="font-bold text-right ml-2 break-words" style={{ color: charcoalColor, maxWidth: `${110 * scale}px` }} title={person?.address || ''}>{person?.address || 'N/A'}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Signature */}
+          <div className="relative z-10 flex flex-col items-center" style={{ marginTop: `${4 * scale}px`, paddingBottom: `${4 * scale}px` }}>
+            <div className="border-t border-gray-300" style={{ width: `${64 * scale}px`, marginBottom: `${2 * scale}px`, borderTopWidth: `${1 * scale}px` }}></div>
+            <span className="uppercase tracking-wider font-semibold" style={{ color: steelGrayColor, fontSize: `${7 * scale}px` }}>
+              Authorized Signatory
+            </span>
+          </div>
+
+          {/* Thin bottom band */}
+          <div className="absolute bottom-0 left-0 w-full" style={{ height: `${4 * scale}px`, backgroundColor: primaryColor }} />
         </div>
       )
     }
@@ -610,7 +948,7 @@ export default function IDCardsClient({
   const searchParams = useSearchParams()
 
   const [activeTab, setActiveTab] = useState<'students' | 'staff'>('students')
-  const [selectedTemplate, setSelectedTemplate] = useState<'template_1' | 'template_2' | 'template_3'>(
+  const [selectedTemplate, setSelectedTemplate] = useState<'template_1' | 'template_2' | 'template_3' | 'template_4'>(
     (initialSettings?.selected_template as any) || 'template_1'
   )
   
@@ -637,6 +975,8 @@ export default function IDCardsClient({
   const secondaryColor = theme?.colors?.secondary ?? '#D4AF37'
   const charcoalColor = theme?.colors?.charcoal ?? '#333333'
   const whiteColor = theme?.colors?.white ?? '#FFFFFF'
+  const lightGrayColor = theme?.colors?.lightGray ?? '#E5E7EB'
+  const logoUrl = institution?.logo_url
 
   // Set default highlighted item
   useEffect(() => {
@@ -658,7 +998,7 @@ export default function IDCardsClient({
   )
 
   // Handle template selection & persistence
-  const handleTemplateChange = async (tpl: 'template_1' | 'template_2' | 'template_3') => {
+  const handleTemplateChange = async (tpl: 'template_1' | 'template_2' | 'template_3' | 'template_4') => {
     setSelectedTemplate(tpl)
     setIsSavingTemplate(true)
     try {
@@ -772,13 +1112,14 @@ export default function IDCardsClient({
         const total = generatingIds.length
         
         // A4 Dimensions: 210mm x 297mm
-        // CR80 Sizing: 85.6mm x 54mm
-        const cardWidth = 85.6
-        const cardHeight = 54
+        // CR80 Sizing: 85.6mm x 54mm (Landscape) or 54mm x 85.6mm (Portrait)
+        const isPortrait = selectedTemplate === 'template_4'
+        const cardWidth = isPortrait ? 54 : 85.6
+        const cardHeight = isPortrait ? 85.6 : 54
         const gapY = 4 // gap between rows
-        const startX = (210 - (cardWidth * 2)) / 2 // Center the pair: ~19.4mm margin
+        const startX = (210 - (cardWidth * 2)) / 2 // Center the pair
         const startY = 10 // top margin
-        const cardsPerPage = 5
+        const cardsPerPage = isPortrait ? 3 : 5
 
         for (let i = 0; i < total; i++) {
           const id = generatingIds[i]
@@ -795,9 +1136,9 @@ export default function IDCardsClient({
           }
 
           // Render front & back using html2canvas
-          // scale: 2 double resolution for professional print look
+          // Scale 1.5 since the DOM element itself is already scaled by 4
           const frontCanvas = await html2canvas(frontEl, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             allowTaint: true,
             backgroundColor: null,
@@ -805,7 +1146,7 @@ export default function IDCardsClient({
           })
 
           const backCanvas = await html2canvas(backEl, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             allowTaint: true,
             backgroundColor: null,
@@ -905,7 +1246,7 @@ export default function IDCardsClient({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Template 1 Selector */}
               <button
                 onClick={() => handleTemplateChange('template_1')}
@@ -974,6 +1315,37 @@ export default function IDCardsClient({
                 <div className="text-center">
                   <span className="block text-xs font-bold text-charcoal">Template 3</span>
                   <span className="block text-[10px] text-steel-gray mt-0.5">Square-rounded photo frame</span>
+                </div>
+              </button>
+
+              {/* Template 4 Selector */}
+              <button
+                onClick={() => handleTemplateChange('template_4')}
+                className={`border rounded-2xl p-3 text-left transition-all hover:shadow-md cursor-pointer flex flex-col items-center justify-center space-y-2 relative ${
+                  selectedTemplate === 'template_4'
+                    ? 'border-primary ring-2 ring-primary bg-primary/[0.02]'
+                    : 'border-light-gray hover:border-steel-gray/40'
+                }`}
+              >
+                <div className="w-full h-12 rounded-lg flex items-center justify-center border relative overflow-hidden bg-white" style={{ borderColor: lightGrayColor }}>
+                  {logoUrl && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.15]">
+                      <img
+                        src={logoUrl}
+                        alt="watermark"
+                        crossOrigin="anonymous"
+                        className="w-8 h-8 object-contain"
+                      />
+                    </div>
+                  )}
+                  <div className="relative z-10 text-[9px] font-black uppercase tracking-wider text-center flex flex-col items-center gap-0.5" style={{ color: primaryColor }}>
+                    <div className="w-3 h-3 rounded border border-dashed" style={{ borderColor: secondaryColor }} />
+                    Portrait
+                  </div>
+                </div>
+                <div className="text-center">
+                  <span className="block text-xs font-bold text-charcoal">Template 4</span>
+                  <span className="block text-[10px] text-steel-gray mt-0.5">Portrait + Watermark logo</span>
                 </div>
               </button>
             </div>
@@ -1335,6 +1707,7 @@ export default function IDCardsClient({
                     template={selectedTemplate}
                     theme={theme}
                     institution={institution}
+                    scale={4}
                   />
                 </div>
                 <div id={`export-back-${id}`}>
@@ -1345,6 +1718,7 @@ export default function IDCardsClient({
                     template={selectedTemplate}
                     theme={theme}
                     institution={institution}
+                    scale={4}
                   />
                 </div>
               </div>

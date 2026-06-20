@@ -102,14 +102,27 @@ function AdmitCardPhoto({
 
   if (src && !error) {
     return (
-      <img
-        src={src}
-        alt={name}
-        onError={() => setError(true)}
-        crossOrigin="anonymous"
-        className="w-[110px] h-[130px] object-cover border-2 shadow-sm rounded-lg"
+      <div
+        className="w-[110px] h-[130px] border-2 shadow-sm rounded-lg relative overflow-hidden"
         style={borderStyle}
-      />
+      >
+        <div
+          className="absolute inset-0 w-full h-full"
+          style={{
+            backgroundImage: `url(${src})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        <img
+          src={src}
+          alt={name}
+          onError={() => setError(true)}
+          crossOrigin="anonymous"
+          className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+        />
+      </div>
     )
   }
 
@@ -178,12 +191,14 @@ function AdmitCard({
         >
           <div className="flex items-center gap-4 relative z-10">
             {institution?.logo_url ? (
-              <img
-                src={institution.logo_url}
-                alt={instName}
-                crossOrigin="anonymous"
-                className="w-16 h-16 object-contain rounded-xl bg-white p-1"
-              />
+              <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-white p-1 overflow-hidden">
+                <img
+                  src={institution.logo_url}
+                  alt={instName}
+                  crossOrigin="anonymous"
+                  className="max-w-full max-h-full w-auto h-auto"
+                />
+              </div>
             ) : (
               <div
                 className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold font-heading shadow-md"
@@ -720,7 +735,7 @@ export default function AdmitCardsClient({
           }
 
           const canvas = await html2canvas(element, {
-            scale: 2,
+            scale: 3,
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#FFFFFF',
