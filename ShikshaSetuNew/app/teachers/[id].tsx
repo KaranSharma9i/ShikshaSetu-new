@@ -379,7 +379,7 @@ export default function TeacherProfileScreen() {
   const avgMarksCumulative = metricsCount > 0 ? Math.round(avgMarksSum / metricsCount) : 80;
 
   const avgAiSum = performance?.subjectMetrics.reduce((acc, m) => acc + m.aiScore, 0) || 0;
-  const avgAiCumulative = metricsCount > 0 ? Math.round(avgAiSum / metricsCount) : 78;
+  const avgAiCumulative = metricsCount > 0 ? (avgAiSum / metricsCount).toFixed(1) : "8.0";
 
   // Check if they are class teacher
   const classTeacherClass = classes.find(c => c.isClassTeacher);
@@ -699,7 +699,7 @@ export default function TeacherProfileScreen() {
               {/* Student AI Score Trend Line Chart */}
               {performance && (
                 <View className="rounded-3xl p-5 border border-gray-800 shadow-lg" style={{ backgroundColor: primaryColor }}>
-                  <View className="flex-row justify-between items-start mb-5">
+                  <View className="flex-row flex-wrap justify-between items-start mb-5 gap-2">
                     <View>
                       <Text className="font-poppins-bold text-sm flex-row items-center" style={{ color: secondaryLightColor }}>
                         <Ionicons name="sparkles" size={12} color={secondaryLightColor} className="mr-1" />

@@ -61,6 +61,8 @@ export default function StudentProfileScreen() {
   // Lazy Loaded Data States
   const [marks, setMarks] = useState<SubjectMarkItem[]>([]);
   const [loadingMarks, setLoadingMarks] = useState(false);
+  const [termName, setTermName] = useState<string>("Current Term");
+  const [isPublished, setIsPublished] = useState<boolean>(false);
 
   const [results, setResults] = useState<PreviousResultItem[]>([]);
   const [loadingResults, setLoadingResults] = useState(false);
@@ -97,7 +99,11 @@ export default function StudentProfileScreen() {
     if (activeTab === "marks" && marks.length === 0) {
       setLoadingMarks(true);
       getStudentMarks(studentId)
-        .then(setMarks)
+        .then((res) => {
+          setMarks(res.marks);
+          setTermName(res.term_name);
+          setIsPublished(res.is_published);
+        })
         .catch(console.error)
         .finally(() => setLoadingMarks(false));
     }
@@ -472,12 +478,19 @@ export default function StudentProfileScreen() {
           {activeTab === "marks" && (
             <View className="bg-white rounded-3xl overflow-hidden border border-gray-200/60 shadow-sm">
               <View className="p-5 flex-row justify-between items-center border-b border-gray-100">
-                <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>Current Term Marks</Text>
+                <Text className="font-poppins-bold text-base" style={{ color: primaryColor }}>{termName} Marks</Text>
                 <Ionicons name="journal-outline" size={18} color={secondaryColor} />
               </View>
 
               {loadingMarks ? (
                 <ActivityIndicator size="small" color={secondaryColor} className="my-10" />
+              ) : !isPublished ? (
+                <View className="py-12 items-center justify-center">
+                  <Ionicons name="lock-closed-outline" size={32} color={steelGrayColor} className="mb-2" />
+                  <Text className="font-poppins-semibold text-xs" style={{ color: steelGrayColor }}>
+                    Marks not yet published
+                  </Text>
+                </View>
               ) : (
                 <View>
                   {/* Table Header */}
@@ -530,6 +543,27 @@ export default function StudentProfileScreen() {
                 <ActivityIndicator size="small" color={secondaryColor} className="my-10" />
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-5 px-5">
+                  {/* Current Term In-Progress Card */}
+                  <View
+                    className="min-w-[140px] bg-white rounded-2xl p-4 mr-3 border-2 border-[#D4AF37] shadow-sm items-center justify-center relative overflow-hidden"
+                  >
+                    <View className="absolute top-0 left-0 right-0 h-1 bg-[#D4AF37]" />
+                    <Text className="font-poppins-bold text-[10px] uppercase tracking-wider text-center" style={{ color: primaryColor }}>
+                      {profile?.class_name || "Current Class"}
+                    </Text>
+                    <Text className="font-poppins-semibold text-[9px] text-center mt-0.5" style={{ color: steelGrayColor }}>
+                      {termName}
+                    </Text>
+                    <Text className="font-poppins-bold text-base mt-1.5" style={{ color: primaryColor }}>
+                      {isPublished && marks.length > 0 ? `${aggregatePct}%` : "In Progress"}
+                    </Text>
+                    <View className="mt-2.5 px-2.5 py-0.5 bg-amber-50 border border-amber-200 rounded-md">
+                      <Text className="font-poppins-bold text-[8.5px] uppercase tracking-wider text-[#B8860B]">
+                        Current Term
+                      </Text>
+                    </View>
+                  </View>
+
                   {results.map((res) => (
                     <View
                       key={res.id}
@@ -557,7 +591,7 @@ export default function StudentProfileScreen() {
           {activeTab === "ai-score" && (
             <View className="rounded-3xl p-5 border border-gray-800 shadow-lg" style={{ backgroundColor: primaryColor }}>
               {/* Header and Filter */}
-              <View className="flex-row justify-between items-start mb-5">
+              <View className="flex-row flex-wrap justify-between items-start mb-5 gap-2">
                 <View>
                   <Text className="font-poppins-bold text-sm flex-row items-center" style={{ color: secondaryLightColor }}>
                     <Ionicons name="sparkles" size={12} color={secondaryLightColor} className="mr-1" />
