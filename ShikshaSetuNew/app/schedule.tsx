@@ -84,13 +84,6 @@ function getDayType(
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   
-  if (dateStr === today) return 'today';
-  
-  // Set times to midnight to safely compare future days
-  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  if (dateStart > todayStart) return 'future';
-  
   // Check holiday
   if (holidays.some(h => h.date === dateStr)) 
     return 'holiday';
@@ -99,6 +92,13 @@ function getDayType(
   if (leaves.some(l => 
     dateStr >= l.from_date && dateStr <= l.to_date
   )) return 'leave';
+  
+  if (dateStr === today) return 'today';
+  
+  // Set times to midnight to safely compare future days
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (dateStart > todayStart) return 'future';
   
   // Check attendance
   const att = attendance.find(a => a.date === dateStr);
@@ -298,19 +298,12 @@ export default function ScheduleScreen() {
   }, [student, academicYear, currentMonth]);
 
   // ── Month Navigation Limits ────────────────────────────────────────────────
-  const ayStart = academicYear?.starts_on ? new Date(academicYear.starts_on) : null;
-  const ayEnd = academicYear?.ends_on ? new Date(academicYear.ends_on) : null;
-
   const prevMonthDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
   const nextMonthDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
 
-  const isPrevDisabled = ayStart
-    ? prevMonthDate < new Date(ayStart.getFullYear(), ayStart.getMonth(), 1)
-    : false;
-
-  const isNextDisabled = ayEnd
-    ? nextMonthDate > new Date(ayEnd.getFullYear(), ayEnd.getMonth(), 1)
-    : false;
+  // Allow free navigation to any month
+  const isPrevDisabled = false;
+  const isNextDisabled = false;
 
   const handlePrevMonth = () => {
     if (isPrevDisabled) return;
