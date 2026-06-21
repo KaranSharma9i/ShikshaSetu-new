@@ -3,6 +3,7 @@ import { Session } from "@supabase/supabase-js";
 import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { AuthContext, AuthState, UserRole } from "../context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -159,6 +160,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         };
 
+        const newProfile = {
+          role,
+          fullName: userData.full_name || null,
+          theme: parsedTheme,
+          institutionName,
+          logoUrl,
+          tagline,
+          institutionId: userData.institution_id || null,
+        };
+
+        try {
+          await AsyncStorage.setItem(`user_profile_${user.id}`, JSON.stringify(newProfile));
+        } catch (cacheErr) {
+          console.error("Failed to save profile cache:", cacheErr);
+        }
+
         setAuthState({
           userId: user.id,
           institutionId: userData.institution_id || null,
@@ -174,6 +191,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         // No matching public.users profile found
+        try {
+          await AsyncStorage.removeItem(`user_profile_${user.id}`);
+        } catch (cacheErr) {
+          console.warn("Failed to remove profile cache:", cacheErr);
+        }
         setAuthState({
           userId: user.id,
           institutionId: null,
@@ -190,12 +212,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error("Error fetching user profile:", err);
+      if (session && session.user) {
+        try {
+          const cachedData = await AsyncStorage.getItem(`user_profile_${session.user.id}`);
+          if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            setAuthState({
+              userId: session.user.id,
+              institutionId: null, // Keep null per instructions since network query didn't verify it
+              role: parsed.role || null,
+              fullName: parsed.fullName || null,
+              email: session.user.email || null,
+              session,
+              isLoading: false,
+              theme: parsed.theme || null,
+              institutionName: parsed.institutionName || null,
+              logoUrl: parsed.logoUrl || null,
+              tagline: parsed.tagline || null,
+            });
+            return;
+          }
+        } catch (cacheErr) {
+          console.error("Failed to read fallback cache on error:", cacheErr);
+        }
+      }
       setAuthState({
-        userId: session.user.id,
+        userId: session ? session.user.id : null,
         institutionId: null,
         role: null,
         fullName: null,
-        email: session.user.email || null,
+        email: session ? session.user.email || null : null,
         session,
         isLoading: false,
         theme: null,
@@ -207,31 +253,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.warn("Initial session recovery failed, clearing credentials:", error.message);
-        // Stale/invalid token in storage, sign out to clear it
-        supabase.auth.signOut().catch(() => {});
-        fetchUserProfile(null);
-      } else {
-        fetchUserProfile(session);
+    let isMounted = true;
+
+    async function initializeAuth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session && session.user) {
+          // 1. Try to load cached profile optimistically
+          try {
+            const cachedData = await AsyncStorage.getItem(`user_profile_${session.user.id}`);
+            if (cachedData && isMounted) {
+              const parsed = JSON.parse(cachedData);
+              setAuthState({
+                userId: session.user.id,
+                institutionId: null, // Keep null per instructions until background refresh verifies it
+                role: parsed.role || null,
+                fullName: parsed.fullName || null,
+                email: session.user.email || null,
+                session,
+                isLoading: false, // Paint cached UI instantly
+                theme: parsed.theme || null,
+                institutionName: parsed.institutionName || null,
+                logoUrl: parsed.logoUrl || null,
+                tagline: parsed.tagline || null,
+              });
+              setIsLoaded(true);
+            }
+          } catch (cacheErr) {
+            console.error("Failed to load profile cache on launch:", cacheErr);
+          }
+
+          // 2. Perform live verification query in the background
+          await fetchUserProfile(session);
+        } else {
+          // No session
+          await fetchUserProfile(null);
+        }
+      } catch (err) {
+        console.warn("Initial session recovery failed, signing out:", err);
+        await supabase.auth.signOut().catch(() => {});
+        await fetchUserProfile(null);
+      } finally {
+        if (isMounted) {
+          setIsLoaded(true);
+        }
       }
-    }).catch(err => {
-      console.warn("getSession promise rejected:", err);
-      supabase.auth.signOut().catch(() => {});
-      fetchUserProfile(null);
-    });
+    }
+
+    initializeAuth();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        await fetchUserProfile(session);
-        setIsLoaded(true);
+        if (event === "SIGNED_OUT") {
+          setAuthState({
+            userId: null,
+            institutionId: null,
+            role: null,
+            fullName: null,
+            email: null,
+            session: null,
+            isLoading: false,
+            theme: null,
+            institutionName: null,
+            logoUrl: null,
+            tagline: null,
+          });
+        } else if (event === "SIGNED_IN") {
+          await fetchUserProfile(session);
+          if (isMounted) {
+            setIsLoaded(true);
+          }
+        } else {
+          await fetchUserProfile(session);
+        }
       }
     );
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -252,6 +353,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error signing out from Supabase:", error);
     } finally {
+      try {
+        await AsyncStorage.clear();
+      } catch (cacheErr) {
+        console.error("Failed to clear AsyncStorage on signOut:", cacheErr);
+      }
       setAuthState({
         userId: null,
         institutionId: null,
