@@ -1,118 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
+import * as aesjs from "aes-js";
 
 const ENCRYPTION_KEY_STORE_KEY = "margam_session_encryption_key";
 
-// Helper: Convert string to UTF-8 byte array
-function stringToUtf8ByteArray(str: string): number[] {
-  const bytes: number[] = [];
-  for (let i = 0; i < str.length; i++) {
-    let code = str.charCodeAt(i);
-    if (code < 0x80) {
-      bytes.push(code);
-    } else if (code < 0x800) {
-      bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
-    } else if (code < 0xd800 || code >= 0xe000) {
-      bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-    } else {
-      i++;
-      code = 0x10000 + (((code & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff));
-      bytes.push(0xf0 | (code >> 18), 0x80 | ((code >> 12) & 0x3f), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-    }
-  }
-  return bytes;
-}
-
-// Helper: Convert UTF-8 byte array to string
-function utf8ByteArrayToString(bytes: number[]): string {
-  let str = "";
-  let i = 0;
-  while (i < bytes.length) {
-    const b = bytes[i++];
-    if (b < 0x80) {
-      str += String.fromCharCode(b);
-    } else if (b < 0xe0) {
-      str += String.fromCharCode(((b & 0x1f) << 6) | (bytes[i++] & 0x3f));
-    } else if (b < 0xf0) {
-      str += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f));
-    } else {
-      let code = ((b & 0x07) << 18) | ((bytes[i++] & 0x3f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f);
-      code -= 0x10000;
-      str += String.fromCharCode(0xd800 | (code >> 10), 0xdc00 | (code & 0x3ff));
-    }
-  }
-  return str;
-}
-
-// Helper: Convert bytes to hex string
-function bytesToHex(bytes: number[]): string {
-  return bytes.map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-// Helper: Convert hex string to bytes
-function hexToBytes(hex: string): number[] {
-  const bytes: number[] = [];
-  for (let i = 0; i < hex.length; i += 2) {
-    const hexSlice = hex.slice(i, i + 2);
-    bytes.push(parseInt(hexSlice, 16));
-  }
-  return bytes;
-}
-
-// Helper: Encrypt plaintext using SHA-256 CTR stream cipher
-async function encrypt(plaintext: string, secretKey: string): Promise<string> {
-  const plaintextBytes = stringToUtf8ByteArray(plaintext);
-  const nonce = Crypto.randomUUID().replace(/-/g, "").slice(0, 32);
-  const ciphertextBytes: number[] = [];
-  const blockSize = 32;
-
-  for (let i = 0; i < plaintextBytes.length; i += blockSize) {
-    const blockIndex = Math.floor(i / blockSize);
-    const hashHex = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA_256,
-      secretKey + nonce + blockIndex
-    );
-    const keystreamBytes = hexToBytes(hashHex);
-
-    for (let j = 0; j < blockSize && (i + j) < plaintextBytes.length; j++) {
-      ciphertextBytes.push(plaintextBytes[i + j] ^ keystreamBytes[j]);
-    }
-  }
-
-  return nonce + bytesToHex(ciphertextBytes);
-}
-
-// Helper: Decrypt ciphertext using SHA-256 CTR stream cipher
-async function decrypt(encryptedText: string, secretKey: string): Promise<string> {
-  if (encryptedText.length < 32) {
-    throw new Error("Invalid encrypted text format");
-  }
-
-  const nonce = encryptedText.slice(0, 32);
-  const ciphertextHex = encryptedText.slice(32);
-  const ciphertextBytes = hexToBytes(ciphertextHex);
-  const plaintextBytes: number[] = [];
-  const blockSize = 32;
-
-  for (let i = 0; i < ciphertextBytes.length; i += blockSize) {
-    const blockIndex = Math.floor(i / blockSize);
-    const hashHex = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA_256,
-      secretKey + nonce + blockIndex
-    );
-    const keystreamBytes = hexToBytes(hashHex);
-
-    for (let j = 0; j < blockSize && (i + j) < ciphertextBytes.length; j++) {
-      plaintextBytes.push(ciphertextBytes[i + j] ^ keystreamBytes[j]);
-    }
-  }
-
-  return utf8ByteArrayToString(plaintextBytes);
-}
-
-// Get or create the unique session encryption key from SecureStore
-async function getOrCreateEncryptionKey(): Promise<string> {
+// Get or create the unique session encryption master key from SecureStore
+async function getOrCreateMasterKey(): Promise<string> {
   try {
     let key = await SecureStore.getItemAsync(ENCRYPTION_KEY_STORE_KEY);
     if (!key) {
@@ -121,10 +15,88 @@ async function getOrCreateEncryptionKey(): Promise<string> {
     }
     return key;
   } catch (error) {
-    console.error("Failed to retrieve or generate encryption key from SecureStore:", error);
-    // Fallback to a transient key if SecureStore fails
+    console.error("Failed to retrieve or generate master key from SecureStore:", error);
     return "transient-fallback-key-32186717-380d-4560-84cf-ea5a83a0429f";
   }
+}
+
+// Derive key bytes and MAC key from the master key
+async function deriveKeys(masterKey: string) {
+  const encryptionKeyHex = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    masterKey + "encryption"
+  );
+  const macKeyHex = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    masterKey + "mac"
+  );
+  const keyBytes = aesjs.utils.hex.toBytes(encryptionKeyHex);
+  return {
+    keyBytes,
+    macKeyHex,
+  };
+}
+
+// Encrypt plaintext using aes-js CTR mode with integrity check
+async function encrypt(plaintext: string, masterKey: string): Promise<string> {
+  const { keyBytes, macKeyHex } = await deriveKeys(masterKey);
+  const textBytes = aesjs.utils.utf8.toBytes(plaintext);
+
+  // Generate a random 16-byte IV for the CTR counter
+  const iv = new Uint8Array(16);
+  Crypto.getRandomValues(iv);
+
+  // Encrypt with AES-CTR
+  const aesCtr = new aesjs.ModeOfOperation.ctr(keyBytes, new aesjs.Counter(iv));
+  const encryptedBytes = aesCtr.encrypt(textBytes);
+
+  // Convert to hex
+  const ivHex = aesjs.utils.hex.fromBytes(iv);
+  const ciphertextHex = aesjs.utils.hex.fromBytes(encryptedBytes);
+
+  // Calculate integrity MAC
+  const macHex = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    macKeyHex + ivHex + ciphertextHex
+  );
+
+  // Stored format: IV (32 hex chars) + Ciphertext + MAC (64 hex chars)
+  return ivHex + ciphertextHex + macHex;
+}
+
+// Decrypt ciphertext using aes-js CTR mode with integrity verification
+async function decrypt(encryptedText: string, masterKey: string): Promise<string | null> {
+  // IV is 16 bytes = 32 hex characters. MAC is 32 bytes = 64 hex characters.
+  if (encryptedText.length < 96) {
+    console.warn("secureStorage: Invalid encrypted text format (too short)");
+    return null;
+  }
+
+  const ivHex = encryptedText.slice(0, 32);
+  const ciphertextHex = encryptedText.slice(32, -64);
+  const macHex = encryptedText.slice(-64);
+
+  const { keyBytes, macKeyHex } = await deriveKeys(masterKey);
+
+  // Verify integrity MAC
+  const expectedMacHex = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    macKeyHex + ivHex + ciphertextHex
+  );
+
+  if (macHex !== expectedMacHex) {
+    console.warn("secureStorage: Session payload integrity check failed (possible corruption or tampering)");
+    return null;
+  }
+
+  // Decrypt
+  const iv = aesjs.utils.hex.toBytes(ivHex);
+  const ciphertext = aesjs.utils.hex.toBytes(ciphertextHex);
+
+  const aesCtr = new aesjs.ModeOfOperation.ctr(keyBytes, new aesjs.Counter(iv));
+  const decryptedBytes = aesCtr.decrypt(ciphertext);
+
+  return aesjs.utils.utf8.fromBytes(decryptedBytes);
 }
 
 export const secureStorage = {
@@ -133,8 +105,8 @@ export const secureStorage = {
       const encryptedValue = await AsyncStorage.getItem(key);
       if (!encryptedValue) return null;
 
-      const secretKey = await getOrCreateEncryptionKey();
-      return await decrypt(encryptedValue, secretKey);
+      const masterKey = await getOrCreateMasterKey();
+      return await decrypt(encryptedValue, masterKey);
     } catch (error) {
       console.error("Failed to decrypt or read session from secureStorage:", error);
       return null;
@@ -143,8 +115,8 @@ export const secureStorage = {
 
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      const secretKey = await getOrCreateEncryptionKey();
-      const encryptedValue = await encrypt(value, secretKey);
+      const masterKey = await getOrCreateMasterKey();
+      const encryptedValue = await encrypt(value, masterKey);
       await AsyncStorage.setItem(key, encryptedValue);
     } catch (error) {
       console.error("Failed to encrypt or save session to secureStorage:", error);
