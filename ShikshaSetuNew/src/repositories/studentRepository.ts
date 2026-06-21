@@ -1558,7 +1558,8 @@ export async function uploadProfilePhoto(
     .from('avatars')
     .getPublicUrl(filePath);
 
-  return data.publicUrl;
+  const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+  return publicUrl;
 }
 
 export async function getStudentTimetable(

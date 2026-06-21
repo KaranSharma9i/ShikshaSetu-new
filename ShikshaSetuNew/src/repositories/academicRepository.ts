@@ -7,6 +7,7 @@ export interface ClassPerformanceData {
   avgAiScore: string;
   growth: string;
   isPositive: boolean;
+  grade_number?: number;
 }
 
 export interface SubjectAnalyticData {
@@ -24,8 +25,19 @@ export interface SubjectAnalyticData {
 
 export async function getClassesPerformance(institutionId: string): Promise<ClassPerformanceData[]> {
   try {
-    // Query sections and corresponding classes
-    const { data: sectionsData, error: sectionsError } = await supabase
+    // 1. Fetch active academic year
+    const { data: ayData } = await supabase
+      .from("academic_years")
+      .select("id")
+      .eq("institution_id", institutionId)
+      .eq("is_current", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    const currentAyId = ayData?.id;
+
+    // 2. Query sections and corresponding classes for the current academic year
+    let sectionsQuery = supabase
       .from("sections")
       .select(`
         id,
@@ -40,15 +52,27 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
       .eq("class.institution_id", institutionId)
       .order("name", { ascending: true });
 
+    if (currentAyId) {
+      sectionsQuery = sectionsQuery.eq("academic_year_id", currentAyId);
+    }
+
+    const { data: sectionsData, error: sectionsError } = await sectionsQuery;
+
     if (sectionsError) throw sectionsError;
 
     const filteredSections = sectionsData || [];
 
     // Let's compute average marks per class from exam_results
-    // We can query exams and results in bulk
-    const { data: examsData, error: examsError } = await supabase
+    // We can query exams and results in bulk for the current academic year
+    let examsQuery = supabase
       .from("exams")
       .select("id, class_id, total_marks");
+
+    if (currentAyId) {
+      examsQuery = examsQuery.eq("academic_year_id", currentAyId);
+    }
+
+    const { data: examsData, error: examsError } = await examsQuery;
 
     if (examsError) throw examsError;
 
@@ -63,11 +87,17 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
       examResults = resultsData || [];
     }
 
-    // Fetch all homework and their submissions in bulk for AI score computation
-    const { data: homeworksData, error: hwError } = await supabase
+    // Fetch all homework and their submissions in bulk for AI score computation for current academic year
+    let hwQuery = supabase
       .from("homework")
       .select("id, section_id")
       .eq("institution_id", institutionId);
+
+    if (currentAyId) {
+      hwQuery = hwQuery.eq("academic_year_id", currentAyId);
+    }
+
+    const { data: homeworksData, error: hwError } = await hwQuery;
 
     const secAiScoreMap: Record<string, number[]> = {};
     if (!hwError && homeworksData && homeworksData.length > 0) {
@@ -139,12 +169,20 @@ export async function getClassesPerformance(institutionId: string): Promise<Clas
         avgMarks: avgMarksStr,
         avgAiScore: avgScoreStr,
         growth: "0.0%",
-        isPositive: true
+        isPositive: true,
+        grade_number: classObj?.grade_number
       });
     }
 
-    // Sort by name
-    return result.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort by grade_number, then by name (section)
+    return result.sort((a, b) => {
+      const gA = a.grade_number ?? 99;
+      const gB = b.grade_number ?? 99;
+      if (gA !== gB) {
+        return gA - gB;
+      }
+      return a.name.localeCompare(b.name);
+    });
   } catch (error) {
     console.error("Error in getClassesPerformance:", error);
     return [];
@@ -158,11 +196,25 @@ export async function getSubjectAnalytics(
   try {
     let normalizedName = selectedGradeName;
     const nameParts = normalizedName.split("-");
-    const className = nameParts[0].trim().replace(/^(Grade|Class)\s+/i, "").trim();
+    let className = nameParts[0].trim();
+    if (/^Grade\s+/i.test(className)) {
+      className = className.replace(/^Grade\s+/i, "Class ");
+    }
     const sectionLetter = (nameParts[1] || "A").trim();
 
+    // 1. Fetch active academic year
+    const { data: ayData } = await supabase
+      .from("academic_years")
+      .select("id")
+      .eq("institution_id", institutionId)
+      .eq("is_current", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    const currentAyId = ayData?.id;
+
     // 2. Fetch section ID
-    const { data: sectionData, error: secErr } = await supabase
+    let secQuery = supabase
       .from("sections")
       .select(`
         id,
@@ -173,19 +225,29 @@ export async function getSubjectAnalytics(
       `)
       .eq("name", sectionLetter)
       .eq("class.name", className)
-      .eq("class.institution_id", institutionId)
-      .maybeSingle();
+      .eq("class.institution_id", institutionId);
+
+    if (currentAyId) {
+      secQuery = secQuery.eq("academic_year_id", currentAyId);
+    }
+
+    const { data: sectionData, error: secErr } = await secQuery;
 
     if (secErr) throw secErr;
 
-    const sectionId = sectionData?.id;
+    const sectionsList = sectionData || [];
+    const selectedSection = sectionsList[0];
+    const sectionId = selectedSection?.id;
     if (!sectionId) {
       console.log(`Section not found for className: "${className}" and sectionLetter: "${sectionLetter}"`);
       return [];
     }
 
+    const classObj = Array.isArray(selectedSection.class) ? selectedSection.class[0] : (selectedSection.class as any);
+    const classId = classObj?.id;
+
     // 3. Fetch subjects associated with this section
-    const { data: classSubs, error: subsErr } = await supabase
+    let subsQuery = supabase
       .from("class_subjects")
       .select(`
         id,
@@ -197,16 +259,28 @@ export async function getSubjectAnalytics(
       `)
       .eq("section_id", sectionId);
 
+    if (currentAyId) {
+      subsQuery = subsQuery.eq("academic_year_id", currentAyId);
+    }
+
+    const { data: classSubs, error: subsErr } = await subsQuery;
+
     if (subsErr) throw subsErr;
 
     // Filter and map subjects
     const subjectsList = classSubs?.map((cs: any) => cs.subject).filter(Boolean) || [];
 
     // Fetch all homework and their submissions in bulk for AI score computation for this section
-    const { data: sectionHomeworks, error: hwErr } = await supabase
+    let hwQuery = supabase
       .from("homework")
       .select("id, subject_id")
       .eq("section_id", sectionId);
+
+    if (currentAyId) {
+      hwQuery = hwQuery.eq("academic_year_id", currentAyId);
+    }
+
+    const { data: sectionHomeworks, error: hwErr } = await hwQuery;
 
     const submissionMap: Record<string, number[]> = {};
     if (!hwErr && sectionHomeworks && sectionHomeworks.length > 0) {
@@ -238,11 +312,17 @@ export async function getSubjectAnalytics(
       const name = sub.name;
 
       // In a live system, query average exams and homework scores for this subject and section
-      const { data: exams, error: exErr } = await supabase
+      let examsQuery = supabase
         .from("exams")
         .select("id, total_marks, passing_marks")
-        .eq("class_id", Array.isArray(sectionData.class) ? sectionData.class[0]?.id : (sectionData.class as any)?.id)
+        .eq("class_id", classId)
         .eq("subject_id", sub.id);
+
+      if (currentAyId) {
+        examsQuery = examsQuery.eq("academic_year_id", currentAyId);
+      }
+
+      const { data: exams, error: exErr } = await examsQuery;
 
       let avgMarks = 0;
       let needsSupport = 0;

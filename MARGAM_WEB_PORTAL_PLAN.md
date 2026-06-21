@@ -147,7 +147,7 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 14.2 | Results — Individual Report Card PDF | [x] Completed |
 | 14.3 | Results — Class/Section Summary Sheet PDF | [x] Completed |
 | 14.4 | Results — Lock/Unlock Management Dashboard | [x] Completed |
-| 15 | Permissions & Polish | [ ] Not started |
+| 15 | Permissions & Polish (Login Redesign + Forgot Password) | [x] Completed |
 | 16 | Pre-Pilot Review | [ ] Not started |
 
 ---

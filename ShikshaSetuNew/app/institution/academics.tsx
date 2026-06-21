@@ -8,6 +8,7 @@ import {
   Modal,
   FlatList,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import Header from "../../components/institution/Header";
 import BottomNavBar from "../../components/institution/BottomNavBar";
 import { useAuth } from "../../src/hooks/useAuth";
@@ -80,11 +81,13 @@ export default function AcademicsPortal() {
     dangerBg: theme?.colors?.danger ? theme.colors.danger + '20' : '#fee2e2',
   };
 
+  const cardBorderRadius = 12;
+
   const cardShadow = {
     shadowColor: colors.navyBlue,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
     elevation: 2,
   };
 
@@ -115,7 +118,7 @@ export default function AcademicsPortal() {
   }, [classesPerformance]);
 
   const gradeNames = useMemo(() => {
-    return classesPerformance?.map(c => c.name) || ["Grade 9-A", "Grade 10-B", "Grade 11-A", "Grade 12-A"];
+    return classesPerformance?.map(c => c.name) || [];
   }, [classesPerformance]);
 
   // Derive strip summary values
@@ -156,15 +159,7 @@ export default function AcademicsPortal() {
 
   // Chart data setup
   const chartData = useMemo(() => {
-    if (!subjectAnalytics || subjectAnalytics.length === 0) {
-      return [
-        { id: "math", subject: "Mathematics", avgMarks: 84, avgScore: 3.8 },
-        { id: "phys", subject: "Physics", avgMarks: 76, avgScore: 3.5 },
-        { id: "engl", subject: "English", avgMarks: 92, avgScore: 4.2 },
-        { id: "chem", subject: "Chemistry", avgMarks: 68, avgScore: 2.9 },
-      ];
-    }
-    return subjectAnalytics;
+    return subjectAnalytics || [];
   }, [subjectAnalytics]);
 
   const hasAiScores = useMemo(() => {
@@ -187,43 +182,53 @@ export default function AcademicsPortal() {
         {/* B. Summary Strip */}
         <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 16 }}>
           {/* Card 1: Avg Marks */}
-          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: 8, padding: 12, ...cardShadow }}>
-            <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
-              📊 Avg Marks
-            </Text>
-            <Text style={[typography.h3, { color: colors.navyBlue, fontWeight: "bold" }]}>
-              {summaryStripStats.avgMarks}
+          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: cardBorderRadius, borderWidth: 1, borderColor: colors.lightGray, padding: 12, ...cardShadow }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 }}>
+              <Ionicons name="bar-chart-outline" size={14} color={colors.steelGray} />
+              <Text style={[typography.caption, { color: colors.steelGray, fontWeight: "600" }]}>
+                Avg Marks
+              </Text>
+            </View>
+            <Text style={[typography.h3, { color: colors.navyBlue }]}>
+              {summaryStripStats.avgMarks === "N/A" || summaryStripStats.avgMarks === "0.0%" ? "—" : summaryStripStats.avgMarks}
             </Text>
           </View>
 
           {/* Card 2: Avg Score */}
-          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: 8, padding: 12, ...cardShadow }}>
-            <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
-              ⭐ Avg Score
-            </Text>
-            <Text style={[typography.h3, { color: colors.gold, fontWeight: "bold" }]}>
-              {summaryStripStats.avgScore}
+          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: cardBorderRadius, borderWidth: 1, borderColor: colors.lightGray, padding: 12, ...cardShadow }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 }}>
+              <Ionicons name="star-outline" size={14} color={colors.steelGray} />
+              <Text style={[typography.caption, { color: colors.steelGray, fontWeight: "600" }]}>
+                Avg Score
+              </Text>
+            </View>
+            <Text style={[typography.h3, { color: colors.gold }]}>
+              {summaryStripStats.avgScore === "N/A" ? "—" : summaryStripStats.avgScore}
             </Text>
           </View>
 
           {/* Card 3: Classes */}
-          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: 8, padding: 12, ...cardShadow }}>
-            <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
-              🏫 Classes
-            </Text>
-            <Text style={[typography.h3, { color: colors.navyBlue, fontWeight: "bold" }]}>
-              {summaryStripStats.totalClasses}
+          <View style={{ flex: 1, backgroundColor: colors.white, borderRadius: cardBorderRadius, borderWidth: 1, borderColor: colors.lightGray, padding: 12, ...cardShadow }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 }}>
+              <Ionicons name="school-outline" size={14} color={colors.steelGray} />
+              <Text style={[typography.caption, { color: colors.steelGray, fontWeight: "600" }]}>
+                Classes
+              </Text>
+            </View>
+            <Text style={[typography.h3, { color: colors.navyBlue }]}>
+              {summaryStripStats.totalClasses === "N/A" ? "—" : summaryStripStats.totalClasses}
             </Text>
           </View>
         </View>
 
-        {/* Custom Dropdown Trigger (Bug 4) */}
-        <View style={{ marginHorizontal: 16, marginTop: 16 }}>
-          <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 6 }]}>
+        {/* Custom Dropdown Trigger */}
+        <View style={{ marginHorizontal: 16, marginTop: 20 }}>
+          <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 6, letterSpacing: 0.5, fontWeight: "600" }]}>
             SELECT CLASS & SECTION
           </Text>
           <TouchableOpacity
             onPress={() => setIsDropdownOpen(true)}
+            disabled={loadingClasses}
             activeOpacity={0.8}
             style={{
               flexDirection: "row",
@@ -231,17 +236,17 @@ export default function AcademicsPortal() {
               alignItems: "center",
               backgroundColor: colors.white,
               paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderRadius: 8,
+              paddingVertical: 14,
+              borderRadius: cardBorderRadius,
               borderWidth: 1,
-              borderColor: colors.lightGray,
-              ...cardShadow,
+              borderColor: isDropdownOpen ? colors.navyBlue : colors.lightGray,
+              opacity: loadingClasses ? 0.6 : 1.0,
             }}
           >
-            <Text style={[typography.bodyLg, { color: colors.navyBlue, fontWeight: "600" }]}>
-              {selectedClass}
+            <Text style={[typography.bodyMd, { color: colors.navyBlue, fontFamily: "Poppins_600SemiBold" }]}>
+              {loadingClasses ? "Loading classes..." : selectedClass}
             </Text>
-            <Text style={{ fontSize: 14, color: colors.gold }}>▼</Text>
+            <Ionicons name="chevron-down" size={18} color={colors.navyBlue} />
           </TouchableOpacity>
         </View>
 
@@ -252,7 +257,7 @@ export default function AcademicsPortal() {
               Class Performance
             </Text>
             <TouchableOpacity onPress={() => setShowAllClasses(!showAllClasses)}>
-              <Text style={[typography.bodyMd, { color: colors.gold }]}>
+              <Text style={[typography.bodyMd, { color: colors.gold, fontFamily: "Poppins_600SemiBold" }]}>
                 {showAllClasses ? "Show Selected" : "View All →"}
               </Text>
             </TouchableOpacity>
@@ -262,45 +267,94 @@ export default function AcademicsPortal() {
             {loadingClasses ? (
               <ActivityIndicator size="small" color={colors.navyBlue} style={{ flex: 1, marginVertical: 20 }} />
             ) : displayedClasses.length === 0 ? (
-              <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic", flex: 1, marginVertical: 10 }]}>
-                No class records found.
-              </Text>
+              <View 
+                style={{ 
+                  flex: 1, 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  paddingVertical: 32, 
+                  backgroundColor: colors.white, 
+                  borderRadius: cardBorderRadius, 
+                  borderWidth: 1, 
+                  borderColor: colors.lightGray 
+                }}
+              >
+                <Ionicons name="alert-circle-outline" size={32} color={colors.steelGray} style={{ marginBottom: 8 }} />
+                <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic" }]}>
+                  No class records found.
+                </Text>
+              </View>
             ) : (
               displayedClasses.map((cls) => {
-                const marksPct = parseFloat(cls.avgMarks.replace("%", ""));
-                let marksColor = colors.danger;
-                if (marksPct >= 75) {
-                  marksColor = colors.success;
-                } else if (marksPct >= 60) {
-                  marksColor = colors.gold;
+                const isMarksNA = cls.avgMarks === "N/A";
+                const isScoreNA = cls.avgAiScore === "N/A";
+                const isCardEmpty = isMarksNA && isScoreNA;
+
+                const marksPct = isMarksNA ? NaN : parseFloat(cls.avgMarks.replace("%", ""));
+                let marksColor = colors.steelGray;
+                if (!isMarksNA) {
+                  if (marksPct >= 75) {
+                    marksColor = colors.success;
+                  } else if (marksPct >= 60) {
+                    marksColor = colors.gold;
+                  } else {
+                    marksColor = colors.danger;
+                  }
                 }
 
+                const parsedGrowth = parseFloat(cls.growth.replace("%", ""));
+                const isZeroGrowth = isNaN(parsedGrowth) || parsedGrowth === 0;
+
+                const isSelected = cls.name === selectedClass;
                 return (
-                  <View
+                  <TouchableOpacity
                     key={cls.id}
+                    onPress={() => {
+                      setSelectedClass(cls.name);
+                      setTooltipSubject(null);
+                    }}
+                    activeOpacity={0.9}
                     style={{
                       width: "48%",
                       backgroundColor: colors.white,
-                      borderRadius: 8,
+                      borderRadius: cardBorderRadius,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? colors.navyBlue : colors.lightGray,
                       padding: 16,
+                      opacity: isSelected ? 1.0 : (isCardEmpty ? 0.65 : 1.0),
                       ...cardShadow,
                     }}
                   >
                     {/* Row 1 */}
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <Text style={[typography.h4, { color: colors.navyBlue, fontWeight: "bold" }]}>
+                      <Text style={[typography.h4, { color: colors.navyBlue }]}>
                         {cls.name}
                       </Text>
                       <View
                         style={{
-                          backgroundColor: cls.isPositive ? colors.successBg : colors.dangerBg,
+                          backgroundColor: isZeroGrowth 
+                            ? colors.lightGray 
+                            : (cls.isPositive ? colors.successBg : colors.dangerBg),
                           paddingHorizontal: 8,
                           paddingVertical: 2,
-                          borderRadius: 16,
+                          borderRadius: 12,
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        <Text style={[typography.caption, { color: cls.isPositive ? colors.success : colors.danger, fontWeight: "bold" }]}>
-                          {cls.isPositive ? "▲" : "▼"} {cls.growth.replace(/[+-]/g, "")}
+                        <Text
+                          style={[
+                            typography.caption,
+                            {
+                              color: isZeroGrowth 
+                                ? colors.steelGray 
+                                : (cls.isPositive ? colors.success : colors.danger),
+                              fontWeight: "600",
+                            },
+                          ]}
+                        >
+                          {!isZeroGrowth && (cls.isPositive ? "▲ " : "▼ ")}
+                          {cls.growth.replace(/[+-]/g, "")}
                         </Text>
                       </View>
                     </View>
@@ -310,9 +364,13 @@ export default function AcademicsPortal() {
                       <Text style={[typography.caption, { color: colors.steelGray }]}>
                         Marks
                       </Text>
-                      <Text style={[typography.h4, { color: marksColor, fontWeight: "bold" }]}>
-                        {cls.avgMarks}
-                      </Text>
+                      {isMarksNA ? (
+                        <Text style={[typography.bodySm, { color: colors.steelGray }]}>—</Text>
+                      ) : (
+                        <Text style={[typography.h4, { color: marksColor }]}>
+                          {cls.avgMarks}
+                        </Text>
+                      )}
                     </View>
 
                     {/* Row 3 */}
@@ -320,11 +378,15 @@ export default function AcademicsPortal() {
                       <Text style={[typography.caption, { color: colors.steelGray }]}>
                         Score
                       </Text>
-                      <Text style={[typography.h4, { color: colors.royalBlue, fontWeight: "bold" }]}>
-                        {cls.avgAiScore}
-                      </Text>
+                      {isScoreNA ? (
+                        <Text style={[typography.bodySm, { color: colors.steelGray }]}>—</Text>
+                      ) : (
+                        <Text style={[typography.h4, { color: colors.royalBlue }]}>
+                          {cls.avgAiScore}
+                        </Text>
+                      )}
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -337,7 +399,9 @@ export default function AcademicsPortal() {
             marginTop: 24,
             marginHorizontal: 16,
             backgroundColor: colors.white,
-            borderRadius: 8,
+            borderRadius: cardBorderRadius,
+            borderWidth: 1,
+            borderColor: colors.lightGray,
             padding: 16,
             ...cardShadow,
           }}
@@ -355,7 +419,7 @@ export default function AcademicsPortal() {
               style={{
                 flexDirection: "row",
                 backgroundColor: colors.cream,
-                borderRadius: 16,
+                borderRadius: 20,
                 padding: 4,
                 alignSelf: "flex-start",
                 marginTop: 12,
@@ -370,14 +434,13 @@ export default function AcademicsPortal() {
                   paddingHorizontal: 16,
                   paddingVertical: 6,
                   backgroundColor: activeTab === "marks" ? colors.navyBlue : "transparent",
-                  borderRadius: 12,
+                  borderRadius: 16,
                 }}
               >
                 <Text
                   style={{
-                    fontFamily: "Inter_400Regular",
+                    fontFamily: "Inter_600SemiBold",
                     fontSize: 12,
-                    fontWeight: "bold",
                     color: activeTab === "marks" ? colors.white : colors.steelGray,
                   }}
                 >
@@ -394,14 +457,13 @@ export default function AcademicsPortal() {
                   paddingHorizontal: 16,
                   paddingVertical: 6,
                   backgroundColor: activeTab === "score" ? colors.navyBlue : "transparent",
-                  borderRadius: 12,
+                  borderRadius: 16,
                 }}
               >
                 <Text
                   style={{
-                    fontFamily: "Inter_400Regular",
+                    fontFamily: "Inter_600SemiBold",
                     fontSize: 12,
-                    fontWeight: "bold",
                     color: activeTab === "score" ? colors.white : colors.steelGray,
                   }}
                 >
@@ -411,7 +473,7 @@ export default function AcademicsPortal() {
             </View>
           )}
 
-          {/* Bar Chart (Bug 2) */}
+          {/* Bar Chart */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -425,18 +487,22 @@ export default function AcademicsPortal() {
             {loadingAnalytics ? (
               <ActivityIndicator size="small" color={colors.navyBlue} style={{ flex: 1, alignSelf: "center", width: 100 }} />
             ) : chartData.length === 0 ? (
-              <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic", flex: 1, textAlign: "center", alignSelf: "center" }]}>
-                No analytics data available.
-              </Text>
+              <View style={{ flex: 1, alignItems: "center", justifyContent: "center", width: 200, paddingVertical: 20 }}>
+                <Ionicons name="bar-chart-outline" size={32} color={colors.steelGray} style={{ marginBottom: 8 }} />
+                <Text style={[typography.caption, { color: colors.steelGray, fontStyle: "italic" }]}>
+                  No analytics data available.
+                </Text>
+              </View>
             ) : (
               chartData.map((sub, index) => {
                 const isSelected = tooltipSubject === sub.id;
                 const value = activeTab === "marks" ? sub.avgMarks : (sub.avgScore ?? 0);
                 const maxValue = activeTab === "marks" ? 100 : 10;
                 const barHeight = Math.max(8, Math.min(120, (value / maxValue) * 120));
+                const barColor = activeTab === "marks" ? colors.navyBlue : colors.royalBlue;
 
                 return (
-                  <View key={`${sub.id}-${index}`} style={{ width: 40, marginHorizontal: 6, alignItems: "center", position: "relative" }}>
+                  <View key={`${sub.id}-${index}`} style={{ width: 44, marginHorizontal: 8, alignItems: "center", position: "relative" }}>
                     {/* Tooltip Overlay */}
                     {isSelected && (
                       <View
@@ -446,11 +512,16 @@ export default function AcademicsPortal() {
                           backgroundColor: colors.navyBlue,
                           paddingHorizontal: 8,
                           paddingVertical: 4,
-                          borderRadius: 4,
+                          borderRadius: 6,
                           zIndex: 50,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 3,
                         }}
                       >
-                        <Text style={{ color: colors.white, fontSize: 10, fontWeight: "bold" }}>
+                        <Text style={{ color: colors.white, fontSize: 10, fontFamily: "Poppins_600SemiBold" }}>
                           {activeTab === "marks" ? `${value}%` : `${value}/10.0`}
                         </Text>
                       </View>
@@ -460,7 +531,7 @@ export default function AcademicsPortal() {
                       activeOpacity={0.8}
                       onPress={() => setTooltipSubject(isSelected ? null : sub.id)}
                       style={{
-                        width: 40,
+                        width: 44,
                         height: 120,
                         justifyContent: "flex-end",
                         alignItems: "center",
@@ -468,10 +539,12 @@ export default function AcademicsPortal() {
                     >
                       <View
                         style={{
-                          width: 40,
+                          width: 32,
                           height: barHeight,
-                          backgroundColor: activeTab === "marks" ? colors.navyBlue : colors.gold,
-                          borderRadius: 4,
+                          backgroundColor: barColor,
+                          borderTopLeftRadius: 6,
+                          borderTopRightRadius: 6,
+                          opacity: isSelected ? 1.0 : 0.85,
                         }}
                       />
                     </TouchableOpacity>
@@ -482,9 +555,11 @@ export default function AcademicsPortal() {
                         typography.caption, 
                         { 
                           color: colors.steelGray, 
-                          marginTop: 4, 
+                          marginTop: 6, 
                           textAlign: "center",
-                          width: 40,
+                          width: 44,
+                          fontSize: 10,
+                          fontFamily: "Inter_500Medium",
                         }
                       ]}
                     >
@@ -503,8 +578,10 @@ export default function AcademicsPortal() {
               {
                 color: colors.steelGray,
                 textAlign: "center",
-                marginTop: 12,
-                letterSpacing: 1,
+                marginTop: 14,
+                letterSpacing: 0.5,
+                fontSize: 11,
+                fontFamily: "Inter_500Medium",
               },
             ]}
           >
@@ -521,9 +598,27 @@ export default function AcademicsPortal() {
           {loadingAnalytics ? (
             <ActivityIndicator size="small" color={colors.navyBlue} style={{ marginVertical: 30 }} />
           ) : !subjectAnalytics || subjectAnalytics.length === 0 ? (
-            <Text style={[typography.bodySm, { color: colors.steelGray, fontStyle: "italic", marginVertical: 20 }]}>
-              No subjects found for this class.
-            </Text>
+            <View 
+              style={{ 
+                alignItems: "center", 
+                justifyContent: "center", 
+                paddingVertical: 40, 
+                paddingHorizontal: 20,
+                backgroundColor: colors.white,
+                borderRadius: cardBorderRadius,
+                borderWidth: 1,
+                borderColor: colors.lightGray,
+                marginTop: 8
+              }}
+            >
+              <Ionicons name="book-outline" size={36} color={colors.steelGray} style={{ marginBottom: 12 }} />
+              <Text style={[typography.h4, { color: colors.navyBlue, fontWeight: "600", textAlign: "center", marginBottom: 4 }]}>
+                No subjects assigned
+              </Text>
+              <Text style={[typography.caption, { color: colors.steelGray, textAlign: "center", maxWidth: "80%" }]}>
+                This class has no subjects or academic results logged.
+              </Text>
+            </View>
           ) : (
             subjectAnalytics.map((sub, index) => {
               const difficulty = getDifficulty(sub.avgMarks);
@@ -533,17 +628,21 @@ export default function AcademicsPortal() {
                 HIGH: { bg: colors.dangerBg, text: colors.danger },
               }[difficulty];
 
+              const parsedImprov = parseFloat(sub.improvementPercent.replace("%", ""));
+              const isZeroImprov = isNaN(parsedImprov) || parsedImprov === 0;
               const isImprovPositive = !sub.improvementPercent.startsWith("-");
-              const improvBg = isImprovPositive ? colors.successBg : colors.dangerBg;
-              const improvColor = isImprovPositive ? colors.success : colors.danger;
-              const improvArrow = isImprovPositive ? "▲" : "▼";
+              const improvBg = isZeroImprov ? colors.lightGray : (isImprovPositive ? colors.successBg : colors.dangerBg);
+              const improvColor = isZeroImprov ? colors.steelGray : (isImprovPositive ? colors.success : colors.danger);
+              const improvArrow = isZeroImprov ? "" : (isImprovPositive ? "▲ " : "▼ ");
 
               return (
                 <View
                   key={`${sub.id}-${index}`}
                   style={{
                     backgroundColor: colors.white,
-                    borderRadius: 8,
+                    borderRadius: cardBorderRadius,
+                    borderWidth: 1,
+                    borderColor: colors.lightGray,
                     padding: 16,
                     ...cardShadow,
                     marginBottom: 12,
@@ -551,12 +650,12 @@ export default function AcademicsPortal() {
                 >
                   {/* Top row */}
                   <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                       <Text style={{ fontSize: 28 }}>
                         {getSubjectEmoji(sub.subject)}
                       </Text>
                       <View>
-                        <Text style={[typography.h4, { color: colors.navyBlue, fontWeight: "bold" }]}>
+                        <Text style={[typography.h4, { color: colors.navyBlue }]}>
                           {sub.subject}
                         </Text>
                         <Text style={[typography.caption, { color: colors.steelGray }]}>
@@ -569,7 +668,7 @@ export default function AcademicsPortal() {
                     <View
                       style={{
                         backgroundColor: diffColors.bg,
-                        borderRadius: 16,
+                        borderRadius: 12,
                         paddingHorizontal: 10,
                         paddingVertical: 4,
                       }}
@@ -589,8 +688,8 @@ export default function AcademicsPortal() {
                       <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
                         Exam Marks
                       </Text>
-                      <Text style={[typography.h3, { color: colors.navyBlue, fontWeight: "bold" }]}>
-                        {sub.avgMarks}/100
+                      <Text style={[typography.h3, { color: colors.navyBlue }]}>
+                        {sub.avgMarks !== 0 ? `${sub.avgMarks}/100` : "—"}
                       </Text>
                     </View>
 
@@ -600,8 +699,8 @@ export default function AcademicsPortal() {
                       <Text style={[typography.caption, { color: colors.steelGray, marginBottom: 4 }]}>
                         AI Homework Score
                       </Text>
-                      <Text style={[typography.h3, { color: colors.gold, fontWeight: "bold" }]}>
-                        {sub.avgScore !== null && sub.avgScore !== undefined ? `${sub.avgScore}/10` : "N/A"}
+                      <Text style={[typography.h3, { color: colors.gold }]}>
+                        {sub.avgScore !== null && sub.avgScore !== undefined ? `${sub.avgScore}/10` : "—"}
                       </Text>
                     </View>
                   </View>
@@ -614,11 +713,11 @@ export default function AcademicsPortal() {
                         backgroundColor: improvBg,
                         paddingHorizontal: 8,
                         paddingVertical: 2,
-                        borderRadius: 16,
+                        borderRadius: 12,
                       }}
                     >
                       <Text style={[typography.caption, { color: improvColor, fontWeight: "bold" }]}>
-                        {improvArrow} {sub.improvementPercent.replace(/[+-]/g, "")}
+                        {improvArrow}{sub.improvementPercent.replace(/[+-]/g, "")}
                       </Text>
                     </View>
 
@@ -626,13 +725,13 @@ export default function AcademicsPortal() {
                     <View
                       style={{
                         backgroundColor: colors.cream,
-                        borderRadius: 16,
+                        borderRadius: 12,
                         paddingHorizontal: 10,
                         paddingVertical: 4,
                       }}
                     >
                       <Text style={[typography.caption, { color: colors.charcoal }]}>
-                        🏆 Top: {sub.topPerformer}
+                        🏆 Top: {sub.topPerformer === "N/A" ? "—" : sub.topPerformer}
                       </Text>
                     </View>
 
@@ -641,7 +740,7 @@ export default function AcademicsPortal() {
                       <View
                         style={{
                           backgroundColor: colors.dangerBg,
-                          borderRadius: 16,
+                          borderRadius: 12,
                           paddingHorizontal: 10,
                           paddingVertical: 4,
                         }}
@@ -662,7 +761,7 @@ export default function AcademicsPortal() {
 
       <BottomNavBar activeTab="academics" />
 
-      {/* Dropdown Modal (Bug 4) */}
+      {/* Dropdown Modal */}
       <Modal
         visible={isDropdownOpen}
         transparent={true}
@@ -674,7 +773,7 @@ export default function AcademicsPortal() {
           onPress={() => setIsDropdownOpen(false)}
           style={{
             flex: 1,
-            backgroundColor: "rgba(13, 27, 42, 0.6)",
+            backgroundColor: "rgba(15, 23, 42, 0.6)",
             justifyContent: "center",
             alignItems: "center",
             padding: 24,
@@ -685,12 +784,14 @@ export default function AcademicsPortal() {
               width: "100%",
               maxHeight: "60%",
               backgroundColor: colors.white,
-              borderRadius: 12,
+              borderRadius: cardBorderRadius,
+              borderWidth: 1,
+              borderColor: colors.lightGray,
               padding: 20,
-              shadowColor: colors.navyBlue,
+              shadowColor: "#000",
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.15,
-              shadowRadius: 12,
+              shadowOpacity: 0.08,
+              shadowRadius: 16,
               elevation: 5,
             }}
           >
@@ -723,17 +824,17 @@ export default function AcademicsPortal() {
                   >
                     <Text
                       style={[
-                        typography.bodyLg,
+                        typography.bodyMd,
                         {
                           color: isSelected ? colors.navyBlue : colors.charcoal,
-                          fontWeight: isSelected ? "bold" : "normal",
+                          fontFamily: isSelected ? "Poppins_600SemiBold" : "Inter_400Regular",
                         },
                       ]}
                     >
                       {item}
                     </Text>
                     {isSelected && (
-                      <Text style={{ color: colors.gold, fontWeight: "bold", fontSize: 16 }}>✓</Text>
+                      <Ionicons name="checkmark" size={18} color={colors.navyBlue} />
                     )}
                   </TouchableOpacity>
                 );
@@ -750,7 +851,7 @@ export default function AcademicsPortal() {
                 alignItems: "center",
               }}
             >
-              <Text style={[typography.bodyMd, { color: colors.white, fontWeight: "bold" }]}>
+              <Text style={[typography.bodyMd, { color: colors.white, fontFamily: "Poppins_600SemiBold" }]}>
                 Close
               </Text>
             </TouchableOpacity>
