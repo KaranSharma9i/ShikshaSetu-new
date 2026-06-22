@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { geminiService } from "../services/gemini";
 import { pdfService } from "../services/pdf";
 import { GenerateHomeworkRequest } from "../types/generation";
+import { assignDisplayNumbers } from "../utils/questionAssembler";
 
 const router = Router();
 
@@ -72,6 +73,7 @@ router.post("/homework/generate", async (req: Request, res: Response) => {
     let generatedContent;
     try {
       generatedContent = await geminiService.generateHomework(req.body);
+      generatedContent.questions = assignDisplayNumbers(generatedContent.questions);
     } catch (geminiError: any) {
       console.error("Gemini Generation Error:", geminiError);
 
@@ -210,6 +212,43 @@ router.post("/homework/publish", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing required field: generated_content" });
     }
 
+    let missingAnswerKeyCount = 0;
+    const missingKeysWarningList: string[] = [];
+
+    // Renumber questions before publishing (in case teacher reordered/deleted questions in client)
+    if (generated_content.questions && Array.isArray(generated_content.questions)) {
+      generated_content.questions = assignDisplayNumbers(generated_content.questions);
+
+      generated_content.questions.forEach((q: any, idx: number) => {
+        if (!q.question_id) {
+          q.question_id = `q_${idx + 1}`;
+        }
+
+        if (q.type === 'CASE_STUDY') {
+          if (q.sub_questions && Array.isArray(q.sub_questions)) {
+            q.sub_questions.forEach((sub: any, subIdx: number) => {
+              if (!sub.question_id) {
+                sub.question_id = `q_${idx + 1}_${subIdx + 1}`;
+              }
+              if (!sub.answer_key) {
+                missingAnswerKeyCount++;
+                const warningMsg = `Sub-question ${sub.question_number} (Type: ${sub.type}) of Case Study ${q.question_number} is missing an answer_key.`;
+                console.warn(`[WARNING] ${warningMsg}`);
+                missingKeysWarningList.push(warningMsg);
+              }
+            });
+          }
+        } else {
+          if (!q.answer_key) {
+            missingAnswerKeyCount++;
+            const warningMsg = `Question ${q.question_number} (Type: ${q.type}) is missing an answer_key.`;
+            console.warn(`[WARNING] ${warningMsg}`);
+            missingKeysWarningList.push(warningMsg);
+          }
+        }
+      });
+    }
+
     // 1. Fetch existing homework details
     const { data: hw, error: fetchError } = await supabase
       .from("homework")
@@ -317,7 +356,11 @@ router.post("/homework/publish", async (req: Request, res: Response) => {
       return res.status(500).json({ error: `Failed to publish: ${updateError.message}` });
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({
+      success: true,
+      warning_missing_keys: missingAnswerKeyCount > 0,
+      missing_keys_warnings: missingKeysWarningList
+    });
   } catch (error: any) {
     console.error("Uncaught Publish Homework Error:", error);
     return res.status(500).json({ error: `Internal Server Error: ${error.message}` });

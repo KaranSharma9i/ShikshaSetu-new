@@ -1,0 +1,308 @@
+﻿Γùç injected env (7) from .env // tip: Γîÿ suppress logs { quiet: true }
+Γùç injected env (0) from .env // tip: Γîÿ enable debugging { debug: true }
+Γùç injected env (0) from ..\.env // tip: Γùê encrypted .env [www.dotenvx.com]
+=== SOUND HOMEWORK ===
+Total questions: 9
+
+Questions summary:
+  Q1 | type=MCQ | answer_key=MISSING | options=4
+  Q2 | type=MCQ | answer_key=MISSING | options=4
+  Q3 | type=VERY_SHORT | answer_key=MISSING | options=0
+  Q4 | type=VERY_SHORT | answer_key=MISSING | options=0
+  Q5 | type=SHORT | answer_key=MISSING | options=0
+  Q6 | type=SHORT | answer_key=MISSING | options=0
+  Q7 | type=LONG | answer_key=MISSING | options=0
+  Q8 | type=CASE_STUDY | answer_key=MISSING | options=0
+    Q8.1 | type=MCQ | answer_key=MISSING | options=4
+    Q8.2 | type=MCQ | answer_key=MISSING | options=4
+    Q8.3 | type=MCQ | answer_key=MISSING | options=4
+  Q9 | type=ASSERTION_REASON | answer_key=MISSING | options=4
+
+
+FULL JSON:
+{
+  "metadata": {
+    "grade": "Class 9",
+    "title": "Sound",
+    "topic": "Nature of sound and its propagation in various media, speed of sound, range of hearing inhumans; ultrasound; reflection of sound; echo.",
+    "subject": "Physics",
+    "difficulty": "Medium",
+    "generated_at": "2026-06-21T18:32:20.915Z",
+    "total_questions": 9
+  },
+  "questions": [
+    {
+      "type": "MCQ",
+      "options": [
+        "A. 170 m",
+        "B. 340 m",
+        "C. 510 m",
+        "D. 1020 m"
+      ],
+      "question": "A person shouts near a cliff and hears the echo after 3 seconds. If the speed of sound in air is 340 m/s, what is the distance between the person and the cliff?",
+      "question_number": 1
+    },
+    {
+      "type": "MCQ",
+      "options": [
+        "A. Speed of sound is highest in gases and lowest in solids.",
+        "B. Speed of sound is highest in solids and lowest in gases.",
+        "C. Speed of sound is same in all media at a given temperature.",
+        "D. Speed of sound decreases with an increase in temperature in air."
+      ],
+      "question": "Which of the following statements is true regarding the speed of sound?",
+      "question_number": 2
+    },
+    {
+      "type": "VERY_SHORT",
+      "options": null,
+      "question": "Why do astronauts on the moon not hear each other directly, even if they are in close proximity?",
+      "question_number": 3
+    },
+    {
+      "type": "VERY_SHORT",
+      "options": null,
+      "question": "Name two practical applications of ultrasound technology in daily life or industry.",
+      "question_number": 4
+    },
+    {
+      "type": "SHORT",
+      "options": null,
+      "question": "Explain why the curtains, carpets, and furniture in a room help in reducing reverberation.",
+      "question_number": 5
+    },
+    {
+      "type": "SHORT",
+      "options": null,
+      "question": "A ship sends out ultrasound that returns from the seabed in 4 seconds. If the speed of ultrasound in seawater is 1531 m/s, what is the depth of the seabed from the ship?",
+      "question_number": 6
+    },
+    {
+      "type": "LONG",
+      "options": null,
+      "question": "Describe the process of echo formation. What are the essential conditions required for a distinct echo to be heard by a human?",
+      "question_number": 7
+    },
+    {
+      "type": "CASE_STUDY",
+      "options": null,
+      "question": "Rakesh was exploring a deep cave. He noticed that when he shouted, the sound seemed to linger for a long time, sometimes making it difficult to understand his own words. He also recalled learning about how bats navigate using sound.",
+      "sub_questions": [
+        {
+          "type": "MCQ",
+          "options": [
+            "A. Echo",
+            "B. Reverberation",
+            "C. Refraction",
+            "D. Diffraction"
+          ],
+          "question": "What phenomenon is Rakesh experiencing when the sound seems to linger in the cave due to multiple reflections?",
+          "question_number": "8.1"
+        },
+        {
+          "type": "MCQ",
+          "options": [
+            "A. Bats can hear sounds of very low frequency.",
+            "B. Bats emit sounds in the ultrasonic range which have high penetrating power.",
+            "C. Bats emit sounds in the ultrasonic range which reflect off objects and help them locate obstacles.",
+            "D. Bats have excellent night vision, so sound is secondary."
+          ],
+          "question": "Why can bats effectively use sound to navigate in the dark?",
+          "question_number": "8.2"
+        },
+        {
+          "type": "MCQ",
+          "options": [
+            "A. 170 m",
+            "B. 340 m",
+            "C. 680 m",
+            "D. 85 m"
+          ],
+          "question": "If Rakesh shouts and hears an echo after 2 seconds, and the speed of sound in the cave air is 340 m/s, what is the distance to the nearest reflecting surface?",
+          "question_number": "8.3"
+        }
+      ],
+      "question_number": 8
+    },
+    {
+      "type": "ASSERTION_REASON",
+      "reason": "Reason (R): Sound waves are mechanical waves and require a material medium for their propagation.",
+      "options": [
+        "A. Both Assertion (A) and Reason (R) are true, and Reason (R) is the correct explanation of Assertion (A).",
+        "B. Both Assertion (A) and Reason (R) are true, but Reason (R) is not the correct explanation of Assertion (A).",
+        "C. Assertion (A) is true, but Reason (R) is false.",
+        "D. Assertion (A) is false, but Reason (R) is true."
+      ],
+      "question": "Assertion (A): Sound cannot propagate through a vacuum.",
+      "question_number": 9
+    }
+  ]
+}
+
+
+=== EFFECTS OF CURRENT HOMEWORK ===
+Total questions: 10
+
+Questions summary:
+  Q1 | type=MCQ | answer_key=MISSING | options=4
+  Q2 | type=MCQ | answer_key=MISSING | options=4
+  Q3 | type=MCQ | answer_key=MISSING | options=4
+  Q4 | type=MCQ | answer_key=MISSING | options=4
+  Q5 | type=Very Short Answer | answer_key=MISSING | options=0
+  Q6 | type=Very Short Answer | answer_key=MISSING | options=0
+  Q7 | type=Short Answer | answer_key=MISSING | options=0
+  Q8 | type=Long Answer | answer_key=MISSING | options=0
+  Q9 | type=CASE_STUDY | answer_key=MISSING | options=0
+    Q9.1 | type=MCQ | answer_key=MISSING | options=4
+    Q9.2 | type=MCQ | answer_key=MISSING | options=4
+    Q9.3 | type=MCQ | answer_key=MISSING | options=4
+    Q9.4 | type=MCQ | answer_key=MISSING | options=4
+  Q10 | type=ASSERTION_REASON | answer_key=MISSING | options=4
+
+
+FULL JSON:
+{
+  "metadata": {
+    "grade": "Class 10",
+    "title": "Effects of Current",
+    "topic": "Electric current, potential difference and electric current. OhmΓÇÖs law; Resistance, Resistivity",
+    "subject": "Physics",
+    "difficulty": "Hard",
+    "generated_at": "2026-06-21T18:28:09.570Z",
+    "total_questions": 10
+  },
+  "questions": [
+    {
+      "type": "MCQ",
+      "options": [
+        "A. 3R",
+        "B. 6R",
+        "C. 9R",
+        "D. 12R"
+      ],
+      "question": "A uniform wire of resistance 'R' is stretched such that its length becomes thrice its original length. Assuming that its volume and density remain constant during stretching, what will be its new resistance?",
+      "question_number": 1
+    },
+    {
+      "type": "MCQ",
+      "options": [
+        "A. Its resistance decreases linearly with increasing voltage.",
+        "B. Its resistance increases as the voltage across it increases.",
+        "C. Its resistance remains constant, as per Ohm's Law.",
+        "D. Its resistance first decreases and then increases with voltage."
+      ],
+      "question": "An electrical component exhibits a non-linear current (I) versus voltage (V) characteristic, where the current increases with voltage but at a diminishing rate. Which of the following statements accurately describes the resistance of this component as the applied voltage increases?",
+      "question_number": 2
+    },
+    {
+      "type": "MCQ",
+      "options": [
+        "A. 1:4",
+        "B. 4:1",
+        "C. 1:2",
+        "D. 2:1"
+      ],
+      "question": "Two wires, X and Y, are made of the same material and have the same mass. Wire X has a length 'L' and cross-sectional area 'A'. Wire Y has a length '2L'. If both wires are connected individually across the same potential difference, what is the ratio of the current flowing through wire X to the current flowing through wire Y (I_X : I_Y)?",
+      "question_number": 3
+    },
+    {
+      "type": "MCQ",
+      "options": [
+        "A. 32R",
+        "B. 16R",
+        "C. 8R",
+        "D. 4R"
+      ],
+      "question": "A cylindrical wire made of material P has resistance R. Another cylindrical wire made of material Q has twice the length, half the diameter, and twice the resistivity of material P. What will be the resistance of the wire made of material Q?",
+      "question_number": 4
+    },
+    {
+      "type": "Very Short Answer",
+      "options": null,
+      "question": "When a lightning conductor is struck by lightning, an enormous potential difference exists between the cloud and the ground, and a massive current flows momentarily. However, a continuous, steady current does not flow through the air even if a significant potential difference is maintained between two charged bodies separated by air. Explain the underlying reason for this difference in current flow behaviour.",
+      "question_number": 5
+    },
+    {
+      "type": "Very Short Answer",
+      "options": null,
+      "question": "Two metallic wires, A and B, have identical dimensions (same length and cross-sectional area). Wire A is made of copper, and wire B is made of an alloy called constantan. If both wires are connected in turn across the same voltage source at room temperature, it is observed that the current through wire A is significantly higher than through wire B. Explain this observation by contrasting the fundamental electrical properties of copper and constantan, and identify the primary physical quantity responsible for this difference.",
+      "question_number": 6
+    },
+    {
+      "type": "Short Answer",
+      "options": null,
+      "question": "A student is provided with a resistance wire, a battery, an ammeter, a voltmeter, a rheostat, a meter scale, and connecting wires. Describe a detailed experimental procedure that the student would follow to determine the resistivity of the material of the given wire in the laboratory. Include a labelled circuit diagram, steps for taking readings, the formula used for calculation, and one crucial precaution to ensure the reliability of the results.",
+      "question_number": 7
+    },
+    {
+      "type": "Long Answer",
+      "options": null,
+      "question": "An electric toaster's heating element is made of nichrome wire, while its connecting cords are typically made of copper. \na. Explain, based on their electrical properties and practical considerations, why nichrome is chosen for heating elements and copper for connecting cords. \nb. If a nichrome wire of length 'L' and radius 'r' has a resistance 'R', derive the resistance of another nichrome wire of length 'L/2' and diameter '2r' at the same temperature. Show your steps clearly. \nc. Describe the microscopic origin of electrical resistance in a metallic conductor. How does the resistance of a pure metal generally vary with an increase in temperature, and provide a reasoning for this behaviour?",
+      "question_number": 8
+    },
+    {
+      "type": "CASE_STUDY",
+      "options": null,
+      "question": "An incandescent light bulb operates on the principle of incandescence, where a thin filament heats up to extreme temperatures (around 2700┬░C) due to the flow of electric current and emits light. The filament is typically made of tungsten, a metal known for its exceptionally high melting point (3422┬░C) and relatively high resistivity. The resistance of metallic conductors, including tungsten, is not constant but varies significantly with temperature. Consider a 100 W, 220 V incandescent bulb. At room temperature (20┬░C), its tungsten filament has a resistance of approximately 20 ╬⌐. However, when glowing normally, its operating temperature is much higher.",
+      "sub_questions": [
+        {
+          "type": "MCQ",
+          "options": [
+            "A. It is significantly higher.",
+            "B. It is significantly lower.",
+            "C. It remains approximately the same.",
+            "D. It first decreases and then increases with temperature."
+          ],
+          "question": "Based on the provided information, what can be inferred about the resistance of the tungsten filament at its normal operating temperature (2700┬░C) compared to its room temperature (20┬░C) resistance?",
+          "question_number": "9.1"
+        },
+        {
+          "type": "MCQ",
+          "options": [
+            "A. 20 ╬⌐",
+            "B. 484 ╬⌐",
+            "C. 2.2 ╬⌐",
+            "D. 0.45 ╬⌐"
+          ],
+          "question": "Calculate the resistance of the bulb's filament when it is operating normally at its rated power of 100 W and voltage of 220 V.",
+          "question_number": "9.2"
+        },
+        {
+          "type": "MCQ",
+          "options": [
+            "A. The 100 W bulb, because it has lower resistance and draws more current.",
+            "B. The 60 W bulb, because it has higher resistance and dissipates more power in a series circuit.",
+            "C. Both will glow with equal brightness as the total voltage is shared.",
+            "D. Neither bulb will glow because the total resistance is too high."
+          ],
+          "question": "If a 100 W, 220 V bulb and a 60 W, 220 V bulb are connected in series across a 220 V supply, which bulb will glow brighter? (Assume their resistances remain constant for this comparison).",
+          "question_number": "9.3"
+        },
+        {
+          "type": "MCQ",
+          "options": [
+            "A. 2.8 x 10Γü╗Γü╣ m┬▓",
+            "B. 1.12 x 10Γü╗Γü╖ m┬▓",
+            "C. 5.6 x 10Γü╗Γü╖ m┬▓",
+            "D. 2.8 x 10Γü╗Γü╢ m┬▓"
+          ],
+          "question": "If the resistivity of tungsten at 20┬░C is 5.6 x 10Γü╗Γü╕ ╬⌐m, and assuming the filament has a length of 1 meter at this temperature, estimate the cross-sectional area of the filament at 20┬░C.",
+          "question_number": "9.4"
+        }
+      ],
+      "question_number": 9
+    },
+    {
+      "type": "ASSERTION_REASON",
+      "reason": "Reason (R): Nichrome has a high resistivity and a high melting point, and its resistance changes very little with temperature.",
+      "options": [
+        "A. Both Assertion (A) and Reason (R) are true, and Reason (R) is the correct explanation of Assertion (A).",
+        "B. Both Assertion (A) and Reason (R) are true, but Reason (R) is not the correct explanation of Assertion (A).",
+        "C. Assertion (A) is true, but Reason (R) is false.",
+        "D. Assertion (A) is false, but Reason (R) is true."
+      ],
+      "question": "Assertion (A): Nichrome wire is used for heating elements in electrical appliances.",
+      "question_number": 10
+    }
+  ]
+}

@@ -138,8 +138,8 @@ export default function HomeworkScoreScreen() {
     concept_clarity: number;
     presentation: number;
     insights?: string[];
-    wrong_answers?: Array<{ question_number: number; description: string }>;
-    partial_answers?: Array<{ question_number: number; description: string }>;
+    wrong_answers?: Array<{ question_number: string | number; description: string }>;
+    partial_answers?: Array<{ question_number: string | number; description: string }>;
   } | null = null;
 
   let parseError = false;
