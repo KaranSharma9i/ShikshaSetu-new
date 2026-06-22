@@ -1,4 +1,32 @@
-import { GeneratedQuestion, SECTION_ORDER } from "../types/generation";
+import { GeneratedQuestion, SECTION_ORDER, QuestionType } from "../types/generation";
+
+export function normalizeType(typeStr: string): QuestionType {
+  if (!typeStr) return "SHORT";
+  const trimmed = typeStr.trim();
+  const upper = trimmed.toUpperCase();
+  const mapping: Record<string, QuestionType> = {
+    'VERY SHORT ANSWER': 'VERY_SHORT',
+    'SHORT ANSWER': 'SHORT',
+    'LONG ANSWER': 'LONG',
+    'VERY SHORT': 'VERY_SHORT',
+    'ASSERTION REASON': 'ASSERTION_REASON',
+    'CASE STUDY': 'CASE_STUDY',
+  };
+  const mapped = mapping[upper] || upper;
+  const validTypes = new Set<QuestionType>([
+    'MCQ',
+    'VERY_SHORT',
+    'SHORT',
+    'LONG',
+    'CASE_STUDY',
+    'ASSERTION_REASON'
+  ]);
+  if (validTypes.has(mapped as QuestionType)) {
+    return mapped as QuestionType;
+  }
+  console.warn(`[normalizeType] Unrecognized question type: "${typeStr}". Falling back to SHORT.`);
+  return "SHORT";
+}
 
 /**
  * Sorts questions by their canonical SECTION_ORDER and assigns sequential display numbers.
@@ -8,10 +36,22 @@ import { GeneratedQuestion, SECTION_ORDER } from "../types/generation";
 export function assignDisplayNumbers(questions: GeneratedQuestion[]): GeneratedQuestion[] {
   if (!Array.isArray(questions)) return [];
 
+  // Normalize all questions first to ensure consistent types
+  const normalized = questions.map((q) => {
+    const qCopy = { ...q, type: normalizeType(q.type) };
+    if (q.sub_questions && Array.isArray(q.sub_questions)) {
+      qCopy.sub_questions = q.sub_questions.map((sub) => ({
+        ...sub,
+        type: normalizeType(sub.type),
+      }));
+    }
+    return qCopy;
+  });
+
   // Stable sort by SECTION_ORDER
-  const sortedQuestions = [...questions].sort((a, b) => {
-    const aIndex = SECTION_ORDER.indexOf(a.type as any);
-    const bIndex = SECTION_ORDER.indexOf(b.type as any);
+  const sortedQuestions = [...normalized].sort((a, b) => {
+    const aIndex = SECTION_ORDER.indexOf(a.type);
+    const bIndex = SECTION_ORDER.indexOf(b.type);
 
     if (aIndex === -1) {
       console.warn(`[WARNING] Question ID ${a.question_id || 'unknown'} has an unknown type '${a.type}', sorting to the end.`);
@@ -27,7 +67,7 @@ export function assignDisplayNumbers(questions: GeneratedQuestion[]): GeneratedQ
       return aVal - bVal;
     }
     // Preserve original relative order
-    return questions.indexOf(a) - questions.indexOf(b);
+    return normalized.indexOf(a) - normalized.indexOf(b);
   });
 
   // Assign display numbers
@@ -48,3 +88,4 @@ export function assignDisplayNumbers(questions: GeneratedQuestion[]): GeneratedQ
     return updatedQ;
   });
 }
+

@@ -3,34 +3,8 @@ import fs from "fs";
 import path from "path";
 import { supabase } from "../config";
 import { GeneratedContent, GenerateHomeworkRequest, SECTION_ORDER, QuestionType } from "../types/generation";
+import { normalizeType } from "../utils/questionAssembler";
 
-function normalizeType(typeStr: string): QuestionType {
-  if (!typeStr) return "SHORT";
-  const trimmed = typeStr.trim();
-  const upper = trimmed.toUpperCase();
-  const mapping: Record<string, QuestionType> = {
-    'VERY SHORT ANSWER': 'VERY_SHORT',
-    'SHORT ANSWER': 'SHORT',
-    'LONG ANSWER': 'LONG',
-    'VERY SHORT': 'VERY_SHORT',
-    'ASSERTION REASON': 'ASSERTION_REASON',
-    'CASE STUDY': 'CASE_STUDY',
-  };
-  const mapped = mapping[upper] || upper;
-  const validTypes = new Set<QuestionType>([
-    'MCQ',
-    'VERY_SHORT',
-    'SHORT',
-    'LONG',
-    'CASE_STUDY',
-    'ASSERTION_REASON'
-  ]);
-  if (validTypes.has(mapped as QuestionType)) {
-    return mapped as QuestionType;
-  }
-  console.warn(`[normalizeType] Unrecognized question type: "${typeStr}". Falling back to SHORT.`);
-  return "SHORT";
-}
 
 let browserInstance: Browser | null = null;
 

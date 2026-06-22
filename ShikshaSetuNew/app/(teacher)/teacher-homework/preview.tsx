@@ -25,7 +25,18 @@ interface GeneratedQuestion {
   type: QuestionType;
   question: string;
   options: string[] | null;
-  question_number: number;
+  question_number: number | string;
+  question_id?: string;
+  answer_key?: any;
+  reason?: string;
+  sub_questions?: {
+    type: QuestionType;
+    question: string;
+    options: string[] | null;
+    question_number: string;
+    question_id?: string;
+    answer_key?: any;
+  }[];
 }
 
 interface GeneratedContent {
@@ -38,6 +49,47 @@ interface GeneratedContent {
     total_questions: number;
     generated_at: string;
   };
+}
+
+const SECTION_ORDER_CLIENT: QuestionType[] = [
+  'MCQ',
+  'VERY_SHORT',
+  'SHORT',
+  'LONG',
+  'CASE_STUDY',
+  'ASSERTION_REASON'
+];
+
+function sortAndRenumberQuestions(questions: GeneratedQuestion[]): GeneratedQuestion[] {
+  if (!Array.isArray(questions)) return [];
+
+  // Stable sort by SECTION_ORDER_CLIENT
+  const sorted = [...questions].sort((a, b) => {
+    const aIndex = SECTION_ORDER_CLIENT.indexOf(a.type);
+    const bIndex = SECTION_ORDER_CLIENT.indexOf(b.type);
+    const aVal = aIndex === -1 ? SECTION_ORDER_CLIENT.length : aIndex;
+    const bVal = bIndex === -1 ? SECTION_ORDER_CLIENT.length : bIndex;
+    if (aVal !== bVal) {
+      return aVal - bVal;
+    }
+    return questions.indexOf(a) - questions.indexOf(b);
+  });
+
+  // Assign numbers sequentially
+  return sorted.map((q, idx) => {
+    const qNum = idx + 1;
+    const updated = {
+      ...q,
+      question_number: qNum
+    };
+    if (updated.sub_questions && Array.isArray(updated.sub_questions)) {
+      updated.sub_questions = updated.sub_questions.map((sub, subIdx) => ({
+        ...sub,
+        question_number: `${qNum}.${subIdx + 1}`
+      }));
+    }
+    return updated;
+  });
 }
 
 export default function HomeworkPreview() {
@@ -73,7 +125,8 @@ export default function HomeworkPreview() {
     if (!generated_content) return [];
     try {
       const parsed = JSON.parse(generated_content as string);
-      return Array.isArray(parsed?.questions) ? parsed.questions : [];
+      const rawQuestions = Array.isArray(parsed?.questions) ? parsed.questions : [];
+      return sortAndRenumberQuestions(rawQuestions);
     } catch {
       return [];
     }
@@ -90,6 +143,8 @@ export default function HomeworkPreview() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState<string>('');
   const [editOptions, setEditOptions] = useState<string[]>([]);
+  const [editReason, setEditReason] = useState<string>('');
+  const [editSubQuestions, setEditSubQuestions] = useState<any[]>([]);
   const [bannerVisible, setBannerVisible] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -120,11 +175,21 @@ export default function HomeworkPreview() {
 
   const startEditing = (index: number) => {
     if (editingIndex !== null) return;
+    const q = questions[index];
     setEditingIndex(index);
-    setEditText(questions[index].question);
+    setEditText(q.question);
     setEditOptions(
-      questions[index].options
-        ? questions[index].options!.map((opt, idx) => cleanOption(opt, idx))
+      q.options
+        ? q.options.map((opt, idx) => cleanOption(opt, idx))
+        : []
+    );
+    setEditReason(q.reason || '');
+    setEditSubQuestions(
+      q.sub_questions
+        ? q.sub_questions.map((sub: any) => ({
+            ...sub,
+            options: sub.options ? sub.options.map((opt: string, idx: number) => cleanOption(opt, idx)) : []
+          }))
         : []
     );
   };
@@ -136,17 +201,37 @@ export default function HomeworkPreview() {
   const handleDone = () => {
     if (editingIndex === null) return;
     const updatedQuestions = [...questions];
-    const formattedOptions =
-      updatedQuestions[editingIndex].type === 'MCQ'
-        ? editOptions.map((opt, idx) => formatOptionWithPrefix(opt, idx))
-        : null;
+    const originalQ = updatedQuestions[editingIndex];
 
-    updatedQuestions[editingIndex] = {
-      ...updatedQuestions[editingIndex],
+    let finalOptions = originalQ.options;
+    if (originalQ.type === 'MCQ') {
+      finalOptions = editOptions.map((opt, idx) => formatOptionWithPrefix(opt, idx));
+    }
+
+    const updatedQ: GeneratedQuestion = {
+      ...originalQ,
       question: editText,
-      options: formattedOptions,
+      options: finalOptions,
     };
-    setQuestions(updatedQuestions);
+
+    if (originalQ.type === 'ASSERTION_REASON') {
+      updatedQ.reason = editReason;
+    }
+
+    if (originalQ.type === 'CASE_STUDY') {
+      updatedQ.sub_questions = editSubQuestions.map((sub) => {
+        const formattedSubOptions = sub.options
+          ? sub.options.map((opt: string, idx: number) => formatOptionWithPrefix(opt, idx))
+          : null;
+        return {
+          ...sub,
+          options: formattedSubOptions,
+        };
+      });
+    }
+
+    updatedQuestions[editingIndex] = updatedQ;
+    setQuestions(sortAndRenumberQuestions(updatedQuestions));
     setEditingIndex(null);
   };
 
@@ -218,7 +303,7 @@ export default function HomeworkPreview() {
               if (result && result.generated_content) {
                 const content = result.generated_content;
                 if (content.questions && Array.isArray(content.questions)) {
-                  setQuestions(content.questions);
+                  setQuestions(sortAndRenumberQuestions(content.questions));
                 }
                 if (content.metadata) {
                   setMetadata(content.metadata);
@@ -352,13 +437,45 @@ export default function HomeworkPreview() {
                       <Text style={styles.questionTypeLabel}>{sect.type}</Text>
                     </View>
 
-                    <TextInput
-                      style={[styles.editQuestionInput, { color: primaryColor }]}
-                      value={editText}
-                      onChangeText={setEditText}
-                      multiline
-                      placeholder="Enter question text..."
-                    />
+                    {q.type === 'ASSERTION_REASON' ? (
+                      <View>
+                        <Text style={styles.inputLabel}>Assertion (A):</Text>
+                        <TextInput
+                          style={[styles.editQuestionInput, { color: primaryColor }]}
+                          value={editText}
+                          onChangeText={setEditText}
+                          multiline
+                          placeholder="Enter assertion statement..."
+                        />
+                        <Text style={styles.inputLabel}>Reason (R):</Text>
+                        <TextInput
+                          style={[styles.editQuestionInput, { color: primaryColor, marginTop: 4 }]}
+                          value={editReason}
+                          onChangeText={setEditReason}
+                          multiline
+                          placeholder="Enter reason statement..."
+                        />
+                      </View>
+                    ) : q.type === 'CASE_STUDY' ? (
+                      <View>
+                        <Text style={styles.inputLabel}>Case Passage:</Text>
+                        <TextInput
+                          style={[styles.editQuestionInput, { color: primaryColor }]}
+                          value={editText}
+                          onChangeText={setEditText}
+                          multiline
+                          placeholder="Enter case passage statement..."
+                        />
+                      </View>
+                    ) : (
+                      <TextInput
+                        style={[styles.editQuestionInput, { color: primaryColor }]}
+                        value={editText}
+                        onChangeText={setEditText}
+                        multiline
+                        placeholder="Enter question text..."
+                      />
+                    )}
 
                     {q.type === 'MCQ' && editOptions.map((opt, optIdx) => (
                       <View key={optIdx} style={styles.editOptionRow}>
@@ -373,6 +490,40 @@ export default function HomeworkPreview() {
                           }}
                           placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
                         />
+                      </View>
+                    ))}
+
+                    {q.type === 'CASE_STUDY' && editSubQuestions.map((sub, subIdx) => (
+                      <View key={subIdx} style={styles.editSubQuestionContainer}>
+                        <Text style={styles.subQuestionLabel}>Sub-Question {sub.question_number}:</Text>
+                        <TextInput
+                          style={[styles.editQuestionInput, { color: primaryColor }]}
+                          value={sub.question}
+                          onChangeText={(text) => {
+                            const newSubs = [...editSubQuestions];
+                            newSubs[subIdx].question = text;
+                            setEditSubQuestions(newSubs);
+                          }}
+                          multiline
+                          placeholder="Enter sub-question text..."
+                        />
+                        {sub.options && sub.options.map((opt: string, optIdx: number) => (
+                          <View key={optIdx} style={styles.editOptionRow}>
+                            <Text style={[styles.optionPrefix, { color: primaryColor }]}>{String.fromCharCode(65 + optIdx)}.</Text>
+                            <TextInput
+                              style={[styles.editOptionInput, { color: primaryColor }]}
+                              value={opt}
+                              onChangeText={(text) => {
+                                const newSubs = [...editSubQuestions];
+                                const newOpts = [...newSubs[subIdx].options];
+                                newOpts[optIdx] = text;
+                                newSubs[subIdx].options = newOpts;
+                                setEditSubQuestions(newSubs);
+                              }}
+                              placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                            />
+                          </View>
+                        ))}
                       </View>
                     ))}
 
@@ -400,12 +551,48 @@ export default function HomeworkPreview() {
                       </View>
                       <Text style={styles.questionTypeLabel}>{q.type}</Text>
                     </View>
-                    <Text style={[styles.questionText, { color: primaryColor }]}>{q.question}</Text>
-                    {q.type === 'MCQ' && q.options && (
+
+                    {q.type === 'ASSERTION_REASON' ? (
+                      <View>
+                        <Text style={[styles.questionText, { color: primaryColor }]}>
+                          Assertion (A): {q.question.replace(/^(Assertion\s*\(?[AR]?\)?\s*:\s*)/i, "")}
+                        </Text>
+                        {q.reason && (
+                          <Text style={[styles.questionText, { color: primaryColor, marginTop: 4 }]}>
+                            Reason (R): {q.reason.replace(/^(Reason\s*\(?[AR]?\)?\s*:\s*)/i, "")}
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Text style={[styles.questionText, { color: primaryColor }]}>{q.question}</Text>
+                    )}
+
+                    {(q.type === 'MCQ' || q.type === 'ASSERTION_REASON') && q.options && (
                       <View style={styles.optionsList}>
                         {q.options.map((opt, optIdx) => (
                           <View key={optIdx} style={[styles.optionRow, { backgroundColor: creamColor, borderColor: secondaryLightColor }]}>
                             <Text style={[styles.optionText, { color: primaryColor }]}>{opt}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {q.type === 'CASE_STUDY' && q.sub_questions && q.sub_questions.length > 0 && (
+                      <View style={{ marginTop: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: secondaryColor }}>
+                        {q.sub_questions.map((subQ, subIdx) => (
+                          <View key={subIdx} style={{ marginBottom: 12 }}>
+                            <Text style={[styles.questionText, { color: primaryColor, fontFamily: "Poppins-Medium" }]}>
+                              {subQ.question_number}. {subQ.question}
+                            </Text>
+                            {subQ.options && (
+                              <View style={styles.optionsList}>
+                                {subQ.options.map((opt, optIdx) => (
+                                  <View key={optIdx} style={[styles.optionRow, { backgroundColor: creamColor, borderColor: secondaryLightColor }]}>
+                                    <Text style={[styles.optionText, { color: primaryColor }]}>{opt}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
                           </View>
                         ))}
                       </View>
@@ -806,5 +993,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: FontSize.sm,
     color: ButtonTokens.gold.textColor,
+  },
+  inputLabel: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: FontSize.sm,
+    color: '#4A5568',
+    marginBottom: 4,
+    marginTop: Spacing.sm,
+  },
+  editSubQuestionContainer: {
+    borderLeftWidth: 2,
+    borderLeftColor: Colors.gold,
+    paddingLeft: Spacing.sm,
+    marginLeft: Spacing.xs,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  subQuestionLabel: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: FontSize.sm,
+    color: Colors.navyBlue,
+    marginBottom: Spacing.xs,
   },
 });

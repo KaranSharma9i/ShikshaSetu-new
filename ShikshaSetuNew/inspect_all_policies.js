@@ -12,7 +12,7 @@ async function run() {
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' 
         AND c.relkind = 'r' 
-        AND c.relname IN ('fees', 'exams', 'ai_scores', 'homework', 'student_attendance', 'student_payments', 'student_profile', 'users', 'teachers')
+        AND c.relname IN ('fees', 'exams', 'ai_scores', 'homework', 'student_attendance', 'student_payments', 'student_profile', 'users', 'teachers', 'homework_submissions')
       ORDER BY tablename;
     `);
     console.table(rlsStatusRes.rows);
@@ -21,7 +21,7 @@ async function run() {
     const res = await client.query(`
       SELECT tablename, policyname, roles, cmd, qual
       FROM pg_policies 
-      WHERE tablename IN ('fees', 'exams', 'ai_scores', 'homework', 'student_attendance', 'student_payments', 'student_profile', 'users', 'teachers')
+      WHERE tablename IN ('fees', 'exams', 'ai_scores', 'homework', 'student_attendance', 'student_payments', 'student_profile', 'users', 'teachers', 'homework_submissions')
       ORDER BY tablename, policyname;
     `);
     console.table(res.rows);
