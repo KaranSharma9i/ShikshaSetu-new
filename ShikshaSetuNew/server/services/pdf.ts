@@ -2,7 +2,9 @@ import { Browser } from "puppeteer-core";
 import fs from "fs";
 import path from "path";
 import { supabase } from "../config";
-import { GeneratedContent, GenerateHomeworkRequest } from "../types/generation";
+import { GeneratedContent, GenerateHomeworkRequest, SECTION_ORDER, QuestionType } from "../types/generation";
+import { normalizeType } from "../utils/questionAssembler";
+
 
 let browserInstance: Browser | null = null;
 
@@ -185,19 +187,35 @@ export class PdfService {
     const gradeSectionText = req.section_name ? `${req.grade} - ${req.section_name}` : req.grade;
     const topicText = content.metadata.topic || req.topic_description;
 
+    const normalizedQuestions = content.questions.map((q) => {
+      const qCopy = { ...q, type: normalizeType(q.type) };
+      if (q.sub_questions && Array.isArray(q.sub_questions)) {
+        qCopy.sub_questions = q.sub_questions.map((subQ) => ({
+          ...subQ,
+          type: normalizeType(subQ.type),
+        }));
+      }
+      return qCopy;
+    });
+
     let questionsHtml = "";
 
-    const sectionConfig = [
-      { type: "MCQ", title: "Section A — Multiple Choice Questions (MCQ)" },
-      { type: "VERY_SHORT", title: "Section B — Very Short Answer Questions" },
-      { type: "SHORT", title: "Section C — Short Answer Questions" },
-      { type: "LONG", title: "Section D — Long Answer Questions" },
-      { type: "CASE_STUDY", title: "Section E — Case Study Based Questions" },
-      { type: "ASSERTION_REASON", title: "Section F — Assertion-Reason Questions" },
-    ];
+    const SECTION_TITLES: Record<typeof SECTION_ORDER[number], string> = {
+      MCQ: "Section A — Multiple Choice Questions (MCQ)",
+      VERY_SHORT: "Section B — Very Short Answer Questions",
+      SHORT: "Section C — Short Answer Questions",
+      LONG: "Section D — Long Answer Questions",
+      CASE_STUDY: "Section E — Case Study Based Questions",
+      ASSERTION_REASON: "Section F — Assertion-Reason Questions"
+    };
+
+    const sectionConfig = SECTION_ORDER.map(type => ({
+      type,
+      title: SECTION_TITLES[type]
+    }));
 
     for (const section of sectionConfig) {
-      const sectionQuestions = content.questions.filter((q) => q.type === section.type);
+      const sectionQuestions = normalizedQuestions.filter((q) => q.type === section.type);
       if (sectionQuestions.length === 0) continue;
 
       questionsHtml += `<div class="section-title">${section.title}</div>`;

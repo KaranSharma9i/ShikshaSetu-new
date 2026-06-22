@@ -56,7 +56,7 @@ export interface HomeworkItem {
   ai_generated?: boolean;
   generated_content?: GeneratedContent | null;
   pdf_url?: string | null;
-  generation_status?: 'generating' | 'generated' | 'published' | 'failed' | null;
+  generation_status?: 'generating' | 'generated' | 'published' | 'failed' | 'needs_regeneration' | null;
   question_config?: {
     mcq: number;
     very_short: number;

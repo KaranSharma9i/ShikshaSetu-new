@@ -202,3 +202,4 @@ All loaded via `expo-google-fonts`. Font loading is async — use `useFonts` hoo
 - [x] ThemeContext wired up + Poppins/Inter/Open Sans loaded
 - [x] All hardcoded brand colors replaced across all portals and shared components (Sub-batches 5a–5d)
 - [ ] Logo loaded from Supabase Storage (logoUrl fallback to local asset currently)
+- [ ] Pre-pilot: Restrict student-role access to `homework.generated_content` and `homework.question_config` columns (contain AI-generated answer keys) — no RLS exists yet; currently only unexposed because no app feature reads these columns for students. Flagged during homework-scoring security audit.

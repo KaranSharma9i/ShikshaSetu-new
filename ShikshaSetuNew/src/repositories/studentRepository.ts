@@ -745,6 +745,7 @@ export async function getStudentHomeworkStats(studentId: string): Promise<{ avg:
       .from("homework_submissions")
       .select(`
         marks_obtained,
+        ai_score,
         homework:homework!inner (
           total_marks
         )
@@ -763,10 +764,16 @@ export async function getStudentHomeworkStats(studentId: string): Promise<{ avg:
 
     submissions.forEach((sub: any) => {
       const homework = Array.isArray(sub.homework) ? sub.homework[0] : sub.homework;
-      if (sub.marks_obtained !== null && homework) {
-        totalObtained += Number(sub.marks_obtained);
-        totalMax += Number(homework.total_marks || 100);
-        count++;
+      if (homework) {
+        if (sub.marks_obtained !== null) {
+          totalObtained += Number(sub.marks_obtained);
+          totalMax += Number(homework.total_marks || 100);
+          count++;
+        } else if (sub.ai_score !== null) {
+          totalObtained += Number(sub.ai_score) * 10;
+          totalMax += 100;
+          count++;
+        }
       }
     });
 
@@ -1641,8 +1648,8 @@ export interface EvaluationResult {
     concept_clarity: number;
     presentation: number;
     insights?: string[];
-    wrong_answers?: Array<{ question_number: number; description: string }>;
-    partial_answers?: Array<{ question_number: number; description: string }>;
+    wrong_answers?: Array<{ question_number: string | number; description: string }>;
+    partial_answers?: Array<{ question_number: string | number; description: string }>;
   };
   plan_tier: 'FREE' | 'STANDARD' | 'PRO';
   used_today: number;

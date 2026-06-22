@@ -159,6 +159,7 @@ router.post("/homework/submit-evaluate", async (req: Request, res: Response) => 
         topicDescription: topic,
         planTier,
         questions,
+        homeworkId: assignment_id,
       });
     } catch (aiErr) {
       console.error("AI Scoring error:", aiErr);
@@ -176,6 +177,7 @@ router.post("/homework/submit-evaluate", async (req: Request, res: Response) => 
       aiFeedback.insights = evaluation.insights || [];
       aiFeedback.wrong_answers = evaluation.wrong_answers || [];
       aiFeedback.partial_answers = evaluation.partial_answers || [];
+      aiFeedback.question_evaluations = evaluation.question_evaluations || [];
     }
 
     // Step 7 — Upsert homework_submissions
