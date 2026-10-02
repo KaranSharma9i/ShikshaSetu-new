@@ -4,6 +4,7 @@ import { getClasses, getAllSectionsForInstitution } from '@/lib/repositories/aca
 import { getStudentsList } from '@/lib/repositories/student'
 import { getTeachersList } from '@/lib/repositories/teacher'
 import { getIdCardSettings } from '@/lib/repositories/idCardSettings'
+import { getHousesByInstitution } from '@/lib/repositories/houses'
 import IDCardsClient from './IDCardsClient'
 
 export default async function IDCardsPage({
@@ -47,8 +48,8 @@ export default async function IDCardsPage({
   const sectionId = resolvedParams.sectionId || ''
   const status = resolvedParams.status || 'all'
 
-  // Fetch filters data, students, teachers, settings, and institution details
-  const [classes, allSections, students, teachers, idCardSettings, institutionResult] = await Promise.all([
+  // Fetch filters data, students, teachers, settings, houses, and institution details
+  const [classes, allSections, students, teachers, idCardSettings, institutionResult, houses] = await Promise.all([
     getClasses(supabase, institutionId),
     getAllSectionsForInstitution(supabase, institutionId),
     getStudentsList(supabase, institutionId, { search, classId, sectionId, status }),
@@ -56,9 +57,10 @@ export default async function IDCardsPage({
     getIdCardSettings(supabase, institutionId),
     supabase
       .from('institutions')
-      .select('name, address, logo_url, theme')
+      .select('name, address, logo_url, theme, phone')
       .eq('id', institutionId)
-      .single()
+      .single(),
+    getHousesByInstitution(supabase, institutionId)
   ])
 
   const institution = institutionResult.data
@@ -72,6 +74,7 @@ export default async function IDCardsPage({
       initialSettings={idCardSettings}
       institution={institution}
       institutionId={institutionId}
+      houses={houses}
     />
   )
 }

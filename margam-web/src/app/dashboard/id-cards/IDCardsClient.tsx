@@ -6,6 +6,9 @@ import StudentFilterBar from '../students/StudentFilterBar'
 import { saveIdCardSettingsAction } from './actions'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas-pro'
+import HouseTemplateCardFront, { HOUSE_COLORS } from '@/components/id-cards/HouseTemplateCardFront'
+import HouseTemplateCardBack from '@/components/id-cards/HouseTemplateCardBack'
+import { House } from '@/lib/repositories/houses'
 
 interface ClassItem {
   id: string
@@ -34,6 +37,7 @@ interface StudentListItem {
   blood_group?: string | null
   guardian_phone?: string | null
   date_of_birth?: string | null
+  house_id?: string | null
 }
 
 interface TeacherListItem {
@@ -49,6 +53,7 @@ interface TeacherListItem {
   phone: string
   date_of_joining?: string | null
   address?: string | null
+  house_id?: string | null
 }
 
 interface IDCardSettingsRow {
@@ -65,6 +70,7 @@ interface IDCardsClientProps {
   initialSettings: IDCardSettingsRow | null
   institution: any
   institutionId: string
+  houses: House[]
 }
 
 // Inline component to render image with graceful initials fallback
@@ -155,14 +161,24 @@ function IDCard({
   theme,
   institution,
   scale = 1,
+  houses = [],
 }: {
   person: any
   type: 'student' | 'teacher'
   side: 'front' | 'back'
-  template: 'template_1' | 'template_2' | 'template_3' | 'template_4'
+  template:
+    | 'template_1'
+    | 'template_2'
+    | 'template_3'
+    | 'template_4'
+    | 'template_5'
+    | 'template_6'
+    | 'template_7'
+    | 'template_8'
   theme: any
   institution: any
   scale?: number
+  houses?: House[]
 }) {
   const primaryColor = theme?.colors?.primary ?? '#0D1B2A'
   const secondaryColor = theme?.colors?.secondary ?? '#D4AF37'
@@ -931,6 +947,66 @@ function IDCard({
     }
   }
 
+  if (['template_5', 'template_6', 'template_7', 'template_8'].includes(template)) {
+    let targetHouseColor: 'red' | 'green' | 'yellow' | 'blue' = 'red'
+    if (template === 'template_6') targetHouseColor = 'green'
+    if (template === 'template_7') targetHouseColor = 'yellow'
+    if (template === 'template_8') targetHouseColor = 'blue'
+
+    const targetHouse = houses?.find(h => h.color === targetHouseColor)
+    const houseName = targetHouse?.name || (targetHouseColor.charAt(0).toUpperCase() + targetHouseColor.slice(1))
+
+    // Format fields
+    const classVal = person?.class_name || 'N/A'
+    const classPrefix = classVal.toLowerCase().startsWith('class') ? '' : 'Class '
+    const classSection = `${classPrefix}${classVal} - Sec ${person?.section_name || 'N/A'}`
+    const designation = person?.specialization || 'Teacher'
+    const dob = type === 'student'
+      ? (person?.date_of_birth ? new Date(person.date_of_birth).toLocaleDateString('en-GB') : 'N/A')
+      : (person?.date_of_joining ? new Date(person.date_of_joining).toLocaleDateString('en-GB') : 'N/A')
+    const phone = type === 'student' ? (person?.guardian_phone || 'N/A') : (person?.phone || 'N/A')
+
+    if (side === 'front') {
+      return (
+        <HouseTemplateCardFront
+          name={name}
+          photoUrl={person?.profile_photo_url}
+          idCode={code || 'N/A'}
+          rollNo={person?.roll_number}
+          classSection={classSection}
+          designation={designation}
+          dob={dob}
+          bloodGroup={person?.blood_group || 'N/A'}
+          phone={phone}
+          houseName={houseName}
+          houseColor={targetHouseColor}
+          institutionName={instName}
+          logoUrl={logoUrl}
+          scale={scale}
+          type={type}
+        />
+      )
+    } else {
+      return (
+        <HouseTemplateCardBack
+          houseName={houseName}
+          houseColor={targetHouseColor}
+          institutionName={instName}
+          logoUrl={logoUrl}
+          institutionAddress={instAddress}
+          institutionPhone={institution?.phone || 'N/A'}
+          parentName={person?.guardian_name}
+          parentPhone={person?.guardian_phone}
+          address={person?.address}
+          bloodGroup={person?.blood_group}
+          qualification={person?.qualification}
+          type={type}
+          scale={scale}
+        />
+      )
+    }
+  }
+
   return null
 }
 
@@ -942,13 +1018,23 @@ export default function IDCardsClient({
   initialSettings,
   institution,
   institutionId,
+  houses = [],
 }: IDCardsClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   const [activeTab, setActiveTab] = useState<'students' | 'staff'>('students')
-  const [selectedTemplate, setSelectedTemplate] = useState<'template_1' | 'template_2' | 'template_3' | 'template_4'>(
+  const [selectedTemplate, setSelectedTemplate] = useState<
+    | 'template_1'
+    | 'template_2'
+    | 'template_3'
+    | 'template_4'
+    | 'template_5'
+    | 'template_6'
+    | 'template_7'
+    | 'template_8'
+  >(
     (initialSettings?.selected_template as any) || 'template_1'
   )
   
@@ -965,6 +1051,7 @@ export default function IDCardsClient({
   const [isGenerating, setIsGenerating] = useState(false)
   const [genProgress, setGenProgress] = useState(0)
   const [genError, setGenError] = useState<string | null>(null)
+  const [skippedWarnings, setSkippedWarnings] = useState<string[] | null>(null)
 
   // Staff search
   const [teacherSearch, setTeacherSearch] = useState('')
@@ -978,27 +1065,65 @@ export default function IDCardsClient({
   const lightGrayColor = theme?.colors?.lightGray ?? '#E5E7EB'
   const logoUrl = institution?.logo_url
 
-  // Set default highlighted item
+  // 1. Resolve selected house color based on active template
+  const getHouseColorForTemplate = (tpl: string): 'red' | 'green' | 'yellow' | 'blue' | null => {
+    if (tpl === 'template_5') return 'red'
+    if (tpl === 'template_6') return 'green'
+    if (tpl === 'template_7') return 'yellow'
+    if (tpl === 'template_8') return 'blue'
+    return null
+  }
+
+  const selectedHouseColor = getHouseColorForTemplate(selectedTemplate)
+  const selectedHouse = selectedHouseColor ? houses?.find(h => h.color === selectedHouseColor) : null
+
+  // 2. Filter students
+  const filteredStudents = selectedHouse
+    ? initialStudents.filter(s => s.house_id === selectedHouse.id)
+    : initialStudents
+
+  // 3. Filter teachers
+  const filteredTeachers = initialTeachers.filter(t => {
+    const matchesSearch = t.full_name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
+      t.employee_code.toLowerCase().includes(teacherSearch.toLowerCase())
+    const matchesHouse = selectedHouse ? t.house_id === selectedHouse.id : true
+    return matchesSearch && matchesHouse
+  })
+
+  // Set default highlighted item based on filtered lists
   useEffect(() => {
-    if (initialStudents.length > 0 && !highlightedStudentId) {
-      setHighlightedStudentId(initialStudents[0].id)
+    if (filteredStudents.length > 0) {
+      if (!highlightedStudentId || !filteredStudents.some(s => s.id === highlightedStudentId)) {
+        setHighlightedStudentId(filteredStudents[0].id)
+      }
+    } else {
+      setHighlightedStudentId(null)
     }
-  }, [initialStudents, highlightedStudentId])
+  }, [filteredStudents, highlightedStudentId])
 
   useEffect(() => {
-    if (initialTeachers.length > 0 && !highlightedTeacherId) {
-      setHighlightedTeacherId(initialTeachers[0].id)
+    if (filteredTeachers.length > 0) {
+      if (!highlightedTeacherId || !filteredTeachers.some(t => t.id === highlightedTeacherId)) {
+        setHighlightedTeacherId(filteredTeachers[0].id)
+      }
+    } else {
+      setHighlightedTeacherId(null)
     }
-  }, [initialTeachers, highlightedTeacherId])
+  }, [filteredTeachers, highlightedTeacherId])
 
-  // Filter teachers client-side to prevent URL search param collision
-  const filteredTeachers = initialTeachers.filter(t => 
-    t.full_name.toLowerCase().includes(teacherSearch.toLowerCase()) ||
-    t.employee_code.toLowerCase().includes(teacherSearch.toLowerCase())
-  )
 
   // Handle template selection & persistence
-  const handleTemplateChange = async (tpl: 'template_1' | 'template_2' | 'template_3' | 'template_4') => {
+  const handleTemplateChange = async (
+    tpl:
+      | 'template_1'
+      | 'template_2'
+      | 'template_3'
+      | 'template_4'
+      | 'template_5'
+      | 'template_6'
+      | 'template_7'
+      | 'template_8'
+  ) => {
     setSelectedTemplate(tpl)
     setIsSavingTemplate(true)
     try {
@@ -1014,7 +1139,7 @@ export default function IDCardsClient({
   }
 
   // Get active highlighted person
-  const activeStudent = initialStudents.find(s => s.id === highlightedStudentId) || initialStudents[0]
+  const activeStudent = filteredStudents.find(s => s.id === highlightedStudentId) || filteredStudents[0]
   const activeTeacher = filteredTeachers.find(t => t.id === highlightedTeacherId) || filteredTeachers[0]
 
   // Checkbox handlers
@@ -1046,7 +1171,7 @@ export default function IDCardsClient({
   const handleSelectAllStudents = (checked: boolean) => {
     setSelectedStudentIds(prev => {
       const newSet = new Set(prev)
-      initialStudents.forEach(s => {
+      filteredStudents.forEach(s => {
         if (checked) {
           newSet.add(s.id)
         } else {
@@ -1091,6 +1216,7 @@ export default function IDCardsClient({
     setIsGenerating(true)
     setGenProgress(0)
     setGenError(null)
+    setSkippedWarnings(null)
     setGeneratingIds(selectedIds)
   }
 
@@ -1100,6 +1226,32 @@ export default function IDCardsClient({
 
     const runRenderFlow = async () => {
       try {
+        const isHouseTemplate = ['template_5', 'template_6', 'template_7', 'template_8'].includes(selectedTemplate)
+        const skippedNames: string[] = []
+        const validIds: string[] = []
+
+        for (const id of generatingIds) {
+          const person = activeTab === 'students'
+            ? initialStudents.find(s => s.id === id)
+            : initialTeachers.find(t => t.id === id)
+          
+          if (isHouseTemplate && (!person || !person.house_id)) {
+            skippedNames.push(person?.full_name || `Unknown ID: ${id}`)
+          } else {
+            validIds.push(id)
+          }
+        }
+
+        if (skippedNames.length > 0) {
+          setSkippedWarnings(skippedNames)
+        }
+
+        if (validIds.length === 0) {
+          setIsGenerating(false)
+          setGeneratingIds(null)
+          return
+        }
+
         // Wait a frame for React to render the hidden elements
         await new Promise(resolve => setTimeout(resolve, 300))
 
@@ -1109,11 +1261,11 @@ export default function IDCardsClient({
           format: 'a4',
         })
 
-        const total = generatingIds.length
+        const total = validIds.length
         
         // A4 Dimensions: 210mm x 297mm
         // CR80 Sizing: 85.6mm x 54mm (Landscape) or 54mm x 85.6mm (Portrait)
-        const isPortrait = selectedTemplate === 'template_4'
+        const isPortrait = selectedTemplate === 'template_4' || isHouseTemplate
         const cardWidth = isPortrait ? 54 : 85.6
         const cardHeight = isPortrait ? 85.6 : 54
         const gapY = 4 // gap between rows
@@ -1122,7 +1274,7 @@ export default function IDCardsClient({
         const cardsPerPage = isPortrait ? 3 : 5
 
         for (let i = 0; i < total; i++) {
-          const id = generatingIds[i]
+          const id = validIds[i]
           
           setGenProgress(Math.round((i / total) * 100))
 
@@ -1203,8 +1355,10 @@ export default function IDCardsClient({
   }, [generatingIds])
 
   // Helpers
-  const selectedCount = activeTab === 'students' ? selectedStudentIds.size : selectedTeacherIds.size
-  const isAllStudentsSelected = initialStudents.length > 0 && initialStudents.every(s => selectedStudentIds.has(s.id))
+  const selectedCount = activeTab === 'students'
+    ? Array.from(selectedStudentIds).filter(id => filteredStudents.some(s => s.id === id)).length
+    : Array.from(selectedTeacherIds).filter(id => filteredTeachers.some(t => t.id === id)).length
+  const isAllStudentsSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedStudentIds.has(s.id))
   const isAllTeachersSelected = filteredTeachers.length > 0 && filteredTeachers.every(t => selectedTeacherIds.has(t.id))
 
   const getInitials = (n: string) => {
@@ -1213,6 +1367,49 @@ export default function IDCardsClient({
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
     }
     return n.slice(0, 2).toUpperCase()
+  }
+
+  const redHouse = houses?.find(h => h.color === 'red')
+  const greenHouse = houses?.find(h => h.color === 'green')
+  const yellowHouse = houses?.find(h => h.color === 'yellow')
+  const blueHouse = houses?.find(h => h.color === 'blue')
+
+  const renderHouseTemplateSelector = (
+    tplId: 'template_5' | 'template_6' | 'template_7' | 'template_8',
+    house: House | undefined,
+    colorCode: string,
+    label: string
+  ) => {
+    const displayName = house?.name || label
+    const isSelected = selectedTemplate === tplId
+    return (
+      <button
+        key={tplId}
+        onClick={() => handleTemplateChange(tplId)}
+        className={`border rounded-2xl p-3 text-left transition-all hover:shadow-md cursor-pointer flex flex-col items-center justify-center space-y-2 relative ${
+          isSelected
+            ? 'border-primary ring-2 ring-primary bg-primary/[0.02]'
+            : 'border-light-gray hover:border-steel-gray/40'
+        }`}
+      >
+        <div
+          className="w-full h-12 rounded-lg bg-white relative overflow-hidden border border-gray-100 flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-wider"
+        >
+          <div
+            className="absolute inset-0 z-0"
+            style={{
+              backgroundColor: colorCode,
+              clipPath: 'polygon(0 0, 100% 0, 100% 55%, 85% 60%, 65% 50%, 45% 62%, 25% 52%, 0 65%)',
+            }}
+          />
+          <span className="relative z-10 font-heading drop-shadow">{displayName}</span>
+        </div>
+        <div className="text-center">
+          <span className="block text-xs font-bold text-charcoal">{displayName}</span>
+          <span className="block text-[10px] text-steel-gray mt-0.5">{label} House</span>
+        </div>
+      </button>
+    )
   }
 
   return (
@@ -1349,6 +1546,19 @@ export default function IDCardsClient({
                 </div>
               </button>
             </div>
+
+            {/* House Templates Section */}
+            <div className="border-t border-light-gray/40 pt-4 mt-4">
+              <h3 className="text-xs font-bold text-steel-gray uppercase tracking-wider mb-3 font-caption">
+                House-Coloured Templates (Auto-filters list)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {renderHouseTemplateSelector('template_5', redHouse, '#DC2626', 'Red')}
+                {renderHouseTemplateSelector('template_6', greenHouse, '#16A34A', 'Green')}
+                {renderHouseTemplateSelector('template_7', yellowHouse, '#CA8A04', 'Yellow')}
+                {renderHouseTemplateSelector('template_8', blueHouse, '#2563EB', 'Blue')}
+              </div>
+            </div>
           </div>
 
           {/* Toggle Tab */}
@@ -1410,189 +1620,267 @@ export default function IDCardsClient({
           {/* List Directory Table */}
           <div className="bg-white border border-light-gray/60 rounded-2xl shadow-sm overflow-hidden">
             {activeTab === 'students' ? (
-              initialStudents.length === 0 ? (
-                <div className="py-16 text-center text-steel-gray/60 text-sm font-body max-w-md mx-auto space-y-3">
-                  <h3 className="text-base font-bold text-charcoal font-heading">No Students Found</h3>
-                  <p className="text-xs text-steel-gray/80 px-4">
-                    Adjust filters above or check the inputs.
-                  </p>
-                </div>
+              filteredStudents.length === 0 ? (
+                selectedHouse ? (
+                  <div className="py-16 text-center text-steel-gray/60 text-sm font-body max-w-md mx-auto space-y-4">
+                    <div className="flex justify-center">
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center bg-cream/50 font-bold text-lg"
+                        style={{ color: HOUSE_COLORS[selectedHouse.color] || '#333', border: `1px solid ${HOUSE_COLORS[selectedHouse.color] || '#ddd'}` }}
+                      >
+                        {selectedHouse.color === 'red' ? '🔴' : selectedHouse.color === 'green' ? '🟢' : selectedHouse.color === 'yellow' ? '🟡' : '🔵'}
+                      </div>
+                    </div>
+                    <h3 className="text-base font-bold text-charcoal font-heading">No Students in {selectedHouse.name} House</h3>
+                    <p className="text-xs text-steel-gray/80 px-4">
+                      You need to assign students to this house before you can generate their cards.
+                    </p>
+                    <div className="pt-2">
+                      <a
+                        href="/dashboard/students"
+                        style={{ backgroundColor: HOUSE_COLORS[selectedHouse.color] || '#333' }}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all"
+                      >
+                        Go to Students Directory
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-16 text-center text-steel-gray/60 text-sm font-body max-w-md mx-auto space-y-3">
+                    <h3 className="text-base font-bold text-charcoal font-heading">No Students Found</h3>
+                    <p className="text-xs text-steel-gray/80 px-4">
+                      Adjust filters above or check the inputs.
+                    </p>
+                  </div>
+                )
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-light-gray/60 bg-cream/15">
-                        <th className="py-4 px-6 w-12 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isAllStudentsSelected}
-                            onChange={(e) => handleSelectAllStudents(e.target.checked)}
-                            className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
-                          />
-                        </th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Name</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Student Code</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Roll No</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Class & Section</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-light-gray/40">
-                      {initialStudents.map((student) => {
-                        const isSelected = selectedStudentIds.has(student.id)
-                        const isHighlighted = highlightedStudentId === student.id
-                        return (
-                          <tr
-                            key={student.id}
-                            onClick={() => setHighlightedStudentId(student.id)}
-                            className={`hover:bg-cream/10 transition-colors cursor-pointer ${
-                              isHighlighted ? 'bg-primary/[0.03] font-medium' : ''
-                            }`}
-                          >
-                            <td className="py-4 px-6 text-center" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleToggleStudent(student.id)}
-                                className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
-                              />
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center gap-3">
-                                {student.profile_photo_url ? (
-                                  <img
-                                    src={student.profile_photo_url}
-                                    alt={student.full_name}
-                                    crossOrigin="anonymous"
-                                    className="w-8 h-8 rounded-full object-cover border border-light-gray/60"
-                                  />
-                                ) : (
-                                  <div
-                                    style={{ backgroundColor: primaryColor }}
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
-                                  >
-                                    {getInitials(student.full_name)}
-                                  </div>
-                                )}
-                                <span className="text-sm text-charcoal">{student.full_name}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 text-sm text-charcoal font-semibold">
-                              {student.student_code}
-                            </td>
-                            <td className="py-4 px-6 text-sm text-steel-gray">
-                              {student.roll_number}
-                            </td>
-                            <td className="py-4 px-6">
-                              <span className="text-sm font-bold text-primary mr-1.5">
-                                Class {student.class_name}
-                              </span>
-                              <span className="text-xs text-steel-gray px-1.5 py-0.5 bg-cream/40 border border-light-gray/40 rounded-md">
-                                {student.section_name}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <button
-                                style={{ color: primaryColor }}
-                                className="text-xs font-bold hover:underline cursor-pointer"
-                              >
-                                Preview
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {selectedHouse && (
+                    <div className="bg-primary/[0.02] border-b border-light-gray/40 px-6 py-3 flex items-center justify-between text-xs font-semibold">
+                      <span className="text-steel-gray flex items-center gap-2">
+                        <span className="flex h-2.5 w-2.5 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: HOUSE_COLORS[selectedHouse.color] || '#333' }} />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ backgroundColor: HOUSE_COLORS[selectedHouse.color] || '#333' }} />
+                        </span>
+                        Showing students assigned to <strong style={{ color: HOUSE_COLORS[selectedHouse.color] || '#333' }}>{selectedHouse.name} House</strong>
+                      </span>
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-light-gray/60 bg-cream/15">
+                          <th className="py-4 px-6 w-12 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isAllStudentsSelected}
+                              onChange={(e) => handleSelectAllStudents(e.target.checked)}
+                              className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
+                            />
+                          </th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Name</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Student Code</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Roll No</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Class & Section</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-light-gray/40">
+                        {filteredStudents.map((student) => {
+                          const isSelected = selectedStudentIds.has(student.id)
+                          const isHighlighted = highlightedStudentId === student.id
+                          return (
+                            <tr
+                              key={student.id}
+                              onClick={() => setHighlightedStudentId(student.id)}
+                              className={`hover:bg-cream/10 transition-colors cursor-pointer ${
+                                isHighlighted ? 'bg-primary/[0.03] font-medium' : ''
+                              }`}
+                            >
+                              <td className="py-4 px-6 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleStudent(student.id)}
+                                  className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
+                                />
+                              </td>
+                              <td className="py-4 px-6">
+                                <div className="flex items-center gap-3">
+                                  {student.profile_photo_url ? (
+                                    <img
+                                      src={student.profile_photo_url}
+                                      alt={student.full_name}
+                                      crossOrigin="anonymous"
+                                      className="w-8 h-8 rounded-full object-cover border border-light-gray/60"
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{ backgroundColor: primaryColor }}
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                                    >
+                                      {getInitials(student.full_name)}
+                                    </div>
+                                  )}
+                                  <span className="text-sm text-charcoal">{student.full_name}</span>
+                                </div>
+                              </td>
+                              <td className="py-4 px-6 text-sm text-charcoal font-semibold">
+                                {student.student_code}
+                              </td>
+                              <td className="py-4 px-6 text-sm text-steel-gray">
+                                {student.roll_number}
+                              </td>
+                              <td className="py-4 px-6">
+                                <span className="text-sm font-bold text-primary mr-1.5">
+                                  Class {student.class_name}
+                                </span>
+                                <span className="text-xs text-steel-gray px-1.5 py-0.5 bg-cream/40 border border-light-gray/40 rounded-md">
+                                  {student.section_name}
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 text-right">
+                                <button
+                                  style={{ color: primaryColor }}
+                                  className="text-xs font-bold hover:underline cursor-pointer"
+                                >
+                                  Preview
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )
             ) : (
               filteredTeachers.length === 0 ? (
-                <div className="py-16 text-center text-steel-gray/60 text-sm font-body max-w-md mx-auto space-y-3">
-                  <h3 className="text-base font-bold text-charcoal font-heading">No Staff Found</h3>
-                  <p className="text-xs text-steel-gray/80 px-4">
-                    Clear the search term and try again.
-                  </p>
-                </div>
+                selectedHouse ? (
+                  <div className="py-16 text-center text-steel-gray/60 text-sm font-body max-w-md mx-auto space-y-4">
+                    <div className="flex justify-center">
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center bg-cream/50 font-bold text-lg"
+                        style={{ color: HOUSE_COLORS[selectedHouse.color] || '#333', border: `1px solid ${HOUSE_COLORS[selectedHouse.color] || '#ddd'}` }}
+                      >
+                        {selectedHouse.color === 'red' ? '🔴' : selectedHouse.color === 'green' ? '🟢' : selectedHouse.color === 'yellow' ? '🟡' : '🔵'}
+                      </div>
+                    </div>
+                    <h3 className="text-base font-bold text-charcoal font-heading">No Staff in {selectedHouse.name} House</h3>
+                    <p className="text-xs text-steel-gray/80 px-4">
+                      You need to assign staff to this house before you can generate their cards.
+                    </p>
+                    <div className="pt-2">
+                      <a
+                        href="/dashboard/teachers"
+                        style={{ backgroundColor: HOUSE_COLORS[selectedHouse.color] || '#333' }}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all"
+                      >
+                        Go to Teachers Directory
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-16 text-center text-steel-gray/60 text-sm font-body max-w-md mx-auto space-y-3">
+                    <h3 className="text-base font-bold text-charcoal font-heading">No Staff Found</h3>
+                    <p className="text-xs text-steel-gray/80 px-4">
+                      Clear the search term and try again.
+                    </p>
+                  </div>
+                )
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-light-gray/60 bg-cream/15">
-                        <th className="py-4 px-6 w-12 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isAllTeachersSelected}
-                            onChange={(e) => handleSelectAllTeachers(e.target.checked)}
-                            className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
-                          />
-                        </th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Name</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Employee Code</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Role/Specialization</th>
-                        <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-light-gray/40">
-                      {filteredTeachers.map((teacher) => {
-                        const isSelected = selectedTeacherIds.has(teacher.id)
-                        const isHighlighted = highlightedTeacherId === teacher.id
-                        return (
-                          <tr
-                            key={teacher.id}
-                            onClick={() => setHighlightedTeacherId(teacher.id)}
-                            className={`hover:bg-cream/10 transition-colors cursor-pointer ${
-                              isHighlighted ? 'bg-primary/[0.03] font-medium' : ''
-                            }`}
-                          >
-                            <td className="py-4 px-6 text-center" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleToggleTeacher(teacher.id)}
-                                className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
-                              />
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center gap-3">
-                                {teacher.profile_photo_url ? (
-                                  <img
-                                    src={teacher.profile_photo_url}
-                                    alt={teacher.full_name}
-                                    crossOrigin="anonymous"
-                                    className="w-8 h-8 rounded-full object-cover border border-light-gray/60"
-                                  />
-                                ) : (
-                                  <div
-                                    style={{ backgroundColor: primaryColor }}
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
-                                  >
-                                    {getInitials(teacher.full_name)}
-                                  </div>
-                                )}
-                                <span className="text-sm text-charcoal">{teacher.full_name}</span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 text-sm text-charcoal font-semibold">
-                              {teacher.employee_code}
-                            </td>
-                            <td className="py-4 px-6 text-sm text-steel-gray">
-                              {teacher.specialization || 'Teacher'}
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <button
-                                style={{ color: primaryColor }}
-                                className="text-xs font-bold hover:underline cursor-pointer"
-                              >
-                                Preview
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {selectedHouse && (
+                    <div className="bg-primary/[0.02] border-b border-light-gray/40 px-6 py-3 flex items-center justify-between text-xs font-semibold">
+                      <span className="text-steel-gray flex items-center gap-2">
+                        <span className="flex h-2.5 w-2.5 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: HOUSE_COLORS[selectedHouse.color] || '#333' }} />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ backgroundColor: HOUSE_COLORS[selectedHouse.color] || '#333' }} />
+                        </span>
+                        Showing staff assigned to <strong style={{ color: HOUSE_COLORS[selectedHouse.color] || '#333' }}>{selectedHouse.name} House</strong>
+                      </span>
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-light-gray/60 bg-cream/15">
+                          <th className="py-4 px-6 w-12 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isAllTeachersSelected}
+                              onChange={(e) => handleSelectAllTeachers(e.target.checked)}
+                              className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
+                            />
+                          </th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Name</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Employee Code</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">Role/Specialization</th>
+                          <th className="py-4 px-6 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-light-gray/40">
+                        {filteredTeachers.map((teacher) => {
+                          const isSelected = selectedTeacherIds.has(teacher.id)
+                          const isHighlighted = highlightedTeacherId === teacher.id
+                          return (
+                            <tr
+                              key={teacher.id}
+                              onClick={() => setHighlightedTeacherId(teacher.id)}
+                              className={`hover:bg-cream/10 transition-colors cursor-pointer ${
+                                isHighlighted ? 'bg-primary/[0.03] font-medium' : ''
+                              }`}
+                            >
+                              <td className="py-4 px-6 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleTeacher(teacher.id)}
+                                  className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
+                                />
+                              </td>
+                              <td className="py-4 px-6">
+                                <div className="flex items-center gap-3">
+                                  {teacher.profile_photo_url ? (
+                                    <img
+                                      src={teacher.profile_photo_url}
+                                      alt={teacher.full_name}
+                                      crossOrigin="anonymous"
+                                      className="w-8 h-8 rounded-full object-cover border border-light-gray/60"
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{ backgroundColor: primaryColor }}
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                                    >
+                                      {getInitials(teacher.full_name)}
+                                    </div>
+                                  )}
+                                  <span className="text-sm text-charcoal">{teacher.full_name}</span>
+                                </div>
+                              </td>
+                              <td className="py-4 px-6 text-sm text-charcoal font-semibold">
+                                {teacher.employee_code}
+                              </td>
+                              <td className="py-4 px-6 text-sm text-steel-gray">
+                                {teacher.specialization || 'Teacher'}
+                              </td>
+                              <td className="py-4 px-6 text-right">
+                                <button
+                                  style={{ color: primaryColor }}
+                                  className="text-xs font-bold hover:underline cursor-pointer"
+                                >
+                                  Preview
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )
             )}
           </div>
@@ -1619,6 +1907,7 @@ export default function IDCardsClient({
                   template={selectedTemplate}
                   theme={theme}
                   institution={institution}
+                  houses={houses}
                 />
               </div>
 
@@ -1632,6 +1921,7 @@ export default function IDCardsClient({
                   template={selectedTemplate}
                   theme={theme}
                   institution={institution}
+                  houses={houses}
                 />
               </div>
             </div>
@@ -1708,6 +1998,7 @@ export default function IDCardsClient({
                     theme={theme}
                     institution={institution}
                     scale={4}
+                    houses={houses}
                   />
                 </div>
                 <div id={`export-back-${id}`}>
@@ -1719,6 +2010,7 @@ export default function IDCardsClient({
                     theme={theme}
                     institution={institution}
                     scale={4}
+                    houses={houses}
                   />
                 </div>
               </div>
@@ -1737,6 +2029,23 @@ export default function IDCardsClient({
           <button onClick={() => setGenError(null)} className="ml-auto text-white hover:text-gray-200 text-xs font-bold">
             Dismiss
           </button>
+        </div>
+      )}
+
+      {skippedWarnings && skippedWarnings.length > 0 && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-amber-600 text-white px-4 py-3 rounded-xl shadow-lg flex flex-col gap-2 max-w-md">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span className="text-sm font-bold">Skipped {skippedWarnings.length} member{skippedWarnings.length > 1 ? 's' : ''}</span>
+            <button onClick={() => setSkippedWarnings(null)} className="ml-auto text-white hover:text-gray-200 text-xs font-bold">
+              Dismiss
+            </button>
+          </div>
+          <p className="text-[11px] text-white/95 leading-tight">
+            Skipped printing because they are not assigned to any house: {skippedWarnings.join(', ')}.
+          </p>
         </div>
       )}
     </div>

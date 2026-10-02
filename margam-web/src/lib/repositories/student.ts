@@ -20,6 +20,7 @@ export interface StudentListItem {
   guardian_phone?: string | null
   date_of_birth?: string | null
   address?: string | null
+  house_id?: string | null
 }
 
 export interface StudentProfile {
@@ -43,6 +44,7 @@ export interface StudentProfile {
   is_active: boolean
   email: string
   status: string
+  house_id?: string | null
 }
 
 export interface SubjectMarkItem {
@@ -111,6 +113,7 @@ export async function getStudentsList(
       date_of_birth,
       address,
       status,
+      house_id,
       user:users!inner (
         full_name,
         profile_photo_url,
@@ -175,6 +178,7 @@ export async function getStudentsList(
       guardian_phone: s.guardian_phone,
       date_of_birth: s.date_of_birth,
       address: s.address,
+      house_id: s.house_id,
     }
   })
 
@@ -232,6 +236,7 @@ export async function getStudentProfile(
       admission_date,
       guardian_phone,
       guardian_email,
+      house_id,
       user:users!inner (
         full_name,
         profile_photo_url,
@@ -287,6 +292,7 @@ export async function getStudentProfile(
     is_active: activeEnrollment?.is_active ?? false,
     email: user?.email || '',
     status: user?.status || 'active',
+    house_id: profileData.house_id || null,
   }
 }
 
@@ -828,6 +834,7 @@ export async function updateStudent(
     guardianEmail?: string
     sectionId?: string
     rollNumber?: string
+    houseId?: string | null
   }
 ): Promise<boolean> {
   try {
@@ -873,6 +880,7 @@ export async function updateStudent(
     if (updates.guardianName !== undefined) studentUpdates.guardian_name = updates.guardianName
     if (updates.guardianPhone !== undefined) studentUpdates.guardian_phone = updates.guardianPhone
     if (updates.guardianEmail !== undefined) studentUpdates.guardian_email = updates.guardianEmail
+    if (updates.houseId !== undefined) studentUpdates.house_id = updates.houseId
 
     if (Object.keys(studentUpdates).length > 0) {
       const { error: stuErr } = await (supabase

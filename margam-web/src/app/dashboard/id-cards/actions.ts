@@ -6,7 +6,15 @@ import { revalidatePath } from 'next/cache'
 
 export async function saveIdCardSettingsAction(
   institutionId: string,
-  selectedTemplate: 'template_1' | 'template_2' | 'template_3' | 'template_4',
+  selectedTemplate:
+    | 'template_1'
+    | 'template_2'
+    | 'template_3'
+    | 'template_4'
+    | 'template_5'
+    | 'template_6'
+    | 'template_7'
+    | 'template_8',
   templateConfig?: Record<string, any>
 ) {
   try {

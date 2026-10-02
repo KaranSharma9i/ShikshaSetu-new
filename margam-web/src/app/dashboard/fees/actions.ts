@@ -112,6 +112,150 @@ export async function recordPaymentAction(
   }
 }
 
+export async function recordMultiplePaymentsAction(
+  institutionId: string,
+  params: {
+    studentId: string
+    payments: {
+      feeStructureId: string
+      amountPaid: number
+    }[]
+    paymentMethod: string
+    notes: string | null
+  }
+) {
+  try {
+    const supabase = await createClient()
+
+    // 1. Get and authenticate current user session
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: 'User is not logged in.' }
+    }
+
+    // 2. Fetch admin user profile to enforce tenant boundaries
+    const { data: adminData, error: adminErr } = await supabase
+      .from('users')
+      .select('role, institution_id')
+      .eq('id', user.id)
+      .single()
+
+    if (adminErr || !adminData || adminData.role !== 'institution_admin') {
+      return { success: false, error: 'Unauthorized. Only institution admins can record payments.' }
+    }
+
+    if (adminData.institution_id !== institutionId) {
+      return { success: false, error: 'Tenant boundary violation: Institution mismatch.' }
+    }
+
+    // 3. Verify student belongs to this institution
+    const { data: studentData, error: studentErr } = await supabase
+      .from('students')
+      .select('id')
+      .eq('id', params.studentId)
+      .eq('institution_id', institutionId)
+      .maybeSingle()
+
+    if (studentErr || !studentData) {
+      return { success: false, error: 'Student not found or does not belong to this institution.' }
+    }
+
+    // 4. Validate each payment
+    const validatedPayments = []
+    let totalPaidSum = 0
+
+    for (const p of params.payments) {
+      // Verify fee structure belongs to this institution
+      const { data: structData, error: structErr } = await supabase
+        .from('fee_structures')
+        .select('id, amount, fee_name')
+        .eq('id', p.feeStructureId)
+        .eq('institution_id', institutionId)
+        .maybeSingle()
+
+      if (structErr || !structData) {
+        return { success: false, error: `Fee structure not found or does not belong to this institution.` }
+      }
+
+      // Check already paid amount to prevent overpayment
+      const { data: existingPayments, error: payErr } = await supabase
+        .from('fee_payments')
+        .select('amount_paid')
+        .eq('student_id', params.studentId)
+        .eq('fee_structure_id', p.feeStructureId)
+        .is('deleted_at', null)
+
+      if (payErr) {
+        return { success: false, error: `Failed to verify existing payments for fee: ${structData.fee_name}` }
+      }
+
+      const totalPaid = (existingPayments || []).reduce((acc, curr) => acc + Number(curr.amount_paid), 0)
+      const totalExpected = Number(structData.amount) || 0
+      const remaining = totalExpected - totalPaid
+
+      if (p.amountPaid <= 0) {
+        return { success: false, error: `Payment amount for "${structData.fee_name}" must be greater than zero.` }
+      }
+
+      if (p.amountPaid > remaining + 0.01) {
+        return {
+          success: false,
+          error: `Overpayment limit for "${structData.fee_name}": Maximum payable is ₹${remaining.toLocaleString('en-IN')}`,
+        }
+      }
+
+      validatedPayments.push({
+        student_id: params.studentId,
+        fee_structure_id: p.feeStructureId,
+        amount_paid: p.amountPaid,
+        payment_method: params.paymentMethod,
+        notes: params.notes,
+        payment_date: new Date().toISOString(),
+      })
+
+      totalPaidSum += p.amountPaid
+    }
+
+    // 5. Record payments in database in a batch insert
+    const { data: payInsertData, error: payInsertError } = await supabase
+      .from('fee_payments')
+      .insert(validatedPayments)
+      .select('id')
+
+    if (payInsertError) {
+      console.error('Error inserting payments:', payInsertError)
+      return { success: false, error: 'Database batch insert failed.' }
+    }
+
+    // Generate a receipt number from the first payment's ID
+    const sampleId = payInsertData?.[0]?.id || 'RECEIPT'
+    const receiptNo = sampleId.substring(0, 8).toUpperCase()
+
+    // 6. Revalidate relevant cache paths
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/fees')
+    revalidatePath('/dashboard/fees/record-payment')
+    revalidatePath(`/dashboard/students/${params.studentId}`)
+
+    return { 
+      success: true, 
+      receiptDetails: {
+        receiptNo,
+        date: new Date().toISOString(),
+        payments: params.payments,
+        totalPaid: totalPaidSum
+      }
+    }
+  } catch (error: any) {
+    console.error('Error in recordMultiplePaymentsAction:', error)
+    return { success: false, error: error.message || 'An unexpected server error occurred.' }
+  }
+}
+
+
 export async function getFilteredFeeDataAction(
   institutionId: string,
   academicYearId: string,

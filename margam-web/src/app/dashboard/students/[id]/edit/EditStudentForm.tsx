@@ -21,6 +21,7 @@ interface EditStudentFormProps {
   profile: StudentProfile
   classes: ClassItem[]
   allSections: SectionItem[]
+  houses: { id: string; name: string; color: string }[]
   institutionId: string
 }
 
@@ -28,6 +29,7 @@ export default function EditStudentForm({
   profile,
   classes,
   allSections,
+  houses,
   institutionId
 }: EditStudentFormProps) {
   const router = useRouter()
@@ -59,6 +61,7 @@ export default function EditStudentForm({
   const [guardianPhone, setGuardianPhone] = useState(profile.guardian_phone || '')
   const [guardianEmail, setGuardianEmail] = useState(profile.guardian_email || '')
   const [rollNumber, setRollNumber] = useState(profile.roll_number)
+  const [houseId, setHouseId] = useState(profile.house_id || '')
   const [status, setStatus] = useState<'active' | 'suspended' | 'inactive'>(
     (profile.status as any) || 'active'
   )
@@ -104,6 +107,7 @@ export default function EditStudentForm({
         sectionId,
         rollNumber,
         originalEmail: profile.email,
+        houseId: houseId || null,
       })
 
       if (res.success) {
@@ -223,6 +227,32 @@ export default function EditStudentForm({
                 placeholder="e.g. O+, A-, B+"
                 className="w-full bg-cream/25 border border-light-gray rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-charcoal"
               />
+            </div>
+            <div>
+              <label htmlFor="house" className="block text-xs font-bold text-steel-gray uppercase tracking-wider mb-2 font-caption">
+                House
+              </label>
+              <select
+                id="house"
+                value={houseId}
+                onChange={(e) => setHouseId(e.target.value)}
+                className="w-full bg-cream/25 border border-light-gray rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-charcoal cursor-pointer"
+              >
+                <option value="">— No house assigned —</option>
+                {houses.map((h) => {
+                  const dots: Record<string, string> = {
+                    red: '🔴',
+                    green: '🟢',
+                    yellow: '🟡',
+                    blue: '🔵',
+                  }
+                  return (
+                    <option key={h.id} value={h.id}>
+                      {dots[h.color] || '⚫'} {h.name}
+                    </option>
+                  )
+                })}
+              </select>
             </div>
             <div className="md:col-span-2">
               <label htmlFor="address" className="block text-xs font-bold text-steel-gray uppercase tracking-wider mb-2 font-caption">

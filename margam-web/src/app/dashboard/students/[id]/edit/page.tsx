@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getClasses, getAllSectionsForInstitution } from '@/lib/repositories/academic'
 import { getStudentProfile } from '@/lib/repositories/student'
+import { getHousesByInstitution } from '@/lib/repositories/houses'
 import EditStudentForm from './EditStudentForm'
 
 export default async function EditStudentPage({
@@ -35,11 +36,12 @@ export default async function EditStudentPage({
   const institutionId = userData.institution_id
   const { id: studentId } = await params
 
-  // Fetch student profile, classes and sections in parallel
-  const [profile, classes, allSections] = await Promise.all([
+  // Fetch student profile, classes, sections, and houses in parallel
+  const [profile, classes, allSections, houses] = await Promise.all([
     getStudentProfile(supabase, institutionId, studentId),
     getClasses(supabase, institutionId),
-    getAllSectionsForInstitution(supabase, institutionId)
+    getAllSectionsForInstitution(supabase, institutionId),
+    getHousesByInstitution(supabase, institutionId)
   ])
 
   // Tenant check / Not found check
@@ -73,6 +75,7 @@ export default async function EditStudentPage({
         profile={profile}
         classes={classes}
         allSections={allSections}
+        houses={houses}
         institutionId={institutionId}
       />
     </div>

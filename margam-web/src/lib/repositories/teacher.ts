@@ -17,6 +17,7 @@ export interface TeacherListItem {
   assigned_classes: string[]
   date_of_joining?: string | null
   address?: string | null
+  house_id?: string | null
 }
 
 export interface TeacherProfile {
@@ -35,6 +36,7 @@ export interface TeacherProfile {
   address: string | null
   emergency_contact: string | null
   profile_photo_url: string | null
+  house_id?: string | null
 }
 
 export interface TeacherClass {
@@ -83,6 +85,7 @@ export async function getTeachersList(
       qualification,
       date_of_joining,
       address,
+      house_id,
       user:users!inner (
         full_name,
         profile_photo_url,
@@ -156,7 +159,8 @@ export async function getTeachersList(
       performanceScore: performanceScore,
       assigned_classes: Array.from(assignedClassesSet),
       date_of_joining: t.date_of_joining,
-      address: t.address
+      address: t.address,
+      house_id: t.house_id
     }
   })
 
@@ -204,6 +208,7 @@ export async function getTeacherProfile(
       date_of_joining,
       address,
       emergency_contact,
+      house_id,
       user:users!inner (
         full_name,
         email,
@@ -239,7 +244,8 @@ export async function getTeacherProfile(
     date_of_joining: profileData.date_of_joining || null,
     address: profileData.address || null,
     emergency_contact: profileData.emergency_contact || null,
-    profile_photo_url: user?.profile_photo_url || null
+    profile_photo_url: user?.profile_photo_url || null,
+    house_id: profileData.house_id || null,
   }
 }
 
@@ -370,6 +376,7 @@ export async function updateTeacher(
     dateOfJoining?: string
     address?: string
     emergencyContact?: string
+    houseId?: string | null
   }
 ): Promise<boolean> {
   try {
@@ -412,6 +419,7 @@ export async function updateTeacher(
     if (updates.dateOfJoining !== undefined) teacherUpdates.date_of_joining = updates.dateOfJoining
     if (updates.address !== undefined) teacherUpdates.address = updates.address
     if (updates.emergencyContact !== undefined) teacherUpdates.emergency_contact = updates.emergencyContact
+    if (updates.houseId !== undefined) teacherUpdates.house_id = updates.houseId
 
     if (Object.keys(teacherUpdates).length > 0) {
       const { error: teachErr } = await (supabase

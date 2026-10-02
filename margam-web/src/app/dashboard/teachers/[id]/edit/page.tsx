@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherProfile } from '@/lib/repositories/teacher'
+import { getHousesByInstitution } from '@/lib/repositories/houses'
 import EditTeacherForm from './EditTeacherForm'
 
 export default async function EditTeacherPage({
@@ -36,8 +37,11 @@ export default async function EditTeacherPage({
   // Await page params
   const { id: teacherId } = await params
 
-  // Fetch teacher details
-  const profile = await getTeacherProfile(supabase, institutionId, teacherId)
+  // Fetch teacher details and houses in parallel
+  const [profile, houses] = await Promise.all([
+    getTeacherProfile(supabase, institutionId, teacherId),
+    getHousesByInstitution(supabase, institutionId)
+  ])
 
   if (!profile) {
     notFound()
@@ -66,6 +70,7 @@ export default async function EditTeacherPage({
 
       <EditTeacherForm
         profile={profile}
+        houses={houses}
         institutionId={institutionId}
       />
     </div>

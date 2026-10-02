@@ -295,7 +295,7 @@ export default function StudentProfileTabs({
                   Date of Birth
                 </span>
                 <span className="text-sm font-semibold text-charcoal font-body">
-                  {profile.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                  {profile.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                 </span>
               </div>
               <div>
@@ -315,7 +315,7 @@ export default function StudentProfileTabs({
                   Admission Date
                 </span>
                 <span className="text-sm font-semibold text-charcoal font-body">
-                  {profile.admission_date ? new Date(profile.admission_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                  {profile.admission_date ? new Date(profile.admission_date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                 </span>
               </div>
             </div>

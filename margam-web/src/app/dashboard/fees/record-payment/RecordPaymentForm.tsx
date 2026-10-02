@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { getStudentFeesAction, recordPaymentAction } from '../actions'
+import { getStudentFeesAction, recordMultiplePaymentsAction } from '../actions'
 import { StudentListItem } from '@/lib/repositories/student'
+import { useInstitution } from '@/providers/InstitutionProvider'
 
 interface RecordPaymentFormProps {
   institutionId: string
@@ -18,6 +19,7 @@ export default function RecordPaymentForm({
   preselectedStudentId = '',
   preselectedStudentFees = null,
 }: RecordPaymentFormProps) {
+  const { logoUrl } = useInstitution()
   const [selectedStudentId, setSelectedStudentId] = useState<string>(preselectedStudentId)
   const [studentSearch, setStudentSearch] = useState<string>(
     preselectedStudentId
@@ -29,8 +31,8 @@ export default function RecordPaymentForm({
   const [isLoadingFees, setIsLoadingFees] = useState<boolean>(false)
 
   // Form inputs
-  const [selectedFeeStructureId, setSelectedFeeStructureId] = useState<string>('')
-  const [amountPaid, setAmountPaid] = useState<string>('')
+  const [selectedFeeStructureIds, setSelectedFeeStructureIds] = useState<string[]>([])
+  const [amountsPaid, setAmountsPaid] = useState<Record<string, string>>({})
   const [paymentMethod, setPaymentMethod] = useState<string>('Cash')
   const [notes, setNotes] = useState<string>('')
 
@@ -50,8 +52,8 @@ export default function RecordPaymentForm({
       if (res.success && res.data) {
         setFeesData(res.data)
         // Reset selected fee structure
-        setSelectedFeeStructureId('')
-        setAmountPaid('')
+        setSelectedFeeStructureIds([])
+        setAmountsPaid({})
       } else {
         setErrorMsg(res.error || 'Failed to load student fees.')
       }
@@ -64,8 +66,28 @@ export default function RecordPaymentForm({
   }
 
   const handleStructureSelect = (structId: string, pendingAmount: number) => {
-    setSelectedFeeStructureId(structId)
-    setAmountPaid(pendingAmount.toString())
+    setSelectedFeeStructureIds((prev) => {
+      const exists = prev.includes(structId)
+      let next: string[]
+      if (exists) {
+        next = prev.filter((id) => id !== structId)
+      } else {
+        next = [...prev, structId]
+      }
+
+      // Initialize or update individual amountsPaid
+      setAmountsPaid((prevAmounts) => {
+        const nextAmounts = { ...prevAmounts }
+        if (exists) {
+          delete nextAmounts[structId]
+        } else {
+          nextAmounts[structId] = pendingAmount.toString()
+        }
+        return nextAmounts
+      })
+
+      return next
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,51 +96,65 @@ export default function RecordPaymentForm({
       setErrorMsg('Please select a student.')
       return
     }
-    if (!selectedFeeStructureId) {
-      setErrorMsg('Please select a fee structure.')
+    if (selectedFeeStructureIds.length === 0) {
+      setErrorMsg('Please select at least one fee structure.')
       return
     }
 
-    const amt = parseFloat(amountPaid)
-    if (isNaN(amt) || amt <= 0) {
-      setErrorMsg('Please enter a valid amount greater than zero.')
-      return
-    }
+    // Build the array of payments to record
+    const paymentsToRecord: { feeStructureId: string; amountPaid: number }[] = []
+    
+    for (const id of selectedFeeStructureIds) {
+      const amt = parseFloat(amountsPaid[id] || '0')
+      if (isNaN(amt) || amt <= 0) {
+        setErrorMsg('Please enter a valid amount greater than zero for all selected fees.')
+        return
+      }
 
-    const selectedStruct = feesData?.fees?.find((f: any) => f.id === selectedFeeStructureId)
-    if (selectedStruct && amt > selectedStruct.pending_amount + 0.01) {
-      setErrorMsg(`Payment amount exceeds outstanding dues of ₹${selectedStruct.pending_amount.toLocaleString('en-IN')}.`)
-      return
+      const struct = feesData?.fees?.find((f: any) => f.id === id)
+      if (struct && amt > struct.pending_amount + 0.01) {
+        setErrorMsg(`Payment for "${struct.fee_name}" exceeds outstanding dues of ₹${struct.pending_amount.toLocaleString('en-IN')}.`)
+        return
+      }
+
+      paymentsToRecord.push({
+        feeStructureId: id,
+        amountPaid: amt,
+      })
     }
 
     setErrorMsg(null)
 
     startTransition(async () => {
-      const res = await recordPaymentAction(institutionId, {
+      const res = await recordMultiplePaymentsAction(institutionId, {
         studentId: selectedStudentId,
-        feeStructureId: selectedFeeStructureId,
-        amountPaid: amt,
+        payments: paymentsToRecord,
         paymentMethod,
         notes: notes.trim() || null,
       })
 
-      if (res.success && res.paymentId) {
+      if (res.success && res.receiptDetails) {
         const student = students.find((s) => s.id === selectedStudentId)
-        const feeStruct = feesData?.fees?.find((f: any) => f.id === selectedFeeStructureId)
 
         // Set success receipt details
         setSuccessReceipt({
-          receiptNo: res.paymentId.substring(0, 8).toUpperCase(),
-          date: new Date().toISOString(),
+          receiptNo: res.receiptDetails.receiptNo,
+          date: res.receiptDetails.date,
           studentName: student?.full_name || 'Student',
           studentCode: student?.student_code || '',
           className: student?.class_name || '',
           sectionName: student?.section_name || '',
-          feeName: feeStruct?.fee_name || 'School Fee',
-          amountPaid: amt,
+          payments: res.receiptDetails.payments.map((p: any) => {
+            const feeStruct = feesData?.fees?.find((f: any) => f.id === p.feeStructureId)
+            return {
+              feeName: feeStruct?.fee_name || 'School Fee',
+              amountPaid: p.amountPaid,
+              remaining: Math.max(0, (feeStruct?.pending_amount || 0) - p.amountPaid),
+            }
+          }),
+          totalPaid: res.receiptDetails.totalPaid,
           paymentMethod,
           notes: notes.trim(),
-          remaining: Math.max(0, (feeStruct?.pending_amount || 0) - amt),
         })
 
         // Reload student fees
@@ -128,8 +164,8 @@ export default function RecordPaymentForm({
         }
         
         // Clear inputs
-        setSelectedFeeStructureId('')
-        setAmountPaid('')
+        setSelectedFeeStructureIds([])
+        setAmountsPaid({})
         setNotes('')
       } else {
         setErrorMsg(res.error || 'Failed to record payment.')
@@ -200,8 +236,19 @@ export default function RecordPaymentForm({
         ` }} />
 
         {/* Receipt Container */}
-        <div id="print-area" className="bg-white border border-light-gray/60 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
-          <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-light-gray/40">
+        <div id="print-area" className="relative overflow-hidden bg-white border border-light-gray/60 rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+          {/* Logo Watermark */}
+          {logoUrl && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04] z-0 overflow-hidden">
+              <img 
+                src={logoUrl} 
+                alt="School Watermark" 
+                className="w-72 h-72 object-contain"
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-light-gray/40 relative z-10">
             {/* Success Icon */}
             <div className="p-2.5 bg-success/10 text-success rounded-full border border-success/20 mb-3 print:hidden">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -212,7 +259,7 @@ export default function RecordPaymentForm({
             <p className="text-xs text-steel-gray font-caption mt-0.5 print:text-sm">Margam Institution Portal</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-2 gap-4 text-xs relative z-10">
             <div>
               <span className="block text-[10px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-0.5">Receipt No</span>
               <span className="font-bold text-charcoal font-body">{successReceipt.receiptNo}</span>
@@ -231,7 +278,7 @@ export default function RecordPaymentForm({
             </div>
           </div>
 
-          <div className="border-y border-light-gray/45 py-4 space-y-3">
+          <div className="border-y border-light-gray/45 py-4 space-y-3 relative z-10">
             <div className="flex justify-between items-center text-xs">
               <span className="text-steel-gray font-medium">Student Name</span>
               <span className="font-bold text-charcoal font-heading">{successReceipt.studentName}</span>
@@ -247,10 +294,6 @@ export default function RecordPaymentForm({
               </span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-steel-gray font-medium">Fee Particular</span>
-              <span className="font-semibold text-charcoal font-body">{successReceipt.feeName}</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
               <span className="text-steel-gray font-medium">Payment Mode</span>
               <span className="font-bold text-charcoal font-caption uppercase tracking-wider">{successReceipt.paymentMethod}</span>
             </div>
@@ -262,22 +305,31 @@ export default function RecordPaymentForm({
                 </p>
               </div>
             )}
+
+            {/* Fee Particulars list */}
+            <div className="space-y-2.5 pt-3 border-t border-light-gray/25">
+              <span className="block text-[9px] font-bold text-steel-gray uppercase tracking-wider font-caption mb-1">Fee Particulars</span>
+              {successReceipt.payments.map((p: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-start text-xs">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-charcoal font-body">{p.feeName}</span>
+                    {p.remaining > 0 && (
+                      <span className="text-[10px] text-steel-gray font-caption">Bal Due: {formatCurrency(p.remaining)}</span>
+                    )}
+                  </div>
+                  <span className="font-bold text-charcoal font-heading">{formatCurrency(p.amountPaid)}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Amount Paid banner */}
-          <div className="p-4 bg-success/5 border border-success/15 rounded-xl flex items-center justify-between">
-            <span className="text-sm font-bold text-success font-heading">Amount Paid</span>
-            <span className="text-xl font-black text-success font-heading">{formatCurrency(successReceipt.amountPaid)}</span>
+          <div className="p-4 bg-success/5 border border-success/15 rounded-xl flex items-center justify-between relative z-10">
+            <span className="text-sm font-bold text-success font-heading">Total Amount Paid</span>
+            <span className="text-xl font-black text-success font-heading">{formatCurrency(successReceipt.totalPaid)}</span>
           </div>
 
-          {successReceipt.remaining > 0 && (
-            <div className="flex justify-between items-center text-xs text-steel-gray font-body px-1">
-              <span>Remaining Balance Due:</span>
-              <span className="font-semibold text-charcoal">{formatCurrency(successReceipt.remaining)}</span>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 print:hidden">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 print:hidden relative z-10">
             <button
               onClick={handlePrint}
               className="flex-1 inline-flex items-center justify-center px-4 py-2.5 text-xs md:text-sm font-bold text-white bg-primary hover:bg-primary-alt border border-primary/25 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
@@ -295,7 +347,7 @@ export default function RecordPaymentForm({
             </button>
           </div>
 
-          <div className="text-center pt-2 print:hidden">
+          <div className="text-center pt-2 print:hidden relative z-10">
             <Link
               href="/dashboard/fees"
               className="text-xs font-bold text-steel-gray hover:text-primary transition-colors cursor-pointer"
@@ -432,7 +484,7 @@ export default function RecordPaymentForm({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {feesData.fees.map((struct: any) => {
                     const isPaid = struct.status === 'paid'
-                    const isSelected = selectedFeeStructureId === struct.id
+                    const isSelected = selectedFeeStructureIds.includes(struct.id)
                     return (
                       <div
                         key={struct.id}
@@ -445,8 +497,25 @@ export default function RecordPaymentForm({
                             : 'bg-white border-light-gray hover:border-steel-gray/60 cursor-pointer'
                         }`}
                       >
+                        {/* Checkbox indicator for selection */}
+                        {!isPaid && (
+                          <div className="absolute top-4 right-4 print:hidden z-10">
+                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                              isSelected 
+                                ? 'bg-primary border-primary text-white' 
+                                : 'border-light-gray hover:border-steel-gray bg-white'
+                            }`}>
+                              {isSelected && (
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start pr-6">
                             <span className="font-bold text-charcoal font-heading text-sm line-clamp-1 pr-4">{struct.fee_name}</span>
                             {isPaid ? (
                               <span className="text-[10px] font-bold text-success uppercase">Paid</span>
@@ -487,64 +556,100 @@ export default function RecordPaymentForm({
           )}
 
           {/* Payment Inputs */}
-          {selectedFeeStructureId && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 border-t border-light-gray/30">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-charcoal font-heading uppercase tracking-wider block">
-                  Amount Received (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  placeholder="Enter amount paid"
-                  className="w-full bg-cream/10 border border-light-gray rounded-xl py-2.5 px-3 text-sm font-semibold text-charcoal outline-none focus:border-secondary transition-colors"
-                />
-                <span className="text-[10px] text-steel-gray font-caption block">
-                  Outstanding balance:{' '}
-                  {formatCurrency(
-                    feesData?.fees?.find((f: any) => f.id === selectedFeeStructureId)?.pending_amount || 0
-                  )}
-                </span>
+          {selectedFeeStructureIds.length > 0 && (
+            <div className="space-y-5 pt-4 border-t border-light-gray/30">
+              
+              {/* Payment Distribution */}
+              <div className="bg-cream/5 border border-light-gray/40 rounded-2xl p-4 md:p-5 space-y-4">
+                <h3 className="text-xs font-bold text-charcoal font-heading uppercase tracking-wider">
+                  Payment Distribution
+                </h3>
+                <div className="space-y-3">
+                  {selectedFeeStructureIds.map((id) => {
+                    const struct = feesData?.fees?.find((f: any) => f.id === id)
+                    if (!struct) return null
+                    return (
+                      <div key={id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-light-gray/40 rounded-xl">
+                        <div className="flex-1">
+                          <span className="text-xs font-bold text-charcoal block">{struct.fee_name}</span>
+                          <span className="text-[10px] text-steel-gray mt-0.5 block">
+                            Outstanding: {formatCurrency(struct.pending_amount)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-steel-gray font-medium">Paying:</span>
+                          <div className="relative w-36">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-xs font-bold text-steel-gray/60">₹</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              required
+                              value={amountsPaid[id] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setAmountsPaid((prev) => ({ ...prev, [id]: val }))
+                              }}
+                              className="w-full bg-cream/10 border border-light-gray rounded-lg py-1.5 pl-6 pr-2.5 text-xs font-bold text-charcoal outline-none focus:border-secondary transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Total amount helper banner */}
+                <div className="pt-3 border-t border-light-gray/35 flex justify-between items-center text-xs">
+                  <span className="font-bold text-charcoal">Total Amount Received:</span>
+                  <span className="text-base font-black text-primary font-heading">
+                    {formatCurrency(
+                      selectedFeeStructureIds.reduce(
+                        (sum, id) => sum + (parseFloat(amountsPaid[id] || '0') || 0),
+                        0
+                      )
+                    )}
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-charcoal font-heading uppercase tracking-wider block">
-                  Payment Method
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full bg-cream/10 border border-light-gray rounded-xl py-2.5 px-3 text-sm font-semibold text-charcoal outline-none focus:border-secondary transition-colors"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="UPI">UPI / Digital QR</option>
-                  <option value="Card">Card Swipe</option>
-                  <option value="Net Banking">Net Banking</option>
-                  <option value="Bank Transfer">Direct Bank Transfer</option>
-                </select>
-              </div>
+              {/* Payment Method & Notes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-charcoal font-heading uppercase tracking-wider block">
+                    Payment Method
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full bg-cream/10 border border-light-gray rounded-xl py-2.5 px-3 text-sm font-semibold text-charcoal outline-none focus:border-secondary transition-colors"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI / Digital QR</option>
+                    <option value="Card">Card Swipe</option>
+                    <option value="Net Banking">Net Banking</option>
+                    <option value="Bank Transfer">Direct Bank Transfer</option>
+                  </select>
+                </div>
 
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-charcoal font-heading uppercase tracking-wider block">
-                  Internal Remarks / Notes
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Enter notes (e.g. transaction ID, depositor name)..."
-                  rows={2}
-                  className="w-full bg-cream/10 border border-light-gray rounded-xl py-2.5 px-3 text-xs font-medium text-charcoal outline-none focus:border-secondary transition-colors resize-none"
-                />
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-charcoal font-heading uppercase tracking-wider block">
+                    Internal Remarks / Notes
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Enter notes (e.g. transaction ID, depositor name)..."
+                    rows={2}
+                    className="w-full bg-cream/10 border border-light-gray rounded-xl py-2.5 px-3 text-xs font-medium text-charcoal outline-none focus:border-secondary transition-colors resize-none"
+                  />
+                </div>
               </div>
             </div>
           )}
 
           {/* Form Actions */}
-          {selectedFeeStructureId && (
+          {selectedFeeStructureIds.length > 0 && (
             <div className="flex gap-4 pt-4 border-t border-light-gray/35">
               <button
                 type="submit"

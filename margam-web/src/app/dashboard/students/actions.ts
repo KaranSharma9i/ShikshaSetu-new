@@ -143,6 +143,7 @@ export async function editStudentAction(
     sectionId: string
     rollNumber: string
     originalEmail: string
+    houseId?: string | null
   }
 ) {
   try {
@@ -176,6 +177,7 @@ export async function editStudentAction(
       guardianEmail: params.guardianEmail,
       sectionId: params.sectionId,
       rollNumber: params.rollNumber,
+      houseId: params.houseId,
     })
 
     if (!ok) {

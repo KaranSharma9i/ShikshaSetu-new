@@ -20,14 +20,16 @@ interface TeacherProfile {
   address: string | null
   emergency_contact: string | null
   profile_photo_url: string | null
+  house_id?: string | null
 }
 
 interface EditTeacherFormProps {
   profile: TeacherProfile
+  houses: { id: string; name: string; color: string }[]
   institutionId: string
 }
 
-export default function EditTeacherForm({ profile, institutionId }: EditTeacherFormProps) {
+export default function EditTeacherForm({ profile, houses, institutionId }: EditTeacherFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +45,7 @@ export default function EditTeacherForm({ profile, institutionId }: EditTeacherF
   const [dateOfJoining, setDateOfJoining] = useState(profile.date_of_joining || '')
   const [emergencyContact, setEmergencyContact] = useState(profile.emergency_contact || '')
   const [address, setAddress] = useState(profile.address || '')
+  const [houseId, setHouseId] = useState(profile.house_id || '')
   const [status, setStatus] = useState<any>(profile.status?.toLowerCase() === 'active' ? 'active' : 'inactive')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,7 +78,8 @@ export default function EditTeacherForm({ profile, institutionId }: EditTeacherF
         dateOfJoining,
         address,
         emergencyContact,
-        originalEmail: profile.email || ''
+        originalEmail: profile.email || '',
+        houseId: houseId || null
       })
 
       if (!res.success) {
@@ -195,6 +199,34 @@ export default function EditTeacherForm({ profile, institutionId }: EditTeacherF
               onChange={(e) => setSpecialization(e.target.value)}
               className="w-full bg-cream/35 border border-light-gray/60 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl py-2.5 px-4 text-sm font-body text-charcoal outline-none transition-all"
             />
+          </div>
+
+          {/* House */}
+          <div>
+            <label htmlFor="house" className="block text-xs font-semibold text-steel-gray uppercase tracking-wider mb-2 font-caption">
+              House
+            </label>
+            <select
+              id="house"
+              value={houseId}
+              onChange={(e) => setHouseId(e.target.value)}
+              className="w-full bg-cream/35 border border-light-gray/60 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl py-2.5 px-4 text-sm font-body text-charcoal outline-none transition-all cursor-pointer"
+            >
+              <option value="">— No house assigned —</option>
+              {houses.map((h) => {
+                const dots: Record<string, string> = {
+                  red: '🔴',
+                  green: '🟢',
+                  yellow: '🟡',
+                  blue: '🔵',
+                }
+                return (
+                  <option key={h.id} value={h.id}>
+                    {dots[h.color] || '⚫'} {h.name}
+                  </option>
+                )
+              })}
+            </select>
           </div>
 
           {/* DOB */}

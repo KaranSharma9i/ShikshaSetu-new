@@ -138,6 +138,7 @@ export async function editTeacherAction(
     address: string
     emergencyContact: string
     originalEmail: string
+    houseId?: string | null
   }
 ) {
   try {
@@ -168,7 +169,8 @@ export async function editTeacherAction(
       specialization: params.specialization,
       dateOfJoining: params.dateOfJoining,
       address: params.address,
-      emergencyContact: params.emergencyContact
+      emergencyContact: params.emergencyContact,
+      houseId: params.houseId,
     })
 
     if (!ok) {
