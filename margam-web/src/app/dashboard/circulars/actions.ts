@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { todayIST } from '@/utils/date'
 import { createCircular, deleteCircular } from '@/lib/repositories/circular'
 import { revalidatePath } from 'next/cache'
 
@@ -57,7 +58,7 @@ export async function createCircularAction(
     }
 
     // Today's date (YYYY-MM-DD)
-    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayStr = todayIST()
 
     // 3. Create circular
     const result = await createCircular(supabase, {

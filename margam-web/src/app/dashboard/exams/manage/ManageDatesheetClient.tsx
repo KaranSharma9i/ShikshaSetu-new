@@ -382,7 +382,7 @@ export default function ManageDatesheetClient({
           {localRows.length === 0 ? (
             <div className="p-16 text-center text-steel-gray/60 text-sm max-w-sm mx-auto space-y-4">
               <p className="text-xs leading-relaxed text-steel-gray">
-                No slots configured for this class under this exam. Click "Add Exam Slot" to schedule the first subject.
+                No slots configured for this class under this exam. Click &quot;Add Exam Slot&quot; to schedule the first subject.
               </p>
               <button
                 onClick={handleAddRow}

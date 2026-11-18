@@ -2,9 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export default function Sidebar() {
   const pathname = usePathname()
+  // Mobile drawer: the desktop sidebar is hidden below `md`, which previously left
+  // phones and small tablets with no way to navigate between modules.
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMobileOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
 
   const navItems = [
     {
@@ -237,27 +252,67 @@ export default function Sidebar() {
     },
   ]
 
+  const renderLinks = () =>
+    navItems.map((item) => {
+      const active = item.path === '/dashboard'
+        ? pathname === item.path
+        : pathname === item.path || pathname.startsWith(`${item.path}/`)
+      return (
+        <Link
+          key={item.name}
+          href={item.path}
+          aria-current={active ? 'page' : undefined}
+          className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold font-body transition-all ${
+            active
+              ? 'bg-white/15 text-white border-l-4 border-white pl-3'
+              : 'text-white/70 hover:bg-white/10 hover:text-white'
+          }`}
+        >
+          {item.icon(active)}
+          {item.name}
+        </Link>
+      )
+    })
+
   return (
-    <aside className="w-64 bg-primary border-r border-black/5 hidden md:flex flex-col py-6 font-body text-white print:hidden">
-      <nav className="flex-1 px-4 space-y-1">
-        {navItems.map((item) => {
-          const active = pathname === item.path
-          return (
-            <Link
-              key={item.name}
-              href={item.path}
-              className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold font-body transition-all ${
-                active
-                  ? 'bg-white/15 text-white border-l-4 border-white pl-3'
-                  : 'text-white/70 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {item.icon(active)}
-              {item.name}
-            </Link>
-          )
-        })}
-      </nav>
-    </aside>
+    <>
+      <aside className="w-64 bg-primary border-r border-black/5 hidden md:flex flex-col py-6 font-body text-white print:hidden">
+        <nav className="flex-1 px-4 space-y-1">{renderLinks()}</nav>
+      </aside>
+
+      {/* Mobile navigation */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
+        aria-expanded={mobileOpen}
+        className="md:hidden fixed bottom-5 left-5 z-40 w-12 h-12 rounded-full bg-primary text-white shadow-lg flex items-center justify-center print:hidden cursor-pointer"
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 print:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-primary text-white py-5 flex flex-col shadow-xl overflow-y-auto">
+            <div className="px-5 pb-4 flex justify-between items-center">
+              <span className="font-heading font-bold">Menu</span>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close navigation menu"
+                className="p-2 rounded-lg hover:bg-white/10 cursor-pointer"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <nav className="flex-1 px-4 space-y-1">{renderLinks()}</nav>
+          </aside>
+        </div>
+      )}
+    </>
   )
 }

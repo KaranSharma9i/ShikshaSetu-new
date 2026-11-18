@@ -499,7 +499,7 @@ export default function LocksManagementForm({ initialYears, initialClasses }: Lo
                 </div>
                 <h4 className="text-base font-bold text-charcoal font-heading">No Exams Found</h4>
                 <p className="text-xs text-steel-gray mt-1 max-w-sm leading-relaxed font-caption">
-                  We couldn't find any exams matching your search query or status filter for the selected class and term.
+                  We couldn&apos;t find any exams matching your search query or status filter for the selected class and term.
                 </p>
               </div>
             ) : (

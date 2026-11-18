@@ -1,22 +1,31 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   getStudentAttendanceAction,
   getStaffAttendanceAction,
   getDailyAttendanceAction,
+  getMonthlyRegisterAction,
 } from './actions'
-import {
+import type {
   CalendarDay,
   StudentAttendanceListItem,
   StaffAttendanceListItem,
   ClassAttendanceBreakdown,
+  SectionOption,
+  AcademicYearOption,
 } from '@/lib/repositories/attendance'
+import { addDays, formatLongDate, parseDateParts } from '@/utils/date'
+import { downloadCsv, sectionsForDate } from './attendanceUtils'
 
 interface AttendanceClientProps {
-  initialSections: Array<{ id: string; name: string }>
+  initialSections: SectionOption[]
   initialDepartments: string[]
+  academicYears: AcademicYearOption[]
+  today: string
 }
+
+type BandStatus = 'excellent' | 'leadership' | 'warning' | 'critical' | 'no_data'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -27,20 +36,37 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function AttendanceClient({
   initialSections,
-  initialDepartments
+  initialDepartments,
+  academicYears,
+  today,
 }: AttendanceClientProps) {
   // Tabs: student, staff, daily
   const [activeTab, setActiveTab] = useState<'student' | 'staff' | 'daily'>('student')
 
-  // Date selections - defaulting to May 2026 to ensure mock data loads
-  const [currentMonth, setCurrentMonth] = useState(5) // May (1-indexed)
-  const [currentYear, setCurrentYear] = useState(2026)
-  const [dailyDate, setDailyDate] = useState('2026-05-25')
+  // Date selections default to the current month / today (IST)
+  const todayParts = parseDateParts(today)
+  const [currentMonth, setCurrentMonth] = useState(todayParts.month) // 1-indexed
+  const [currentYear, setCurrentYear] = useState(todayParts.year)
+  const [dailyDate, setDailyDate] = useState(today)
+
+  // Sections belong to an academic year: only show those of the year covering the selected month.
+  const visibleSections = useMemo(
+    () => sectionsForDate(initialSections, academicYears, `${currentYear}-${String(currentMonth).padStart(2, '0')}-15`),
+    [initialSections, academicYears, currentMonth, currentYear]
+  )
 
   // Filter selections
   const [selectedSectionId, setSelectedSectionId] = useState<string>(
-    initialSections.length > 0 ? initialSections[0].id : ''
+    visibleSections.length > 0 ? visibleSections[0].id : ''
   )
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Keep the selected section valid when the academic year changes
+  useEffect(() => {
+    if (!visibleSections.some((s) => s.id === selectedSectionId)) {
+      setSelectedSectionId(visibleSections.length > 0 ? visibleSections[0].id : '')
+    }
+  }, [visibleSections, selectedSectionId])
   const [selectedDept, setSelectedDept] = useState<string>('All')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -51,6 +77,7 @@ export default function AttendanceClient({
     calendarData: CalendarDay[]
     insight: string
     resolvedYear: number
+    hasData: boolean
   } | null>(null)
   const [studentList, setStudentList] = useState<StudentAttendanceListItem[]>([])
 
@@ -61,6 +88,7 @@ export default function AttendanceClient({
     calendarData: CalendarDay[]
     insight: string
     resolvedYear: number
+    hasData: boolean
   } | null>(null)
   const [staffList, setStaffList] = useState<StaffAttendanceListItem[]>([])
 
@@ -92,18 +120,19 @@ export default function AttendanceClient({
 
   // Handlers for daily date navigation
   const adjustDailyDate = (days: number) => {
-    const dObj = new Date(dailyDate)
-    if (isNaN(dObj.getTime())) return
-    dObj.setDate(dObj.getDate() + days)
-    const newY = dObj.getFullYear()
-    const newM = String(dObj.getMonth() + 1).padStart(2, '0')
-    const newD = String(dObj.getDate()).padStart(2, '0')
-    setDailyDate(`${newY}-${newM}-${newD}`)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dailyDate)) return
+    setDailyDate(addDays(dailyDate, days))
   }
 
   // Load Student Attendance
   const loadStudentData = useCallback(async () => {
-    if (!selectedSectionId) return
+    if (!selectedSectionId) {
+      // BUGFIX: without a section the spinner previously never stopped
+      setStudentSummary(null)
+      setStudentList([])
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     setError(null)
     const res = await getStudentAttendanceAction(selectedSectionId, currentMonth, currentYear)
@@ -132,6 +161,7 @@ export default function AttendanceClient({
 
   // Load Daily Breakdown
   const loadDailyData = useCallback(async () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dailyDate)) return
     setIsLoading(true)
     setError(null)
     const res = await getDailyAttendanceAction(dailyDate)
@@ -168,8 +198,50 @@ export default function AttendanceClient({
     `${db.className}-${db.sectionName}`.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // CSV exports
+  const exportStudentRegister = async () => {
+    if (!selectedSectionId) return
+    setIsExporting(true)
+    const res = await getMonthlyRegisterAction(selectedSectionId, currentMonth, currentYear)
+    setIsExporting(false)
+    if (!res.success || !res.register) {
+      setError(res.error || 'Failed to export register.')
+      return
+    }
+    const reg = res.register
+    const dayHeaders = reg.dates.map((d) => String(parseDateParts(d).day))
+    const rows: (string | number)[][] = [
+      ['Roll No', 'Student', ...dayHeaders, 'Present', 'Working Days', 'Attendance %'],
+      ...reg.rows.map((r) => [
+        r.rollNumber || '',
+        r.name,
+        ...reg.dates.map((d) => r.marks[d] || (reg.holidays.includes(d) ? 'H' : '')),
+        r.present,
+        r.total,
+        r.total > 0 ? Math.round((r.present / r.total) * 100) : '',
+      ]),
+    ]
+    downloadCsv(`attendance-register-${reg.className}-${reg.year}-${String(reg.month).padStart(2, '0')}.csv`, rows)
+  }
+
+  const exportStaffSheet = () => {
+    const rows: (string | number)[][] = [
+      ['Employee Code', 'Name', 'Department', 'Present', 'Absent', 'On Leave', 'Attendance %'],
+      ...staffList.map((t) => [t.employeeCode || '', t.teacherName, t.subject, t.presentDays, t.absentDays, t.leaveDays, t.attendancePercent ?? '']),
+    ]
+    downloadCsv(`staff-attendance-${currentYear}-${String(currentMonth).padStart(2, '0')}.csv`, rows)
+  }
+
+  const exportDailySheet = () => {
+    const rows: (string | number)[][] = [
+      ['Class', 'Section', 'Present', 'Absent', 'Late', 'Excused', 'Not Marked', 'Total'],
+      ...dailyBreakdown.map((r) => [r.className, r.sectionName, r.presentCount, r.absentCount, r.lateCount, r.excusedCount, r.unmarkedCount, r.totalCount]),
+    ]
+    downloadCsv(`daily-attendance-${dailyDate}.csv`, rows)
+  }
+
   // Status badge styling helper
-  const getBadgeClass = (status: 'excellent' | 'leadership' | 'warning' | 'critical') => {
+  const getBadgeClass = (status: BandStatus) => {
     switch (status) {
       case 'excellent':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
@@ -179,11 +251,13 @@ export default function AttendanceClient({
         return 'bg-amber-50 text-amber-700 border-amber-200/50'
       case 'critical':
         return 'bg-rose-50 text-rose-700 border-rose-200/50'
+      default:
+        return 'bg-light-gray/20 text-steel-gray border-light-gray/50'
     }
   }
 
   // Status bar color styling helper
-  const getProgressColor = (status: 'excellent' | 'leadership' | 'warning' | 'critical') => {
+  const getProgressColor = (status: BandStatus) => {
     switch (status) {
       case 'excellent':
         return 'bg-emerald-500'
@@ -193,6 +267,8 @@ export default function AttendanceClient({
         return 'bg-amber-500'
       case 'critical':
         return 'bg-rose-500'
+      default:
+        return 'bg-light-gray'
     }
   }
 
@@ -253,7 +329,7 @@ export default function AttendanceClient({
               return <div key={`empty-${idx}`} className="aspect-square" />
             }
 
-            const dayNum = new Date(cell.date).getDate()
+            const dayNum = parseDateParts(cell.date).day
             let cellClass = ''
 
             switch (cell.type) {
@@ -318,7 +394,7 @@ export default function AttendanceClient({
       const criticalCount = studentList.filter((s) => s.status === 'critical').length
       const warningCount = studentList.filter((s) => s.status === 'warning').length
       return {
-        avgRate: studentSummary?.monthlyAvg || 0,
+        avgRate: studentSummary?.hasData ? `${studentSummary.monthlyAvg}%` : '—',
         rateLabel: 'Student Attendance Avg',
         alertLabel: 'Critical Students',
         alertValue: criticalCount,
@@ -331,7 +407,7 @@ export default function AttendanceClient({
       const criticalCount = staffList.filter((s) => s.status === 'critical').length
       const warningCount = staffList.filter((s) => s.status === 'warning').length
       return {
-        avgRate: staffSummary?.monthlyAvg || 0,
+        avgRate: staffSummary?.hasData ? `${staffSummary.monthlyAvg}%` : '—',
         rateLabel: 'Staff Attendance Avg',
         alertLabel: 'Critical Staff',
         alertValue: criticalCount,
@@ -343,16 +419,18 @@ export default function AttendanceClient({
     } else {
       const activeTotal = dailyBreakdown.reduce((acc, curr) => acc + curr.totalCount, 0)
       const activePresent = dailyBreakdown.reduce((acc, curr) => acc + curr.presentCount, 0)
-      const avgRate = activeTotal > 0 ? Math.round((activePresent / activeTotal) * 100) : 0
+      const activeAbsent = dailyBreakdown.reduce((acc, curr) => acc + curr.absentCount, 0)
+      const unmarked = dailyBreakdown.reduce((acc, curr) => acc + curr.unmarkedCount, 0)
+      const counted = activePresent + activeAbsent
       return {
-        avgRate,
-        rateLabel: 'Total Present Rate',
+        avgRate: counted > 0 ? `${Math.round((activePresent / counted) * 100)}%` : '—',
+        rateLabel: 'Present Rate (marked)',
         alertLabel: 'Active Enrolled Students',
         alertValue: activeTotal,
-        alertSub: 'Across all sections',
-        infoLabel: 'Present Today',
+        alertSub: `${unmarked} not marked yet`,
+        infoLabel: 'Present',
         infoValue: activePresent,
-        infoSub: `${activeTotal - activePresent} absent today`
+        infoSub: `${activeAbsent} absent`
       }
     }
   }
@@ -364,7 +442,7 @@ export default function AttendanceClient({
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-light-gray/60 pb-5">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary font-heading">Attendance Analytics</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary font-heading">Attendance Reports</h1>
           <p className="text-steel-gray mt-1 text-sm font-caption">
             View detailed stats, monthly tracking calendars, and consolidated attendance sheets.
           </p>
@@ -422,7 +500,7 @@ export default function AttendanceClient({
           <div>
             <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">{stats.rateLabel}</p>
             <h3 className="text-4xl font-extrabold text-charcoal mt-2.5 font-heading tracking-tight">
-              {stats.avgRate}%
+              {stats.avgRate}
             </h3>
           </div>
           <div className={`p-4 bg-primary/5 rounded-2xl text-primary font-bold text-lg border border-primary/5 group-hover:scale-105 transition-transform`}>
@@ -502,11 +580,11 @@ export default function AttendanceClient({
                   {activeTab === 'student' && (
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-steel-gray font-caption uppercase tracking-wider">Class & Section</label>
-                      {initialSections.length === 0 ? (
-                        <p className="text-xs text-steel-gray/60 italic font-body">No sections available.</p>
+                      {visibleSections.length === 0 ? (
+                        <p className="text-xs text-steel-gray/60 italic font-body">No sections found for the academic year of this month.</p>
                       ) : (
                         <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto pr-1">
-                          {initialSections.map((sec) => (
+                          {visibleSections.map((sec) => (
                             <button
                               key={sec.id}
                               onClick={() => setSelectedSectionId(sec.id)}
@@ -616,7 +694,7 @@ export default function AttendanceClient({
               <div className="text-right">
                 <p className="text-xs text-steel-gray font-caption font-semibold">Active Date Selected</p>
                 <p className="text-sm font-bold text-primary font-heading mt-0.5">
-                  {new Date(dailyDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  {formatLongDate(dailyDate)}
                 </p>
               </div>
             </div>
@@ -639,6 +717,16 @@ export default function AttendanceClient({
                 </p>
               </div>
 
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={activeTab === 'student' ? exportStudentRegister : activeTab === 'staff' ? exportStaffSheet : exportDailySheet}
+                disabled={isExporting || (activeTab === 'student' ? !selectedSectionId : activeTab === 'staff' ? staffList.length === 0 : dailyBreakdown.length === 0)}
+                className="shrink-0 px-3 py-2 text-xs font-bold rounded-xl border border-light-gray/60 bg-white text-charcoal hover:border-primary hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                title={activeTab === 'student' ? 'Download the day-wise monthly register (CSV)' : 'Download as CSV'}
+              >
+                {isExporting ? 'Exporting…' : activeTab === 'student' ? 'Export Register' : 'Export CSV'}
+              </button>
               {/* Search Bar */}
               <div className="relative max-w-xs w-full">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-steel-gray/60">
@@ -656,6 +744,7 @@ export default function AttendanceClient({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-white border border-light-gray/60 rounded-xl pl-9 pr-4 py-2 text-xs md:text-sm text-charcoal focus:outline-none focus:border-primary transition-all font-body"
                 />
+              </div>
               </div>
             </div>
 
@@ -693,10 +782,10 @@ export default function AttendanceClient({
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3 max-w-[200px] mx-auto">
-                              <span className="font-bold text-charcoal w-10 text-right">{student.attendancePercent}%</span>
+                              <span className="font-bold text-charcoal w-10 text-right">{student.attendancePercent === null ? '—' : `${student.attendancePercent}%`}</span>
                               <div className="flex-1 bg-light-gray rounded-full h-1.5 overflow-hidden">
                                 <div
-                                  style={{ width: `${student.attendancePercent}%` }}
+                                  style={{ width: `${student.attendancePercent ?? 0}%` }}
                                   className={`h-full rounded-full ${getProgressColor(student.status)}`}
                                 />
                               </div>
@@ -704,10 +793,13 @@ export default function AttendanceClient({
                           </td>
                           <td className="py-4 px-6 text-center font-semibold text-steel-gray">
                             {student.presentDays} / {student.totalDays} days
+                            {student.excusedDays > 0 && (
+                              <span className="block text-[10px] text-steel-gray/70">{student.excusedDays} on leave</span>
+                            )}
                           </td>
                           <td className="py-4 px-6 text-right">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize ${getBadgeClass(student.status)}`}>
-                              {student.status}
+                              {student.status === 'no_data' ? 'Not marked' : student.status}
                             </span>
                           </td>
                         </tr>
@@ -756,10 +848,10 @@ export default function AttendanceClient({
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3 max-w-[200px] mx-auto">
-                              <span className="font-bold text-charcoal w-10 text-right">{staff.attendancePercent}%</span>
+                              <span className="font-bold text-charcoal w-10 text-right">{staff.attendancePercent === null ? '—' : `${staff.attendancePercent}%`}</span>
                               <div className="flex-1 bg-light-gray rounded-full h-1.5 overflow-hidden">
                                 <div
-                                  style={{ width: `${staff.attendancePercent}%` }}
+                                  style={{ width: `${staff.attendancePercent ?? 0}%` }}
                                   className={`h-full rounded-full ${getProgressColor(staff.status)}`}
                                 />
                               </div>
@@ -767,10 +859,13 @@ export default function AttendanceClient({
                           </td>
                           <td className="py-4 px-6 text-center font-semibold text-steel-gray">
                             {staff.presentDays} / {staff.totalDays} days
+                            {staff.leaveDays > 0 && (
+                              <span className="block text-[10px] text-steel-gray/70">{staff.leaveDays} on leave</span>
+                            )}
                           </td>
                           <td className="py-4 px-6 text-right">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize ${getBadgeClass(staff.status)}`}>
-                              {staff.status}
+                              {staff.status === 'no_data' ? 'Not marked' : staff.status}
                             </span>
                           </td>
                         </tr>
@@ -795,14 +890,15 @@ export default function AttendanceClient({
                       <tr className="border-b border-light-gray/40 bg-cream/5 text-xs font-bold text-steel-gray uppercase tracking-wider font-caption">
                         <th className="py-4 px-6">Class & Section</th>
                         <th className="py-4 px-6 text-center">Attendance Progress</th>
-                        <th className="py-4 px-6 text-center">Present / Total Students</th>
+                        <th className="py-4 px-6 text-center">Present / Absent / Not Marked</th>
                         <th className="py-4 px-6 text-right">Attendance Rate</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-light-gray/40">
                       {filteredDaily.map((row, index) => {
-                        const rate = row.totalCount > 0 ? Math.round((row.presentCount / row.totalCount) * 100) : 0
-                        const rateStatus = rate >= 90 ? 'excellent' : rate >= 85 ? 'warning' : 'critical'
+                        const counted = row.presentCount + row.absentCount
+                        const rate = counted > 0 ? Math.round((row.presentCount / counted) * 100) : null
+                        const rateStatus: BandStatus = rate === null ? 'no_data' : rate >= 90 ? 'excellent' : rate >= 85 ? 'warning' : 'critical'
 
                         return (
                           <tr key={`${row.sectionId}-${index}`} className="hover:bg-cream/10 transition-colors text-sm font-body">
@@ -815,18 +911,23 @@ export default function AttendanceClient({
                               <div className="flex items-center gap-3 max-w-[240px] mx-auto">
                                 <div className="flex-1 bg-light-gray rounded-full h-1.5 overflow-hidden">
                                   <div
-                                    style={{ width: `${rate}%` }}
+                                    style={{ width: `${rate ?? 0}%` }}
                                     className={`h-full rounded-full ${getProgressColor(rateStatus)}`}
                                   />
                                 </div>
                               </div>
                             </td>
                             <td className="py-4 px-6 text-center font-semibold text-steel-gray">
-                              {row.presentCount} / {row.totalCount} students
+                              <span className="text-emerald-700">{row.presentCount}</span>
+                              {' / '}
+                              <span className="text-rose-700">{row.absentCount}</span>
+                              {' / '}
+                              <span>{row.unmarkedCount}</span>
+                              <span className="text-steel-gray/60"> of {row.totalCount}</span>
                             </td>
                             <td className="py-4 px-6 text-right font-extrabold text-charcoal font-heading">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border capitalize ${getBadgeClass(rateStatus)}`}>
-                                {rate}%
+                                {rate === null ? 'Not marked' : `${rate}%`}
                               </span>
                             </td>
                           </tr>
