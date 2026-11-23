@@ -148,7 +148,17 @@ Screenshots reviewed are from ERPs Online's "Demo SSMS School" product — used 
 | 14.3 | Results — Class/Section Summary Sheet PDF | [x] Completed |
 | 14.4 | Results — Lock/Unlock Management Dashboard | [x] Completed |
 | 15 | Permissions & Polish (Login Redesign + Forgot Password) | [x] Completed |
+| 9.1 | Attendance — Marking, Leaves & Bug Fixes | [x] Completed |
 | 16 | Pre-Pilot Review | [ ] Not started |
+
+---
+
+## Batch 9.1 Notes — Attendance Completion (Nov 2026)
+
+- **New screens** under `/dashboard/attendance`: `mark` (daily student attendance per section), `staff` (staff attendance with check-in/out), `leaves` (record / approve / reject student leave). Reports page gained CSV exports (day-wise monthly register, staff sheet, daily breakdown).
+- **Data model**: `student_attendance` is one row per student × class_subject × date. The web portal writes the same daily status to every class_subject of the section (upsert on `student_id,class_subject_id,date`); reports collapse rows to one status per student per day. Statuses written: `present`, `absent`, `late`, `excused`. Approving a leave turns recorded `absent` days in that range into `excused`.
+- **No migration needed** — uses existing `student_attendance`, `teacher_attendance`, `leaves`, `holidays` tables.
+- **Fixed**: empty section selector (join missing `institution_id`), endless spinner, reports hardcoded to May 2026, per-subject double counting, 1000-row API cap truncation, unmarked students counted as absent, sections from all academic years mixed together, UTC vs IST "today", dashboard fake 92% attendance and fake trend badges, Puppeteer PDF routes failing on Vercel (now fall back to a print-ready page), hardcoded institution name/address in report cards, no navigation on mobile.
 
 ---
 

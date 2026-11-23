@@ -1,5 +1,25 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database.types'
+import { addDays, dayOfWeek, monthBounds, todayIST } from '@/utils/date'
+
+// NOTE ON THE DATA MODEL
+// `student_attendance` stores one row per student, per class_subject (period/subject), per date.
+// Reports therefore collapse those rows into a single status per student per day before counting,
+// otherwise a student with 6 subjects would be counted as "6 days present" for a single day.
+// When marking attendance from the web portal we write the same daily status to every
+// class_subject of the section, which matches how the existing data was seeded.
+
+type Client = SupabaseClient<Database>
+// The generated types are out of date for the attendance tables (enum values, deleted_at, etc.),
+// so the attendance queries go through an untyped handle.
+ 
+const db = (supabase: Client) => supabase as any
+
+export type StudentAttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+export type StaffAttendanceStatus = 'present' | 'absent' | 'late' | 'on_leave'
+
+export const STUDENT_STATUSES: StudentAttendanceStatus[] = ['present', 'absent', 'late', 'excused']
+export const STAFF_STATUSES: StaffAttendanceStatus[] = ['present', 'absent', 'late', 'on_leave']
 
 export interface CalendarDay {
   date: string;
@@ -12,15 +32,20 @@ export interface StudentAttendanceSummary {
   calendarData: CalendarDay[];
   insight: string;
   resolvedYear: number;
+  hasData: boolean;
 }
 
 export interface StudentAttendanceListItem {
   studentId: string;
   studentName: string;
+  rollNumber: string | null;
   initials: string;
-  attendancePercent: number;
-  status: "excellent" | "leadership" | "warning" | "critical";
+  attendancePercent: number | null;
+  status: "excellent" | "leadership" | "warning" | "critical" | "no_data";
   presentDays: number;
+  absentDays: number;
+  lateDays: number;
+  excusedDays: number;
   totalDays: number;
 }
 
@@ -30,16 +55,20 @@ export interface StaffAttendanceSummary {
   calendarData: CalendarDay[];
   insight: string;
   resolvedYear: number;
+  hasData: boolean;
 }
 
 export interface StaffAttendanceListItem {
   teacherId: string;
   teacherName: string;
+  employeeCode: string | null;
   initials: string;
   subject: string;
-  attendancePercent: number;
-  status: "excellent" | "leadership" | "warning" | "critical";
+  attendancePercent: number | null;
+  status: "excellent" | "leadership" | "warning" | "critical" | "no_data";
   presentDays: number;
+  absentDays: number;
+  leaveDays: number;
   totalDays: number;
 }
 
@@ -50,10 +79,23 @@ export interface ClassAttendanceBreakdown {
   sectionName: string;
   presentCount: number;
   absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  unmarkedCount: number;
   totalCount: number;
 }
 
+export interface AcademicYearInfo {
+  id: string;
+  label: string | null;
+  starts_on: string;
+  ends_on: string;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
+// ---------------------------------------------------------------------------
+
 function getInitials(name: string | null | undefined): string {
   if (!name || typeof name !== "string") return "??";
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -63,6 +105,11 @@ function getInitials(name: string | null | undefined): string {
   return name.trim().slice(0, 2).toUpperCase() || "??";
 }
 
+function one<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 export function getAttendanceStatus(percent: number): "excellent" | "leadership" | "warning" | "critical" {
   if (percent >= 95) return "excellent";
   if (percent >= 90) return "leadership";
@@ -70,905 +117,1235 @@ export function getAttendanceStatus(percent: number): "excellent" | "leadership"
   return "critical";
 }
 
-export async function resolveStudentAcademicYear(
-  supabase: SupabaseClient<Database>,
-  institutionId: string,
-  sectionId: string,
+const PAGE_SIZE = 1000;
+const IN_CHUNK = 150;
+
+/**
+ * Supabase/PostgREST caps responses at 1000 rows by default. Attendance tables grow quickly
+ * (students x subjects x days), so every attendance read is paginated.
+ */
+ 
+async function fetchAllRows<T = any>(build: (from: number, to: number) => any): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+/** Runs a paginated query for each chunk of ids (keeps `.in()` URLs short). */
+async function fetchAllForIds<T = any>(  
+  ids: string[],
+   
+  build: (chunk: string[], from: number, to: number) => any
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
+    const chunk = ids.slice(i, i + IN_CHUNK);
+    rows.push(...(await fetchAllRows<T>((from, to) => build(chunk, from, to))));
+  }
+  return rows;
+}
+
+const STATUS_PRIORITY: Record<string, number> = {
+  present: 5,
+  late: 4,
+  excused: 3,
+  absent: 2,
+  holiday: 1,
+};
+
+/**
+ * Collapses per-subject rows into one status per student per day.
+ * If a student attended at least one period the day counts as present (or late).
+ */
+function collapseDaily(rows: Array<{ student_id: string; date: string; status: string }>) {
+  const map = new Map<string, Map<string, string>>();
+  for (const r of rows) {
+    if (!r.student_id || !r.date || !r.status) continue;
+    let days = map.get(r.student_id);
+    if (!days) {
+      days = new Map();
+      map.set(r.student_id, days);
+    }
+    const existing = days.get(r.date);
+    const status = String(r.status).toLowerCase();
+    if (!existing || (STATUS_PRIORITY[status] ?? 0) > (STATUS_PRIORITY[existing] ?? 0)) {
+      days.set(r.date, status);
+    }
+  }
+  return map;
+}
+
+const isPresent = (s: string) => s === 'present' || s === 'late';
+// Excused (approved leave) and holiday records do not count against attendance.
+const isCounted = (s: string) => s === 'present' || s === 'late' || s === 'absent';
+
+function buildCalendar(
+  year: number,
   month: number,
-  year: number
-) {
-  const dateStr = `${year}-${String(month).padStart(2, "0")}-15`;
-  let ay: any = null;
-  const { data: first } = await supabase
+  holidayDates: Set<string>,
+  dailyRates: Record<string, { present: number; total: number }>
+): CalendarDay[] {
+  const { lastDay } = monthBounds(year, month);
+  const today = todayIST();
+  const calendar: CalendarDay[] = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const dStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const dow = dayOfWeek(dStr);
+    const stats = dailyRates[dStr];
+    if (dStr > today) {
+      calendar.push({ date: dStr, type: "future" });
+    } else if (holidayDates.has(dStr)) {
+      calendar.push({ date: dStr, type: "holiday" });
+    } else if (stats && stats.total > 0) {
+      calendar.push({ date: dStr, type: (stats.present / stats.total) * 100 < 85 ? "absent" : "present" });
+    } else if (dow === 0 || dow === 6) {
+      calendar.push({ date: dStr, type: "weekend" });
+    } else {
+      calendar.push({ date: dStr, type: "no_data" });
+    }
+  }
+  return calendar;
+}
+
+async function getHolidayDates(supabase: Client, institutionId: string, start: string, end: string) {
+  const { data } = await db(supabase)
+    .from("holidays")
+    .select("date, name")
+    .eq("institution_id", institutionId)
+    .eq("event_type", "holiday")
+    .gte("date", start)
+    .lte("date", end)
+    .is("deleted_at", null);
+  const map = new Map<string, string>();
+  (data || []).forEach((h: { date: string; name: string }) => map.set(h.date, h.name));
+  return map;
+}
+
+/** Verifies a section belongs to the institution. Returns its display name or null. */
+export async function getSectionForInstitution(
+  supabase: Client,
+  institutionId: string,
+  sectionId: string
+): Promise<{ id: string; name: string; className: string; academicYearId: string } | null> {
+  const { data } = await db(supabase)
+    .from("sections")
+    .select("id, name, academic_year_id, class:classes!inner(id, name, institution_id)")
+    .eq("id", sectionId)
+    .eq("class.institution_id", institutionId)
+    .maybeSingle();
+  if (!data) return null;
+  const cls = one(data.class) as { name?: string } | null;
+  return { id: data.id, name: data.name, className: cls?.name || "", academicYearId: data.academic_year_id };
+}
+
+// ---------------------------------------------------------------------------
+// Academic year resolution
+// ---------------------------------------------------------------------------
+
+/** Finds the academic year covering a date, falling back to the current academic year. */
+export async function resolveAcademicYearForDate(
+  supabase: Client,
+  institutionId: string,
+  dateStr: string
+): Promise<AcademicYearInfo | null> {
+  const { data: covering } = await db(supabase)
     .from("academic_years")
-    .select("id, starts_on, ends_on")
+    .select("id, label, starts_on, ends_on")
     .eq("institution_id", institutionId)
     .lte("starts_on", dateStr)
     .gte("ends_on", dateStr)
+    .order("starts_on", { ascending: false })
+    .limit(1);
+  if (covering && covering.length > 0) return covering[0];
+
+  const { data: current } = await db(supabase)
+    .from("academic_years")
+    .select("id, label, starts_on, ends_on")
+    .eq("institution_id", institutionId)
+    .eq("is_current", true)
+    .limit(1);
+  return current && current.length > 0 ? current[0] : null;
+}
+
+async function getAcademicYearById(supabase: Client, institutionId: string, id: string): Promise<AcademicYearInfo | null> {
+  const { data } = await db(supabase)
+    .from("academic_years")
+    .select("id, label, starts_on, ends_on")
+    .eq("id", id)
+    .eq("institution_id", institutionId)
     .maybeSingle();
-  ay = first;
+  return data || null;
+}
 
-  if (!ay) {
-    const { data: fallback } = await supabase
-      .from("academic_years")
-      .select("id, starts_on, ends_on")
-      .eq("institution_id", institutionId)
-      .eq("label", "2026-27")
-      .maybeSingle();
-    ay = fallback;
-  }
-
-  if (!ay) {
-    const { data: current } = await supabase
-      .from("academic_years")
-      .select("id, starts_on, ends_on")
-      .eq("institution_id", institutionId)
-      .eq("is_current", true)
-      .maybeSingle();
-    ay = current;
-  }
-
+export async function resolveStudentAcademicYear(
+  supabase: Client,
+  institutionId: string,
+  _sectionId: string,
+  month: number,
+  year: number
+) {
+  const ay = await resolveAcademicYearForDate(supabase, institutionId, `${year}-${String(month).padStart(2, "0")}-15`);
   if (!ay) return null;
-
-  let finalAy = ay;
-
-  const { count } = await supabase
-    .from("enrollments")
-    .select("id", { count: "exact", head: true })
-    .eq("section_id", sectionId)
-    .eq("academic_year_id", ay.id)
-    .eq("is_active", true);
-
-  if (count === 0) {
-    const { data: ays } = await (supabase
-      .from("academic_years")
-      .select("id, starts_on, ends_on")
-      .eq("institution_id", institutionId)
-      .order("starts_on", { ascending: false }) as any);
-
-    if (ays && ays.length > 0) {
-      for (const candidate of ays) {
-        const { count: ayEnrollCount } = await supabase
-          .from("enrollments")
-          .select("id", { count: "exact", head: true })
-          .eq("section_id", sectionId)
-          .eq("academic_year_id", candidate.id)
-          .eq("is_active", true);
-
-        if (ayEnrollCount && ayEnrollCount > 0) {
-          finalAy = candidate;
-          break;
-        }
-      }
-    }
-  }
-
-  const ayStartYear = new Date(finalAy.starts_on).getFullYear();
-  const resolvedYear = month >= 4 ? ayStartYear : ayStartYear + 1;
-
-  return {
-    id: finalAy.id,
-    starts_on: finalAy.starts_on,
-    ends_on: finalAy.ends_on,
-    resolvedYear,
-  };
+  // The calendar always shows the month the user picked; the academic year only scopes enrollments.
+  return { ...ay, resolvedYear: year };
 }
 
 export async function resolveStaffAcademicYear(
-  supabase: SupabaseClient<Database>,
+  supabase: Client,
   institutionId: string,
   month: number,
   year: number
 ) {
-  const dateStr = `${year}-${String(month).padStart(2, "0")}-15`;
-  let ay: any = null;
-  const { data: first } = await supabase
-    .from("academic_years")
-    .select("id, starts_on, ends_on")
-    .eq("institution_id", institutionId)
-    .lte("starts_on", dateStr)
-    .gte("ends_on", dateStr)
-    .maybeSingle();
-  ay = first;
+  return resolveStudentAcademicYear(supabase, institutionId, "", month, year);
+}
 
-  if (!ay) {
-    const { data: fallback } = await supabase
-      .from("academic_years")
-      .select("id, starts_on, ends_on")
-      .eq("institution_id", institutionId)
-      .eq("label", "2026-27")
-      .maybeSingle();
-    ay = fallback;
+// ---------------------------------------------------------------------------
+// Enrollment helpers
+// ---------------------------------------------------------------------------
+
+interface SectionStudent {
+  studentId: string;
+  name: string;
+  rollNumber: string | null;
+  studentCode: string | null;
+}
+
+async function getSectionStudents(
+  supabase: Client,
+  sectionId: string,
+  academicYearId: string,
+  activeOnly: boolean
+): Promise<SectionStudent[]> {
+  let query = db(supabase)
+    .from("enrollments")
+    .select("student_id, roll_number, is_active, student:students!inner(id, student_code, user:users(full_name))")
+    .eq("section_id", sectionId)
+    .eq("academic_year_id", academicYearId)
+    .is("deleted_at", null);
+  if (activeOnly) query = query.eq("is_active", true);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return ((data || []) as Array<Record<string, unknown>>)
+    .map((e) => {
+      const student = one(e.student as Record<string, unknown>) as { student_code?: string; user?: unknown } | null;
+      const user = one(student?.user as { full_name?: string }) as { full_name?: string } | null;
+      return {
+        studentId: e.student_id as string,
+        name: user?.full_name || "Unknown Student",
+        rollNumber: (e.roll_number as string) || null,
+        studentCode: student?.student_code || null,
+      };
+    })
+    .sort((a, b) => {
+      const ra = a.rollNumber ? parseInt(a.rollNumber, 10) : NaN;
+      const rb = b.rollNumber ? parseInt(b.rollNumber, 10) : NaN;
+      if (!isNaN(ra) && !isNaN(rb) && ra !== rb) return ra - rb;
+      if (!isNaN(ra) && isNaN(rb)) return -1;
+      if (isNaN(ra) && !isNaN(rb)) return 1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+async function getStudentAttendanceRows(supabase: Client, studentIds: string[], start: string, end: string) {
+  return fetchAllForIds<{ student_id: string; date: string; status: string; remarks?: string | null }>(
+    studentIds,
+    (chunk, from, to) =>
+      db(supabase)
+        .from("student_attendance")
+        .select("student_id, date, status, remarks")
+        .in("student_id", chunk)
+        .gte("date", start)
+        .lte("date", end)
+        .is("deleted_at", null)
+        .order("id", { ascending: true })
+        .range(from, to)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Student monthly reports
+// ---------------------------------------------------------------------------
+
+export async function getStudentMonthlyReport(
+  supabase: Client,
+  institutionId: string,
+  sectionId: string,
+  academicYearId: string,
+  year: number,
+  month: number
+): Promise<{ summary: StudentAttendanceSummary; list: StudentAttendanceListItem[] }> {
+  const { start, end } = monthBounds(year, month);
+  const section = await getSectionForInstitution(supabase, institutionId, sectionId);
+  if (!section) throw new Error("Section not found.");
+
+  // Sections belong to one academic year; their enrollments are the roster for the report.
+  const students = await getSectionStudents(supabase, sectionId, section.academicYearId || academicYearId, false);
+  const studentIds = students.map((s) => s.studentId);
+  const rows = studentIds.length > 0 ? await getStudentAttendanceRows(supabase, studentIds, start, end) : [];
+  const daily = collapseDaily(rows);
+  const holidays = await getHolidayDates(supabase, institutionId, start, end);
+
+  const dailyRates: Record<string, { present: number; total: number }> = {};
+  const weekdayAbsences: Record<number, number> = {};
+  let totalPresent = 0;
+  let totalCounted = 0;
+
+  const list: StudentAttendanceListItem[] = students.map((s) => {
+    const days = daily.get(s.studentId) || new Map<string, string>();
+    let present = 0, absent = 0, late = 0, excused = 0;
+    days.forEach((status, date) => {
+      if (holidays.has(date)) return;
+      if (status === 'present') present++;
+      else if (status === 'late') late++;
+      else if (status === 'absent') {
+        absent++;
+        const dow = dayOfWeek(date);
+        weekdayAbsences[dow] = (weekdayAbsences[dow] || 0) + 1;
+      } else if (status === 'excused') excused++;
+      if (isCounted(status)) {
+        dailyRates[date] = dailyRates[date] || { present: 0, total: 0 };
+        dailyRates[date].total++;
+        if (isPresent(status)) dailyRates[date].present++;
+      }
+    });
+    const counted = present + late + absent;
+    totalPresent += present + late;
+    totalCounted += counted;
+    const percent = counted > 0 ? Math.round(((present + late) / counted) * 100) : null;
+    return {
+      studentId: s.studentId,
+      studentName: s.name,
+      rollNumber: s.rollNumber,
+      initials: getInitials(s.name),
+      attendancePercent: percent,
+      status: percent === null ? "no_data" : getAttendanceStatus(percent),
+      presentDays: present + late,
+      absentDays: absent,
+      lateDays: late,
+      excusedDays: excused,
+      totalDays: counted,
+    };
+  });
+
+  const monthlyAvg = totalCounted > 0 ? (totalPresent / totalCounted) * 100 : 0;
+  const criticalDays = Object.values(dailyRates).filter((d) => d.total > 0 && (d.present / d.total) * 100 < 85).length;
+  const holidaySet = new Set(holidays.keys());
+  const className = `${section.className}-${section.name}`;
+
+  let insight: string;
+  if (students.length === 0) {
+    insight = "No students are enrolled in this section for the selected academic year.";
+  } else if (totalCounted === 0) {
+    insight = "No attendance has been marked for this section in the selected month yet.";
+  } else {
+    insight = generateInsight(className, monthlyAvg, weekdayAbsences, list);
   }
 
-  if (!ay) {
-    const { data: current } = await supabase
-      .from("academic_years")
-      .select("id, starts_on, ends_on")
-      .eq("institution_id", institutionId)
-      .eq("is_current", true)
-      .maybeSingle();
-    ay = current;
-  }
-
-  if (!ay) return null;
-
-  const ayStartYear = new Date(ay.starts_on).getFullYear();
-  const resolvedYear = month >= 4 ? ayStartYear : ayStartYear + 1;
+  const order = { critical: 0, warning: 1, leadership: 2, excellent: 3, no_data: 4 };
+  list.sort((a, b) => order[a.status] - order[b.status] || a.studentName.localeCompare(b.studentName));
 
   return {
-    id: ay.id,
-    starts_on: ay.starts_on,
-    ends_on: ay.ends_on,
-    resolvedYear,
+    summary: {
+      monthlyAvg: parseFloat(monthlyAvg.toFixed(1)),
+      criticalDays,
+      calendarData: buildCalendar(year, month, holidaySet, dailyRates),
+      insight,
+      resolvedYear: year,
+      hasData: totalCounted > 0,
+    },
+    list,
   };
 }
 
-export async function getStudentAttendanceSummary(
-  supabase: SupabaseClient<Database>,
-  institutionId: string,
-  sectionId: string,
-  academicYearId: string,
-  resolvedYear: number,
-  month: number
-): Promise<StudentAttendanceSummary> {
-  try {
-    if (!academicYearId || !sectionId) {
-      return { monthlyAvg: 0, criticalDays: 0, calendarData: [], insight: "No data available.", resolvedYear: resolvedYear || new Date().getFullYear() };
+export function generateInsight(
+  className: string,
+  monthlyAvg: number,
+  weekdayAbsences: Record<number, number>,
+  list: StudentAttendanceListItem[]
+): string {
+  const label = className || "This class";
+  const critical = list.filter((s) => s.status === "critical").length;
+  const totalAbs = Object.values(weekdayAbsences).reduce((a, b) => a + b, 0);
+  const weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  if (totalAbs >= 5) {
+    const [peakDay, peakCount] = Object.entries(weekdayAbsences).sort((a, b) => b[1] - a[1])[0];
+    const share = peakCount / totalAbs;
+    if (share >= 0.35) {
+      return `${Math.round(share * 100)}% of ${label}'s absences this month fall on ${weekdayNames[Number(peakDay)]}s. Consider checking scheduling or commute issues on that day.`;
     }
-
-    const startDate = `${resolvedYear}-${String(month).padStart(2, "0")}-01`;
-    const lastDay = new Date(resolvedYear, month, 0).getDate();
-    const endDate = `${resolvedYear}-${String(month).padStart(2, "0")}-${lastDay}`;
-
-    // A. Query students in section
-    const { data: students } = await (supabase
-      .from("enrollments")
-      .select("student_id")
-      .eq("section_id", sectionId)
-      .eq("academic_year_id", academicYearId)
-      .eq("is_active", true) as any);
-
-    const studentIds = (students || []).map((s: any) => s.student_id);
-
-    // B. Query student attendance
-    let attendance: any[] = [];
-    if (studentIds.length > 0) {
-      const { data } = await (supabase
-        .from("student_attendance" as any) as any)
-        .select("date, status, student_id")
-        .in("student_id", studentIds)
-        .eq("academic_year_id", academicYearId)
-        .gte("date", startDate)
-        .lte("date", endDate)
-        .is("deleted_at", null);
-      if (data) {
-        attendance = data;
-      }
-    }
-
-    // C. Query holidays
-    const { data: holidays } = await (supabase
-      .from("holidays" as any) as any)
-      .select("date")
-      .eq("institution_id", institutionId)
-      .eq("academic_year_id", academicYearId)
-      .eq("event_type", "holiday")
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .is("deleted_at", null);
-
-    const holidayDates = new Set<string>(holidays?.map((h: any) => h.date) || []);
-
-    // D. Compute stats and calendar grid
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const calendarData: CalendarDay[] = [];
-    const dailyRates: Record<string, { present: number; total: number }> = {};
-
-    attendance.forEach(att => {
-      const dStr = att.date;
-      if (att.status === "holiday") return;
-      if (!dailyRates[dStr]) {
-        dailyRates[dStr] = { present: 0, total: 0 };
-      }
-      dailyRates[dStr].total++;
-      if (att.status === "present" || att.status === "late") {
-        dailyRates[dStr].present++;
-      }
-    });
-
-    let totalPresent = 0;
-    let totalRecords = 0;
-    attendance.forEach(att => {
-      if (att.status !== "holiday") {
-        totalRecords++;
-        if (att.status === "present" || att.status === "late") {
-          totalPresent++;
-        }
-      }
-    });
-
-    const monthlyAvg = totalRecords > 0 ? (totalPresent / totalRecords) * 100 : 0;
-
-    let criticalDays = 0;
-    for (const dStr in dailyRates) {
-      const day = dailyRates[dStr];
-      if (day.total > 0) {
-        const rate = (day.present / day.total) * 100;
-        if (rate < 85) {
-          criticalDays++;
-        }
-      }
-    }
-
-    // Build Calendar Data
-    for (let d = 1; d <= lastDay; d++) {
-      const dStr = `${resolvedYear}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const dateObj = new Date(resolvedYear, month - 1, d);
-      const dayOfWeek = dateObj.getDay();
-
-      if (dStr > todayStr) {
-        calendarData.push({ date: dStr, type: "future" });
-      } else if (dayOfWeek === 0 || dayOfWeek === 6) {
-        calendarData.push({ date: dStr, type: "weekend" });
-      } else if (holidayDates.has(dStr)) {
-        calendarData.push({ date: dStr, type: "holiday" });
-      } else {
-        const dayStats = dailyRates[dStr];
-        if (dayStats && dayStats.total > 0) {
-          const rate = (dayStats.present / dayStats.total) * 100;
-          if (rate < 85) {
-            calendarData.push({ date: dStr, type: "absent" });
-          } else {
-            calendarData.push({ date: dStr, type: "present" });
-          }
-        } else {
-          calendarData.push({ date: dStr, type: "no_data" });
-        }
-      }
-    }
-
-    // Get section class name for insight
-    const { data: sectionRes } = await supabase
-      .from("sections")
-      .select(`
-        name,
-        class:classes (
-          name
-        )
-      `)
-      .eq("id", sectionId)
-      .maybeSingle() as any;
-
-    const className = sectionRes
-      ? `${sectionRes.class?.name || ""}-${sectionRes.name || ""}`
-      : "";
-
-    const insight = studentIds.length === 0
-      ? "No active students in this class."
-      : await generateInsight(sectionId, academicYearId, resolvedYear, month, attendance, className, monthlyAvg, institutionId, supabase);
-
-    return {
-      monthlyAvg: parseFloat(monthlyAvg.toFixed(1)),
-      criticalDays,
-      calendarData,
-      insight,
-      resolvedYear
-    };
-  } catch (error) {
-    console.error("Error in getStudentAttendanceSummary repository:", error);
-    return { monthlyAvg: 0, criticalDays: 0, calendarData: [], insight: "Failed to load summary.", resolvedYear: resolvedYear || new Date().getFullYear() };
   }
+  if (monthlyAvg < 85) {
+    return `${label} is ${Math.round(85 - monthlyAvg)}% below the 85% attendance target. ${critical} student${critical === 1 ? " is" : "s are"} in the critical band — consider contacting their guardians.`;
+  }
+  if (critical > 0) {
+    return `${label} is on track overall, but ${critical} student${critical === 1 ? " is" : "s are"} below 85% attendance.`;
+  }
+  return "Attendance is on track this month.";
+}
+
+// Backwards compatible wrappers (used by older callers).
+export async function getStudentAttendanceSummary(
+  supabase: Client, institutionId: string, sectionId: string, academicYearId: string, resolvedYear: number, month: number
+): Promise<StudentAttendanceSummary> {
+  return (await getStudentMonthlyReport(supabase, institutionId, sectionId, academicYearId, resolvedYear, month)).summary;
 }
 
 export async function getStudentAttendanceList(
-  supabase: SupabaseClient<Database>,
-  institutionId: string,
-  sectionId: string,
-  academicYearId: string,
-  resolvedYear: number,
-  month: number,
-  search?: string
+  supabase: Client, institutionId: string, sectionId: string, academicYearId: string, resolvedYear: number, month: number
 ): Promise<StudentAttendanceListItem[]> {
-  try {
-    if (!academicYearId || !sectionId) return [];
-
-    const startDate = `${resolvedYear}-${String(month).padStart(2, "0")}-01`;
-    const lastDay = new Date(resolvedYear, month, 0).getDate();
-    const endDate = `${resolvedYear}-${String(month).padStart(2, "0")}-${lastDay}`;
-
-    // A. Query students
-    const { data: enrolls } = await supabase
-      .from("enrollments")
-      .select(`
-        student_id,
-        student:students (
-          id,
-          user:users (
-            full_name
-          )
-        )
-      `)
-      .eq("section_id", sectionId)
-      .eq("academic_year_id", academicYearId)
-      .eq("is_active", true) as any;
-
-    if (!enrolls || enrolls.length === 0) return [];
-
-    // B. Query student attendance
-    const studentIds = enrolls.map((e: any) => e.student_id);
-    const { data: attendance } = await (supabase
-      .from("student_attendance" as any) as any)
-      .select("student_id, status")
-      .in("student_id", studentIds)
-      .eq("academic_year_id", academicYearId)
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .is("deleted_at", null);
-
-    // Group attendance by student
-    const studentAttMap: Record<string, { present: number; total: number }> = {};
-    studentIds.forEach((id: string) => {
-      studentAttMap[id] = { present: 0, total: 0 };
-    });
-
-    attendance?.forEach((att: any) => {
-      if (att.status === "holiday") return;
-      if (!studentAttMap[att.student_id]) {
-        studentAttMap[att.student_id] = { present: 0, total: 0 };
-      }
-      studentAttMap[att.student_id].total++;
-      if (att.status === "present" || att.status === "late") {
-        studentAttMap[att.student_id].present++;
-      }
-    });
-
-    // Map to list item
-    let list: StudentAttendanceListItem[] = enrolls.map((e: any) => {
-      const s = e.student;
-      const userObj = Array.isArray(s.user) ? s.user[0] : s.user;
-      const name = userObj?.full_name || "Unknown Student";
-      const attStats = studentAttMap[s.id] || { present: 0, total: 0 };
-      
-      const attendancePercent = attStats.total > 0 
-        ? Math.round((attStats.present / attStats.total) * 100)
-        : 100;
-
-      return {
-        studentId: s.id,
-        studentName: name,
-        initials: getInitials(name),
-        attendancePercent,
-        status: getAttendanceStatus(attendancePercent),
-        presentDays: attStats.present,
-        totalDays: attStats.total
-      };
-    });
-
-    // Apply local search filter
-    if (search && search.trim().length > 0) {
-      const q = search.toLowerCase();
-      list = list.filter(item => item.studentName.toLowerCase().includes(q));
-    }
-
-    // Sort: Critical first, then warning, then leadership, then excellent
-    const orderMap = {
-      critical: 0,
-      warning: 1,
-      leadership: 2,
-      excellent: 3
-    };
-
-    return list.sort((a, b) => {
-      if (orderMap[a.status] !== orderMap[b.status]) {
-        return orderMap[a.status] - orderMap[b.status];
-      }
-      return a.studentName.localeCompare(b.studentName);
-    });
-  } catch (error) {
-    console.error("Error in getStudentAttendanceList repository:", error);
-    return [];
-  }
+  return (await getStudentMonthlyReport(supabase, institutionId, sectionId, academicYearId, resolvedYear, month)).list;
 }
 
-export async function getStaffAttendanceSummary(
-  supabase: SupabaseClient<Database>,
+// ---------------------------------------------------------------------------
+// Staff monthly reports
+// ---------------------------------------------------------------------------
+
+interface InstitutionTeacher {
+  id: string;
+  name: string;
+  employeeCode: string | null;
+  specialization: string | null;
+}
+
+async function getInstitutionTeachers(supabase: Client, institutionId: string, department?: string): Promise<InstitutionTeacher[]> {
+  let query = db(supabase)
+    .from("teachers")
+    .select("id, employee_code, specialization, user:users(full_name)")
+    .eq("institution_id", institutionId)
+    .is("deleted_at", null);
+  if (department && department !== "All") query = query.eq("specialization", department);
+  const { data, error } = await query;
+  if (error) throw error;
+  return ((data || []) as Array<Record<string, unknown>>)
+    .map((t) => ({
+      id: t.id as string,
+      name: (one(t.user as { full_name?: string }) as { full_name?: string } | null)?.full_name || "Unknown Staff",
+      employeeCode: (t.employee_code as string) || null,
+      specialization: (t.specialization as string) || null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getStaffMonthlyReport(
+  supabase: Client,
   institutionId: string,
-  academicYearId: string,
-  resolvedYear: number,
+  year: number,
   month: number,
-  departmentId?: string
-): Promise<StaffAttendanceSummary> {
-  try {
-    if (!academicYearId) {
-      return { monthlyAvg: 0, staffOnLeaveToday: 0, calendarData: [], insight: "No data available.", resolvedYear: resolvedYear || new Date().getFullYear() };
-    }
+  department?: string
+): Promise<{ summary: StaffAttendanceSummary; list: StaffAttendanceListItem[] }> {
+  const { start, end } = monthBounds(year, month);
+  const teachers = await getInstitutionTeachers(supabase, institutionId, department);
+  const teacherIds = teachers.map((t) => t.id);
+  const today = todayIST();
 
-    const startDate = `${resolvedYear}-${String(month).padStart(2, "0")}-01`;
-    const lastDay = new Date(resolvedYear, month, 0).getDate();
-    const endDate = `${resolvedYear}-${String(month).padStart(2, "0")}-${lastDay}`;
+  const rows = teacherIds.length > 0
+    ? await fetchAllForIds<{ teacher_id: string; date: string; status: string }>(teacherIds, (chunk, from, to) =>
+        db(supabase)
+          .from("teacher_attendance")
+          .select("teacher_id, date, status")
+          .in("teacher_id", chunk)
+          .gte("date", start)
+          .lte("date", end)
+          .is("deleted_at", null)
+          .order("id", { ascending: true })
+          .range(from, to)
+      )
+    : [];
 
-    // A. Fetch teachers in department
-    let teacherQuery = supabase
-      .from("teachers")
-      .select("id, specialization")
-      .eq("institution_id", institutionId);
+  const { data: todayLeaves } = teacherIds.length > 0
+    ? await db(supabase)
+        .from("teacher_attendance")
+        .select("teacher_id")
+        .in("teacher_id", teacherIds.slice(0, 500))
+        .eq("date", today)
+        .eq("status", "on_leave")
+        .is("deleted_at", null)
+    : { data: [] };
 
-    if (departmentId && departmentId !== "All") {
-      teacherQuery = teacherQuery.eq("specialization", departmentId);
-    }
+  const holidays = await getHolidayDates(supabase, institutionId, start, end);
+  const dailyRates: Record<string, { present: number; total: number }> = {};
+  const stats = new Map<string, { present: number; absent: number; leave: number }>();
+  let totalPresent = 0, totalCounted = 0;
 
-    const { data: teachers } = await teacherQuery;
-    const teacherIds = (teachers || []).map((t: any) => t.id);
-    if (teacherIds.length === 0) {
-      return { monthlyAvg: 0, staffOnLeaveToday: 0, calendarData: [], insight: "No teachers found in this department.", resolvedYear };
-    }
-
-    // B. Fetch teacher attendance
-    const { data: attendance } = await (supabase
-      .from("teacher_attendance" as any) as any)
-      .select("date, status, teacher_id")
-      .in("teacher_id", teacherIds)
-      .eq("academic_year_id", academicYearId)
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .is("deleted_at", null);
-
-    // C. Query holidays
-    const { data: holidays } = await (supabase
-      .from("holidays" as any) as any)
-      .select("date")
-      .eq("institution_id", institutionId)
-      .eq("academic_year_id", academicYearId)
-      .eq("event_type", "holiday")
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .is("deleted_at", null);
-
-    const holidayDates = new Set<string>(holidays?.map((h: any) => h.date) || []);
-
-    // D. Compute stats
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const calendarData: CalendarDay[] = [];
-    const dailyRates: Record<string, { present: number; total: number }> = {};
-
-    attendance?.forEach((att: any) => {
-      const dStr = att.date;
-      if (att.status === "holiday") return;
-      if (!dailyRates[dStr]) {
-        dailyRates[dStr] = { present: 0, total: 0 };
-      }
-      dailyRates[dStr].total++;
-      if (att.status === "present" || att.status === "late") {
-        dailyRates[dStr].present++;
-      }
-    });
-
-    let totalPresent = 0;
-    let totalRecords = 0;
-    attendance?.forEach((att: any) => {
-      if (att.status !== "holiday") {
-        totalRecords++;
-        if (att.status === "present" || att.status === "late") {
-          totalPresent++;
-        }
-      }
-    });
-
-    const monthlyAvg = totalRecords > 0 ? (totalPresent / totalRecords) * 100 : 0;
-
-    // Count on leave today
-    const { data: leaves } = await (supabase
-      .from("teacher_attendance" as any) as any)
-      .select(`
-        id,
-        teacher:teachers!inner (
-          specialization,
-          institution_id
-        )
-      `)
-      .eq("date", todayStr)
-      .eq("status", "on_leave")
-      .eq("teacher.institution_id", institutionId)
-      .is("deleted_at", null);
-
-    let staffOnLeaveToday = 0;
-    if (leaves) {
-      if (departmentId && departmentId !== "All") {
-        staffOnLeaveToday = leaves.filter((l: any) => l.teacher?.specialization === departmentId).length;
-      } else {
-        staffOnLeaveToday = leaves.length;
+  for (const r of rows) {
+    const status = String(r.status).toLowerCase();
+    if (holidays.has(r.date) || status === 'holiday') continue;
+    const s = stats.get(r.teacher_id) || { present: 0, absent: 0, leave: 0 };
+    if (isPresent(status)) s.present++;
+    else if (status === 'absent') s.absent++;
+    else if (status === 'on_leave') s.leave++;
+    stats.set(r.teacher_id, s);
+    // On-leave days are approved absences: shown separately, not counted against the rate.
+    if (isCounted(status)) {
+      dailyRates[r.date] = dailyRates[r.date] || { present: 0, total: 0 };
+      dailyRates[r.date].total++;
+      totalCounted++;
+      if (isPresent(status)) {
+        dailyRates[r.date].present++;
+        totalPresent++;
       }
     }
+  }
 
-    // Build Calendar Data
-    for (let d = 1; d <= lastDay; d++) {
-      const dStr = `${resolvedYear}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const dateObj = new Date(resolvedYear, month - 1, d);
-      const dayOfWeek = dateObj.getDay();
-
-      if (dStr > todayStr) {
-        calendarData.push({ date: dStr, type: "future" });
-      } else if (dayOfWeek === 0 || dayOfWeek === 6) {
-        calendarData.push({ date: dStr, type: "weekend" });
-      } else if (holidayDates.has(dStr)) {
-        calendarData.push({ date: dStr, type: "holiday" });
-      } else {
-        const dayStats = dailyRates[dStr];
-        if (dayStats && dayStats.total > 0) {
-          const rate = (dayStats.present / dayStats.total) * 100;
-          if (rate < 85) {
-            calendarData.push({ date: dStr, type: "absent" });
-          } else {
-            calendarData.push({ date: dStr, type: "present" });
-          }
-        } else {
-          calendarData.push({ date: dStr, type: "no_data" });
-        }
-      }
-    }
-
-    // Generate teacher insight
-    let insight = "Staff attendance is on track this month.";
-    if (staffOnLeaveToday > 0) {
-      insight = `${staffOnLeaveToday} staff member${staffOnLeaveToday > 1 ? "s are" : " is"} on leave today. Check schedule for class coverage.`;
-    } else if (monthlyAvg < 90) {
-      insight = "Staff attendance is slightly lower than target this month. Consider checking leave policy compliance.";
-    }
-
+  const list: StaffAttendanceListItem[] = teachers.map((t) => {
+    const s = stats.get(t.id) || { present: 0, absent: 0, leave: 0 };
+    const counted = s.present + s.absent;
+    const percent = counted > 0 ? Math.round((s.present / counted) * 100) : null;
     return {
+      teacherId: t.id,
+      teacherName: t.name,
+      employeeCode: t.employeeCode,
+      initials: getInitials(t.name),
+      subject: t.specialization || "General",
+      attendancePercent: percent,
+      status: percent === null ? "no_data" : getAttendanceStatus(percent),
+      presentDays: s.present,
+      absentDays: s.absent,
+      leaveDays: s.leave,
+      totalDays: counted,
+    };
+  });
+
+  const order = { critical: 0, warning: 1, leadership: 2, excellent: 3, no_data: 4 };
+  list.sort((a, b) => order[a.status] - order[b.status] || a.teacherName.localeCompare(b.teacherName));
+
+  const monthlyAvg = totalCounted > 0 ? (totalPresent / totalCounted) * 100 : 0;
+  const staffOnLeaveToday = (todayLeaves || []).length;
+
+  let insight = "Staff attendance is on track this month.";
+  if (teachers.length === 0) {
+    insight = "No staff members found for this department.";
+  } else if (totalCounted === 0) {
+    insight = "No staff attendance has been marked for the selected month yet.";
+  } else if (staffOnLeaveToday > 0) {
+    insight = `${staffOnLeaveToday} staff member${staffOnLeaveToday > 1 ? "s are" : " is"} on leave today. Check the timetable for class coverage.`;
+  } else if (monthlyAvg < 90) {
+    insight = "Staff attendance is below the 90% target this month. Consider reviewing leave patterns.";
+  }
+
+  return {
+    summary: {
       monthlyAvg: parseFloat(monthlyAvg.toFixed(1)),
       staffOnLeaveToday,
-      calendarData,
+      calendarData: buildCalendar(year, month, new Set(holidays.keys()), dailyRates),
       insight,
-      resolvedYear
-    };
-  } catch (error) {
-    console.error("Error in getStaffAttendanceSummary repository:", error);
-    return { monthlyAvg: 0, staffOnLeaveToday: 0, calendarData: [], insight: "Failed to load summary.", resolvedYear: resolvedYear || new Date().getFullYear() };
-  }
+      resolvedYear: year,
+      hasData: totalCounted > 0,
+    },
+    list,
+  };
 }
 
-export async function getStaffAttendanceList(
-  supabase: SupabaseClient<Database>,
-  institutionId: string,
-  academicYearId: string,
-  resolvedYear: number,
-  month: number,
-  departmentId?: string,
-  search?: string
-): Promise<StaffAttendanceListItem[]> {
+// ---------------------------------------------------------------------------
+// Lookups
+// ---------------------------------------------------------------------------
+
+export async function getDepartments(supabase: Client, institutionId: string): Promise<string[]> {
   try {
-    if (!academicYearId) return [];
-
-    const startDate = `${resolvedYear}-${String(month).padStart(2, "0")}-01`;
-    const lastDay = new Date(resolvedYear, month, 0).getDate();
-    const endDate = `${resolvedYear}-${String(month).padStart(2, "0")}-${lastDay}`;
-
-    // A. Query teachers
-    let teacherQuery = supabase
-      .from("teachers")
-      .select(`
-        id,
-        specialization,
-        user:users (
-          full_name
-        )
-      `)
-      .eq("institution_id", institutionId);
-
-    if (departmentId && departmentId !== "All") {
-      teacherQuery = teacherQuery.eq("specialization", departmentId);
-    }
-
-    const { data: teachers } = await teacherQuery as any;
-    if (!teachers || teachers.length === 0) return [];
-
-    // B. Query teacher attendance
-    const teacherIds = teachers.map((t: any) => t.id);
-    const { data: attendance } = await (supabase
-      .from("teacher_attendance" as any) as any)
-      .select("teacher_id, status")
-      .in("teacher_id", teacherIds)
-      .eq("academic_year_id", academicYearId)
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .is("deleted_at", null);
-
-    // Group attendance by teacher
-    const teacherAttMap: Record<string, { present: number; total: number }> = {};
-    teacherIds.forEach((id: string) => {
-      teacherAttMap[id] = { present: 0, total: 0 };
-    });
-
-    attendance?.forEach((att: any) => {
-      if (att.status === "holiday") return;
-      if (!teacherAttMap[att.teacher_id]) {
-        teacherAttMap[att.teacher_id] = { present: 0, total: 0 };
-      }
-      teacherAttMap[att.teacher_id].total++;
-      if (att.status === "present" || att.status === "late") {
-        teacherAttMap[att.teacher_id].present++;
-      }
-    });
-
-    // Map to list item
-    let list: StaffAttendanceListItem[] = teachers.map((t: any) => {
-      const userObj = Array.isArray(t.user) ? t.user[0] : t.user;
-      const name = userObj?.full_name || "Unknown Staff";
-      const attStats = teacherAttMap[t.id] || { present: 0, total: 0 };
-      
-      const attendancePercent = attStats.total > 0 
-        ? Math.round((attStats.present / attStats.total) * 100)
-        : 100;
-
-      return {
-        teacherId: t.id,
-        teacherName: name,
-        initials: getInitials(name),
-        subject: t.specialization || "General",
-        attendancePercent,
-        status: getAttendanceStatus(attendancePercent),
-        presentDays: attStats.present,
-        totalDays: attStats.total
-      };
-    });
-
-    // Apply local search filter
-    if (search && search.trim().length > 0) {
-      const q = search.toLowerCase();
-      list = list.filter(item => item.teacherName.toLowerCase().includes(q) || item.subject.toLowerCase().includes(q));
-    }
-
-    // Sort: Critical first, then warning, then leadership, then excellent
-    const orderMap = {
-      critical: 0,
-      warning: 1,
-      leadership: 2,
-      excellent: 3
-    };
-
-    return list.sort((a, b) => {
-      if (orderMap[a.status] !== orderMap[b.status]) {
-        return orderMap[a.status] - orderMap[b.status];
-      }
-      return a.teacherName.localeCompare(b.teacherName);
-    });
-  } catch (error) {
-    console.error("Error in getStaffAttendanceList repository:", error);
-    return [];
-  }
-}
-
-export async function getDepartments(
-  supabase: SupabaseClient<Database>,
-  institutionId: string
-): Promise<string[]> {
-  try {
-    const { data, error } = await (supabase
+    const { data, error } = await db(supabase)
       .from("teachers")
       .select("specialization")
-      .eq("institution_id", institutionId) as any);
-
+      .eq("institution_id", institutionId)
+      .is("deleted_at", null);
     if (error) throw error;
-
-    const departmentsSet = new Set<string>();
-    data?.forEach((t: any) => {
-      if (t.specialization) {
-        departmentsSet.add(t.specialization);
-      }
-    });
-
-    return Array.from(departmentsSet).sort();
+    const set = new Set<string>();
+    (data || []).forEach((t: { specialization?: string }) => t.specialization && set.add(t.specialization));
+    return Array.from(set).sort();
   } catch (error) {
     console.error("Error in getDepartments repository:", error);
     return [];
   }
 }
 
+export interface SectionOption {
+  id: string;
+  name: string;
+  academicYearId: string;
+}
+
 export async function getInstitutionSections(
-  supabase: SupabaseClient<Database>,
+  supabase: Client,
   institutionId: string
-): Promise<{ id: string; name: string }[]> {
+): Promise<SectionOption[]> {
   try {
-    const { data, error } = await supabase
+    // BUGFIX: previously the join did not select `institution_id`, so the client-side
+    // institution filter removed every section and the selector was always empty.
+    const { data, error } = await db(supabase)
       .from("sections")
-      .select(`
-        id,
-        name,
-        class:classes (
-          id,
-          name,
-          grade_number
-        )
-      `) as any;
-      
+      .select("id, name, academic_year_id, class:classes!inner(id, name, grade_number, institution_id)")
+      .eq("class.institution_id", institutionId)
+      .is("deleted_at", null);
     if (error) throw error;
 
-    const filteredSections = (data || []).filter((s: any) => {
-      const classObj = Array.isArray(s.class) ? s.class[0] : s.class;
-      return classObj?.institution_id === institutionId;
-    });
-    
-    return filteredSections.map((s: any) => {
-      const classObj = Array.isArray(s.class) ? s.class[0] : s.class;
-      return {
-        id: s.id,
-        name: classObj ? `${classObj.name}-${s.name}` : s.name,
-        grade_number: classObj?.grade_number || 0
-      };
-    }).sort((a: any, b: any) => {
-      if (a.grade_number !== b.grade_number) return a.grade_number - b.grade_number;
-      return a.name.localeCompare(b.name);
-    });
+    return ((data || []) as Array<Record<string, unknown>>)
+      .map((s) => {
+        const cls = one(s.class as { name?: string; grade_number?: number }) as { name?: string; grade_number?: number } | null;
+        return {
+          id: s.id as string,
+          name: cls ? `${cls.name}-${s.name}` : (s.name as string),
+          academicYearId: s.academic_year_id as string,
+          grade: cls?.grade_number ?? 0,
+        };
+      })
+      .sort((a, b) => a.grade - b.grade || a.name.localeCompare(b.name, undefined, { numeric: true }))
+      .map(({ id, name, academicYearId }) => ({ id, name, academicYearId }));
   } catch (error) {
     console.error("Error in getInstitutionSections repository:", error);
     return [];
   }
 }
 
+export interface AcademicYearOption extends AcademicYearInfo {
+  is_current: boolean;
+}
+
+export async function getAcademicYears(supabase: Client, institutionId: string): Promise<AcademicYearOption[]> {
+  const { data, error } = await db(supabase)
+    .from("academic_years")
+    .select("id, label, starts_on, ends_on, is_current")
+    .eq("institution_id", institutionId)
+    .is("deleted_at", null)
+    .order("starts_on", { ascending: false });
+  if (error) {
+    console.error("Error in getAcademicYears repository:", error);
+    return [];
+  }
+  return data || [];
+}
+
+// ---------------------------------------------------------------------------
+// Daily breakdown
+// ---------------------------------------------------------------------------
+
 export async function getInstitutionAttendance(
-  supabase: SupabaseClient<Database>,
+  supabase: Client,
   institutionId: string,
   date: string
 ): Promise<ClassAttendanceBreakdown[]> {
-  try {
-    const { data: sectionsData, error: sectionsError } = await supabase
-      .from("sections")
-      .select(`
-        id,
-        name,
-        class:classes (
-          id,
-          name,
-          institution_id
-        )
-      `) as any;
+  const ay = await resolveAcademicYearForDate(supabase, institutionId, date);
+  if (!ay) return [];
 
-    if (sectionsError) throw sectionsError;
+  const { data: sectionsData, error: sectionsError } = await db(supabase)
+    .from("sections")
+    .select("id, name, class:classes!inner(id, name, grade_number, institution_id)")
+    .eq("class.institution_id", institutionId)
+    .eq("academic_year_id", ay.id)
+    .is("deleted_at", null);
+  if (sectionsError) throw sectionsError;
 
-    const filteredSections = (sectionsData || []).filter((s: any) => {
-      const classObj = Array.isArray(s.class) ? s.class[0] : s.class;
-      return classObj?.institution_id === institutionId;
-    });
+  const sections = ((sectionsData || []) as Array<Record<string, unknown>>).map((s) => {
+    const cls = one(s.class as { id?: string; name?: string; grade_number?: number }) as { id?: string; name?: string; grade_number?: number } | null;
+    return { sectionId: s.id as string, sectionName: s.name as string, classId: cls?.id || "", className: cls?.name || "", grade: cls?.grade_number ?? 0 };
+  });
+  if (sections.length === 0) return [];
 
-    const sections = filteredSections.map((s: any) => {
-      const classObj = Array.isArray(s.class) ? s.class[0] : s.class;
-      return {
-        sectionId: s.id,
-        sectionName: s.name,
-        classId: classObj?.id || "",
-        className: classObj?.name || "",
-      };
-    });
-
-    const sectionIds = sections.map((s: any) => s.sectionId);
-    if (sectionIds.length === 0) return [];
-
-    const { data: enrollmentsData, error: enrollmentsError } = await supabase
+  const sectionIds = sections.map((s) => s.sectionId);
+  const enrollments = await fetchAllForIds<{ student_id: string; section_id: string }>(sectionIds, (chunk, from, to) =>
+    db(supabase)
       .from("enrollments")
       .select("student_id, section_id")
-      .in("section_id", sectionIds)
-      .eq("is_active", true);
+      .in("section_id", chunk)
+      .eq("academic_year_id", ay.id)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
 
-    if (enrollmentsError) throw enrollmentsError;
+  const studentsBySection = new Map<string, string[]>();
+  enrollments.forEach((e) => {
+    const list = studentsBySection.get(e.section_id) || [];
+    list.push(e.student_id);
+    studentsBySection.set(e.section_id, list);
+  });
 
-    const sectionActiveStudents: Record<string, Set<string>> = {};
-    sectionIds.forEach((id: string) => {
-      sectionActiveStudents[id] = new Set();
-    });
-    enrollmentsData?.forEach((e: any) => {
-      if (e.section_id && e.student_id) {
-        sectionActiveStudents[e.section_id].add(e.student_id);
-      }
-    });
+  const allStudentIds = enrollments.map((e) => e.student_id);
+  const rows = allStudentIds.length > 0 ? await getStudentAttendanceRows(supabase, allStudentIds, date, date) : [];
+  const daily = collapseDaily(rows);
 
-    const { data: attendanceData, error: attendanceError } = await (supabase
-      .from("student_attendance" as any) as any)
-      .select("student_id, status")
-      .eq("date", date)
-      .is("deleted_at", null);
-
-    if (attendanceError) throw attendanceError;
-
-    const studentAttendanceMap: Record<string, string> = {};
-    attendanceData?.forEach((att: any) => {
-      if (att.student_id && att.status) {
-        studentAttendanceMap[att.student_id] = att.status.toLowerCase();
-      }
-    });
-
-    const breakdown: ClassAttendanceBreakdown[] = sections.map((sec: any) => {
-      const activeStudents = sectionActiveStudents[sec.sectionId] || new Set();
-      let presentCount = 0;
-      let absentCount = 0;
-
-      activeStudents.forEach(studentId => {
-        const status = studentAttendanceMap[studentId];
-        if (status === "present" || status === "late") {
-          presentCount++;
-        } else {
-          absentCount++;
-        }
+  return sections
+    .sort((a, b) => a.grade - b.grade || a.sectionName.localeCompare(b.sectionName))
+    .map((sec) => {
+      const students = studentsBySection.get(sec.sectionId) || [];
+      let present = 0, absent = 0, late = 0, excused = 0, unmarked = 0;
+      students.forEach((id) => {
+        const status = daily.get(id)?.get(date);
+        if (!status) unmarked++;
+        else if (status === 'present') present++;
+        else if (status === 'late') late++;
+        else if (status === 'excused') excused++;
+        else if (status === 'absent') absent++;
+        else unmarked++;
       });
-
       return {
         classId: sec.classId,
         className: sec.className,
         sectionId: sec.sectionId,
         sectionName: sec.sectionName,
-        presentCount,
-        absentCount,
-        totalCount: activeStudents.size,
+        presentCount: present + late,
+        absentCount: absent,
+        lateCount: late,
+        excusedCount: excused,
+        unmarkedCount: unmarked,
+        totalCount: students.length,
       };
     });
+}
 
-    return breakdown;
-  } catch (error) {
-    console.error("Error in getInstitutionAttendance repository:", error);
-    return [];
+// ---------------------------------------------------------------------------
+// Marking: students
+// ---------------------------------------------------------------------------
+
+export interface StudentRosterEntry {
+  studentId: string;
+  name: string;
+  rollNumber: string | null;
+  studentCode: string | null;
+  status: StudentAttendanceStatus | null;
+  remarks: string | null;
+  onApprovedLeave: boolean;
+}
+
+export interface StudentRoster {
+  academicYear: AcademicYearInfo;
+  section: { id: string; name: string; className: string };
+  holidayName: string | null;
+  isWeekend: boolean;
+  subjectCount: number;
+  alreadyMarked: boolean;
+  students: StudentRosterEntry[];
+}
+
+async function getSectionClassSubjectIds(supabase: Client, sectionId: string, academicYearId: string): Promise<string[]> {
+  const { data, error } = await db(supabase)
+    .from("class_subjects")
+    .select("id")
+    .eq("section_id", sectionId)
+    .eq("academic_year_id", academicYearId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return (data || []).map((r: { id: string }) => r.id);
+}
+
+async function getApprovedLeaveStudentIds(supabase: Client, studentIds: string[], date: string): Promise<Set<string>> {
+  if (studentIds.length === 0) return new Set();
+  const rows = await fetchAllForIds<{ student_id: string }>(studentIds, (chunk, from, to) =>
+    db(supabase)
+      .from("leaves")
+      .select("student_id")
+      .in("student_id", chunk)
+      .eq("status", "approved")
+      .lte("from_date", date)
+      .gte("to_date", date)
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
+  return new Set(rows.map((r) => r.student_id));
+}
+
+export async function getStudentMarkingRoster(
+  supabase: Client,
+  institutionId: string,
+  sectionId: string,
+  date: string
+): Promise<StudentRoster> {
+  const section = await getSectionForInstitution(supabase, institutionId, sectionId);
+  if (!section) throw new Error("Section not found.");
+
+  const ay = await getAcademicYearById(supabase, institutionId, section.academicYearId);
+  if (!ay) throw new Error("Academic year for this section was not found.");
+  if (date < ay.starts_on || date > ay.ends_on) {
+    throw new Error(`This section belongs to academic year ${ay.label || ""} (${ay.starts_on} to ${ay.ends_on}). Pick a date inside it.`);
+  }
+
+  const [students, subjectIds, holidays] = await Promise.all([
+    getSectionStudents(supabase, sectionId, ay.id, true),
+    getSectionClassSubjectIds(supabase, sectionId, ay.id),
+    getHolidayDates(supabase, institutionId, date, date),
+  ]);
+
+  const studentIds = students.map((s) => s.studentId);
+  const [rows, onLeave] = await Promise.all([
+    studentIds.length > 0 ? getStudentAttendanceRows(supabase, studentIds, date, date) : Promise.resolve([]),
+    getApprovedLeaveStudentIds(supabase, studentIds, date),
+  ]);
+  const daily = collapseDaily(rows);
+  const remarksByStudent = new Map<string, string>();
+  rows.forEach((r) => r.remarks && remarksByStudent.set(r.student_id, r.remarks));
+
+  let markedCount = 0;
+  const entries: StudentRosterEntry[] = students.map((s) => {
+    const raw = daily.get(s.studentId)?.get(date) || null;
+    const status = raw && (STUDENT_STATUSES as string[]).includes(raw) ? (raw as StudentAttendanceStatus) : null;
+    if (status) markedCount++;
+    return {
+      ...s,
+      status,
+      remarks: remarksByStudent.get(s.studentId) || null,
+      onApprovedLeave: onLeave.has(s.studentId),
+    };
+  });
+
+  const dow = dayOfWeek(date);
+  return {
+    academicYear: ay,
+    section,
+    holidayName: holidays.get(date) || null,
+    isWeekend: dow === 0 || dow === 6,
+    subjectCount: subjectIds.length,
+    alreadyMarked: markedCount > 0,
+    students: entries,
+  };
+}
+
+export interface StudentMarkInput {
+  studentId: string;
+  status: StudentAttendanceStatus;
+  remarks?: string | null;
+}
+
+export async function saveStudentAttendance(
+  supabase: Client,
+  institutionId: string,
+  markedBy: string,
+  sectionId: string,
+  date: string,
+  entries: StudentMarkInput[]
+): Promise<{ saved: number }> {
+  if (date > todayIST()) throw new Error("Attendance cannot be marked for a future date.");
+  for (const e of entries) {
+    if (!STUDENT_STATUSES.includes(e.status)) throw new Error(`Invalid status "${e.status}".`);
+  }
+
+  const section = await getSectionForInstitution(supabase, institutionId, sectionId);
+  if (!section) throw new Error("Section not found.");
+
+  const ay = await getAcademicYearById(supabase, institutionId, section.academicYearId);
+  if (!ay) throw new Error("Academic year for this section was not found.");
+  if (date < ay.starts_on || date > ay.ends_on) {
+    throw new Error("The selected date is outside this section's academic year.");
+  }
+
+  const [students, subjectIds] = await Promise.all([
+    getSectionStudents(supabase, sectionId, ay.id, true),
+    getSectionClassSubjectIds(supabase, sectionId, ay.id),
+  ]);
+
+  if (subjectIds.length === 0) {
+    throw new Error("No subjects are configured for this section in its academic year. Configure the section's subjects before marking attendance.");
+  }
+
+  const enrolled = new Set(students.map((s) => s.studentId));
+  const invalid = entries.filter((e) => !enrolled.has(e.studentId));
+  if (invalid.length > 0) {
+    throw new Error("Some students are not actively enrolled in this section.");
+  }
+
+  const now = new Date().toISOString();
+  const rows = entries.flatMap((e) =>
+    subjectIds.map((classSubjectId) => ({
+      student_id: e.studentId,
+      class_subject_id: classSubjectId,
+      academic_year_id: ay.id,
+      date,
+      status: e.status,
+      remarks: e.remarks?.trim() ? e.remarks.trim().slice(0, 500) : null,
+      marked_by: markedBy,
+      updated_at: now,
+      deleted_at: null,
+    }))
+  );
+
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await db(supabase)
+      .from("student_attendance")
+      .upsert(rows.slice(i, i + 500), { onConflict: "student_id,class_subject_id,date" });
+    if (error) throw error;
+  }
+
+  return { saved: entries.length };
+}
+
+// ---------------------------------------------------------------------------
+// Marking: staff
+// ---------------------------------------------------------------------------
+
+export interface StaffRosterEntry {
+  teacherId: string;
+  name: string;
+  employeeCode: string | null;
+  specialization: string | null;
+  status: StaffAttendanceStatus | null;
+  checkIn: string | null; // HH:MM (IST)
+  checkOut: string | null; // HH:MM (IST)
+  remarks: string | null;
+}
+
+function toISTTime(ts: string | null): string | null {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+}
+
+function fromISTTime(date: string, time: string | null | undefined): string | null {
+  if (!time || !/^\d{2}:\d{2}$/.test(time)) return null;
+  return new Date(`${date}T${time}:00+05:30`).toISOString();
+}
+
+export async function getStaffMarkingRoster(
+  supabase: Client,
+  institutionId: string,
+  date: string
+): Promise<{ academicYear: AcademicYearInfo; holidayName: string | null; isWeekend: boolean; alreadyMarked: boolean; staff: StaffRosterEntry[] }> {
+  const ay = await resolveAcademicYearForDate(supabase, institutionId, date);
+  if (!ay) throw new Error("No academic year is configured for this date.");
+
+  const teachers = await getInstitutionTeachers(supabase, institutionId);
+  const ids = teachers.map((t) => t.id);
+  const rows = ids.length > 0
+    ? await fetchAllForIds<{ teacher_id: string; status: string; check_in_at: string | null; check_out_at: string | null; remarks: string | null }>(ids, (chunk, from, to) =>
+        db(supabase)
+          .from("teacher_attendance")
+          .select("teacher_id, status, check_in_at, check_out_at, remarks")
+          .in("teacher_id", chunk)
+          .eq("date", date)
+          .is("deleted_at", null)
+          .order("id", { ascending: true })
+          .range(from, to)
+      )
+    : [];
+  const byTeacher = new Map(rows.map((r) => [r.teacher_id, r]));
+  const holidays = await getHolidayDates(supabase, institutionId, date, date);
+  const dow = dayOfWeek(date);
+
+  return {
+    academicYear: ay,
+    holidayName: holidays.get(date) || null,
+    isWeekend: dow === 0 || dow === 6,
+    alreadyMarked: rows.length > 0,
+    staff: teachers.map((t) => {
+      const r = byTeacher.get(t.id);
+      const status = r && (STAFF_STATUSES as string[]).includes(r.status) ? (r.status as StaffAttendanceStatus) : null;
+      return {
+        teacherId: t.id,
+        name: t.name,
+        employeeCode: t.employeeCode,
+        specialization: t.specialization,
+        status,
+        checkIn: toISTTime(r?.check_in_at ?? null),
+        checkOut: toISTTime(r?.check_out_at ?? null),
+        remarks: r?.remarks ?? null,
+      };
+    }),
+  };
+}
+
+export interface StaffMarkInput {
+  teacherId: string;
+  status: StaffAttendanceStatus;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  remarks?: string | null;
+}
+
+export async function saveStaffAttendance(
+  supabase: Client,
+  institutionId: string,
+  markedBy: string,
+  date: string,
+  entries: StaffMarkInput[]
+): Promise<{ saved: number }> {
+  if (date > todayIST()) throw new Error("Attendance cannot be marked for a future date.");
+  for (const e of entries) {
+    if (!STAFF_STATUSES.includes(e.status)) throw new Error(`Invalid status "${e.status}".`);
+    if (e.checkIn && e.checkOut && e.checkOut < e.checkIn) {
+      throw new Error("Check-out time cannot be earlier than check-in time.");
+    }
+  }
+
+  const ay = await resolveAcademicYearForDate(supabase, institutionId, date);
+  if (!ay) throw new Error("No academic year is configured for this date.");
+
+  const teachers = await getInstitutionTeachers(supabase, institutionId);
+  const valid = new Set(teachers.map((t) => t.id));
+  if (entries.some((e) => !valid.has(e.teacherId))) {
+    throw new Error("Some staff members do not belong to this institution.");
+  }
+
+  const now = new Date().toISOString();
+  const rows = entries.map((e) => {
+    const attended = e.status === 'present' || e.status === 'late';
+    return {
+      teacher_id: e.teacherId,
+      academic_year_id: ay.id,
+      date,
+      status: e.status,
+      check_in_at: attended ? fromISTTime(date, e.checkIn) : null,
+      check_out_at: attended ? fromISTTime(date, e.checkOut) : null,
+      remarks: e.remarks?.trim() ? e.remarks.trim().slice(0, 500) : null,
+      marked_by: markedBy,
+      updated_at: now,
+      deleted_at: null,
+    };
+  });
+
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await db(supabase)
+      .from("teacher_attendance")
+      .upsert(rows.slice(i, i + 500), { onConflict: "teacher_id,date" });
+    if (error) throw error;
+  }
+  return { saved: rows.length };
+}
+
+// ---------------------------------------------------------------------------
+// Student leave requests
+// ---------------------------------------------------------------------------
+
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LeaveRequestItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string | null;
+  classSection: string | null;
+  fromDate: string;
+  toDate: string;
+  days: number;
+  reason: string;
+  status: LeaveStatus;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export async function getLeaveRequests(
+  supabase: Client,
+  institutionId: string,
+  status: LeaveStatus | 'all'
+): Promise<LeaveRequestItem[]> {
+  let query = db(supabase)
+    .from("leaves")
+    .select("id, student_id, from_date, to_date, reason, status, review_note, reviewed_at, created_at, student:students!inner(id, student_code, institution_id, user:users(full_name))")
+    .eq("student.institution_id", institutionId)
+    .is("deleted_at", null)
+    .order("from_date", { ascending: false })
+    .limit(300);
+  if (status !== 'all') query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const leaves = (data || []) as Array<Record<string, unknown>>;
+  const studentIds = Array.from(new Set(leaves.map((l) => l.student_id as string)));
+
+  // Resolve the current class/section of each student for display.
+  const sectionByStudent = new Map<string, string>();
+  if (studentIds.length > 0) {
+    const enrolls = await fetchAllForIds<Record<string, unknown>>(studentIds, (chunk, from, to) =>
+      db(supabase)
+        .from("enrollments")
+        .select("student_id, section:sections(name, class:classes(name))")
+        .in("student_id", chunk)
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("id", { ascending: true })
+        .range(from, to)
+    );
+    enrolls.forEach((e) => {
+      const sec = one(e.section as { name?: string; class?: unknown }) as { name?: string; class?: unknown } | null;
+      const cls = one(sec?.class as { name?: string }) as { name?: string } | null;
+      if (sec) sectionByStudent.set(e.student_id as string, `${cls?.name || ""}-${sec.name || ""}`);
+    });
+  }
+
+  return leaves.map((l) => {
+    const student = one(l.student as Record<string, unknown>) as { student_code?: string; user?: unknown } | null;
+    const user = one(student?.user as { full_name?: string }) as { full_name?: string } | null;
+    const fromDate = l.from_date as string;
+    const toDate = l.to_date as string;
+    const days = Math.round((Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`)) / 86400000) + 1;
+    return {
+      id: l.id as string,
+      studentId: l.student_id as string,
+      studentName: user?.full_name || "Unknown Student",
+      studentCode: student?.student_code || null,
+      classSection: sectionByStudent.get(l.student_id as string) || null,
+      fromDate,
+      toDate,
+      days,
+      reason: (l.reason as string) || "",
+      status: l.status as LeaveStatus,
+      reviewNote: (l.review_note as string) || null,
+      reviewedAt: (l.reviewed_at as string) || null,
+      createdAt: l.created_at as string,
+    };
+  });
+}
+
+async function assertStudentInInstitution(supabase: Client, institutionId: string, studentId: string) {
+  const { data } = await db(supabase)
+    .from("students")
+    .select("id")
+    .eq("id", studentId)
+    .eq("institution_id", institutionId)
+    .maybeSingle();
+  if (!data) throw new Error("Student not found.");
+}
+
+/** Marks any already-recorded "absent" days within an approved leave as "excused". */
+async function excuseAbsencesForLeave(supabase: Client, studentId: string, fromDate: string, toDate: string) {
+  const { error } = await db(supabase)
+    .from("student_attendance")
+    .update({ status: "excused", updated_at: new Date().toISOString() })
+    .eq("student_id", studentId)
+    .eq("status", "absent")
+    .gte("date", fromDate)
+    .lte("date", toDate)
+    .is("deleted_at", null);
+  if (error) throw error;
+}
+
+export async function reviewLeaveRequest(
+  supabase: Client,
+  institutionId: string,
+  reviewerId: string,
+  leaveId: string,
+  decision: 'approved' | 'rejected',
+  note: string | null
+) {
+  const { data: leave } = await db(supabase)
+    .from("leaves")
+    .select("id, student_id, from_date, to_date, status, student:students!inner(institution_id)")
+    .eq("id", leaveId)
+    .eq("student.institution_id", institutionId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!leave) throw new Error("Leave request not found.");
+
+  const { error } = await db(supabase)
+    .from("leaves")
+    .update({
+      status: decision,
+      reviewed_by: reviewerId,
+      reviewed_at: new Date().toISOString(),
+      review_note: note?.trim() ? note.trim().slice(0, 500) : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leaveId);
+  if (error) throw error;
+
+  if (decision === 'approved') {
+    await excuseAbsencesForLeave(supabase, leave.student_id, leave.from_date, leave.to_date);
   }
 }
 
-export async function generateInsight(
+export async function createLeave(
+  supabase: Client,
+  institutionId: string,
+  reviewerId: string,
+  input: { studentId: string; fromDate: string; toDate: string; reason: string; approve: boolean }
+) {
+  if (!input.reason.trim()) throw new Error("Reason is required.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(input.toDate)) {
+    throw new Error("Valid from and to dates are required.");
+  }
+  if (input.toDate < input.fromDate) throw new Error("The end date cannot be before the start date.");
+  if (addDays(input.fromDate, 60) < input.toDate) throw new Error("A single leave cannot exceed 60 days.");
+
+  await assertStudentInInstitution(supabase, institutionId, input.studentId);
+
+  const ay = await resolveAcademicYearForDate(supabase, institutionId, input.fromDate);
+  if (!ay) throw new Error("No academic year is configured for these dates.");
+
+  const now = new Date().toISOString();
+  const { error } = await db(supabase).from("leaves").insert({
+    student_id: input.studentId,
+    academic_year_id: ay.id,
+    from_date: input.fromDate,
+    to_date: input.toDate,
+    reason: input.reason.trim().slice(0, 1000),
+    status: input.approve ? "approved" : "pending",
+    reviewed_by: input.approve ? reviewerId : null,
+    reviewed_at: input.approve ? now : null,
+  });
+  if (error) throw error;
+
+  if (input.approve) {
+    await excuseAbsencesForLeave(supabase, input.studentId, input.fromDate, input.toDate);
+  }
+}
+
+/** Students of a section (active enrollments in the current academic year) for pickers. */
+export async function getSectionStudentOptions(
+  supabase: Client,
+  institutionId: string,
+  sectionId: string
+): Promise<Array<{ id: string; name: string; rollNumber: string | null }>> {
+  const section = await getSectionForInstitution(supabase, institutionId, sectionId);
+  if (!section) throw new Error("Section not found.");
+  const students = await getSectionStudents(supabase, sectionId, section.academicYearId, true);
+  return students.map((s) => ({ id: s.studentId, name: s.name, rollNumber: s.rollNumber }));
+}
+
+// ---------------------------------------------------------------------------
+// Monthly register (student x day grid) for export
+// ---------------------------------------------------------------------------
+
+export interface MonthlyRegister {
+  className: string;
+  year: number;
+  month: number;
+  dates: string[];
+  holidays: string[];
+  rows: Array<{ name: string; rollNumber: string | null; marks: Record<string, string>; present: number; total: number }>;
+}
+
+export async function getMonthlyRegister(
+  supabase: Client,
+  institutionId: string,
   sectionId: string,
-  academicYearId: string,
-  resolvedYear: number,
-  month: number,
-  attendanceData: any[],
-  className: string,
-  monthlyAvg: number,
-  _institutionId: string,
-  _supabase: SupabaseClient<Database>
-): Promise<string> {
-  try {
-    const weekdayAbsences: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    
-    const studentAbsCount: Record<string, number> = {};
-    attendanceData.forEach(att => {
-      if (att.status === "absent") {
-        studentAbsCount[att.student_id] = (studentAbsCount[att.student_id] || 0) + 1;
-      }
-    });
+  year: number,
+  month: number
+): Promise<MonthlyRegister> {
+  const section = await getSectionForInstitution(supabase, institutionId, sectionId);
+  if (!section) throw new Error("Section not found.");
+  const { start, end, lastDay } = monthBounds(year, month);
+  const students = await getSectionStudents(supabase, sectionId, section.academicYearId, false);
+  const rows = students.length > 0 ? await getStudentAttendanceRows(supabase, students.map((s) => s.studentId), start, end) : [];
+  const daily = collapseDaily(rows);
+  const holidays = await getHolidayDates(supabase, institutionId, start, end);
+  const dates = Array.from({ length: lastDay }, (_, i) => `${year}-${String(month).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`);
+  const code: Record<string, string> = { present: "P", absent: "A", late: "L", excused: "E", holiday: "H" };
 
-    const criticalStudentIds = Object.keys(studentAbsCount).filter(sid => studentAbsCount[sid] >= 5);
-
-    if (criticalStudentIds.length > 0) {
-      attendanceData.forEach(att => {
-        if (att.status === "absent" && criticalStudentIds.includes(att.student_id)) {
-          const dateObj = new Date(att.date);
-          const day = dateObj.getDay();
-          if (day >= 1 && day <= 5) {
-            weekdayAbsences[day]++;
-          }
+  return {
+    className: `${section.className}-${section.name}`,
+    year,
+    month,
+    dates,
+    holidays: Array.from(holidays.keys()),
+    rows: students.map((s) => {
+      const days = daily.get(s.studentId) || new Map<string, string>();
+      const marks: Record<string, string> = {};
+      let present = 0, total = 0;
+      days.forEach((status, date) => {
+        marks[date] = code[status] || "";
+        if (!holidays.has(date) && isCounted(status)) {
+          total++;
+          if (isPresent(status)) present++;
         }
       });
-
-      let maxAbsDay = 1;
-      let maxAbsCount = 0;
-      for (const day in weekdayAbsences) {
-        if (weekdayAbsences[day] > maxAbsCount) {
-          maxAbsCount = weekdayAbsences[day];
-          maxAbsDay = Number(day);
-        }
-      }
-
-      const totalAbs = Object.values(weekdayAbsences).reduce((a, b) => a + b, 0);
-      if (totalAbs > 0 && maxAbsCount / totalAbs >= 0.35) {
-        const weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const weekdayName = weekdayNames[maxAbsDay];
-        return `${className || "This class"} shows a 5% drop in attendance every ${weekdayName}. Consider checking class scheduling or student commute options.`;
-      }
-    }
-
-    if (monthlyAvg < 85) {
-      const diff = Math.round(85 - monthlyAvg);
-      return `${className || "This class"} is currently ${diff}% below the 85% attendance target. Contact guardians of critical students.`;
-    }
-
-    return "Attendance is on track this month.";
-  } catch (error) {
-    console.error("Error in generateInsight helper:", error);
-    return "Attendance is on track this month.";
-  }
+      return { name: s.name, rollNumber: s.rollNumber, marks, present, total };
+    }),
+  };
 }

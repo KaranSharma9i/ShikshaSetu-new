@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useInstitution } from '@/providers/InstitutionProvider'
 import Link from 'next/link'
 import {
   getExamTermsAction,
@@ -88,8 +88,7 @@ interface ReportCardClientProps {
 }
 
 export default function ReportCardClient({ initialYears, initialClasses }: ReportCardClientProps) {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const { institutionName, tagline, logoUrl } = useInstitution()
 
   // Selectors State
   const [selectedYearId, setSelectedYearId] = useState<string>(
@@ -475,14 +474,19 @@ export default function ReportCardClient({ initialYears, initialClasses }: Repor
               {/* Header Design */}
               <div className="p-6 border-b border-light-gray/60 flex flex-col md:flex-row justify-between items-center gap-4 bg-cream/5">
                 <div className="flex items-center gap-4">
-                  {/* Mock school logo placeholder */}
-                  <div className="w-16 h-16 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center text-primary font-bold text-xl font-heading shadow-sm">
-                    SS
-                  </div>
+                  {logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={logoUrl} alt="Logo" className="w-16 h-16 object-contain rounded-2xl border border-primary/20 p-1 shadow-sm" />
+                  ) : (
+                    <div className="w-16 h-16 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center text-primary font-bold text-xl font-heading shadow-sm">
+                      {institutionName.split(' ').map((w) => w[0]).join('').slice(0, 3)}
+                    </div>
+                  )}
                   <div className="text-center md:text-left">
-                    <h2 className="text-2xl font-black text-primary tracking-tight font-heading leading-tight">GURUKUL SHIKSHALAYA</h2>
-                    <p className="text-[11px] text-steel-gray font-caption tracking-wider uppercase font-semibold mt-0.5">Sow the seeds of character, reap a harvest of wisdom</p>
-                    <p className="text-[10px] text-steel-gray/80 font-caption">Main Campus, Sector 12, Dwarka, New Delhi</p>
+                    <h2 className="text-2xl font-black text-primary tracking-tight font-heading leading-tight uppercase">{institutionName}</h2>
+                    {tagline && (
+                      <p className="text-[11px] text-steel-gray font-caption tracking-wider uppercase font-semibold mt-0.5">{tagline}</p>
+                    )}
                   </div>
                 </div>
                 <div className="text-center md:text-right border-l md:border-l-0 md:border-r border-light-gray/60 px-4 md:px-0 md:pr-4 py-1">
@@ -664,7 +668,7 @@ export default function ReportCardClient({ initialYears, initialClasses }: Repor
                 {/* Remarks & Signatures */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-light-gray/40 pt-6">
                   <div className="col-span-1 md:col-span-2">
-                    <p className="text-[10px] text-steel-gray uppercase font-semibold tracking-wider font-caption">Class Teacher's Remarks</p>
+                    <p className="text-[10px] text-steel-gray uppercase font-semibold tracking-wider font-caption">Class Teacher&apos;s Remarks</p>
                     <div className="mt-2 p-3 bg-cream/10 border border-light-gray/60 rounded-xl h-20 text-xs font-body text-charcoal/80 flex items-start">
                       {/* Placeholder text for mockup */}
                       <span>{reportCard.aggregates?.is_passed ? 'Demonstrates a strong understanding of core concepts. Keeps up with coursework and participates actively. Consistent effort shown.' : 'Needs improvement in core subjects. Encouraged to pay closer attention to class assignments and seek help in weaker areas.'}</span>

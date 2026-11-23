@@ -261,7 +261,7 @@ export default function LegacyAssignForm({ initialExams }: LegacyAssignFormProps
                 Assign Legacy Exam to Term
               </h3>
               <p className="text-xs text-steel-gray font-caption mt-1">
-                Grouping exam <strong className="text-charcoal">"{activeExam.exam_name}"</strong> ({activeExam.class_name}, {activeExam.academic_year_label})
+                Grouping exam <strong className="text-charcoal">&quot;{activeExam.exam_name}&quot;</strong> ({activeExam.class_name}, {activeExam.academic_year_label})
               </p>
             </div>
 
@@ -341,7 +341,7 @@ export default function LegacyAssignForm({ initialExams }: LegacyAssignFormProps
               <span className="block font-bold text-primary font-heading">Assignment Preview</span>
               <span className="block text-steel-gray font-body leading-relaxed">
                 This will update <strong className="text-charcoal">{activeExam.matching_exams_count} subject-exam</strong> rows
-                matching <strong className="text-charcoal">"{activeExam.exam_name}"</strong> to link to term 
+                matching <strong className="text-charcoal">&quot;{activeExam.exam_name}&quot;</strong> to link to term 
                 <strong> {newTermName.trim() ? `"${newTermName.trim()}" (New Term)` : `"${existingTerms.find(t => t.id === selectedTermId)?.name || 'Selected Term'}"`}</strong>.
               </span>
             </div>

@@ -274,7 +274,7 @@ function AdmitCard({
               <span className="font-black text-gray-900 mt-0.5 text-base font-heading tracking-wide uppercase">{student.full_name}</span>
             </div>
             <div className="flex flex-col col-span-2">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Father's Name</span>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Father&apos;s Name</span>
               <span className="font-extrabold text-gray-800 mt-0.5 uppercase">{student.guardian_name || 'N/A'}</span>
             </div>
           </div>
@@ -1047,7 +1047,7 @@ export default function AdmitCardsClient({
                 </svg>
                 <span className="text-sm font-semibold text-steel-gray">No Preview Available</span>
                 <p className="text-xs text-steel-gray/80 mt-1 font-caption max-w-[200px]">
-                  Select an exam, class, and section to view a student's admit card.
+                  Select an exam, class, and section to view a student&apos;s admit card.
                 </p>
               </div>
             ) : (

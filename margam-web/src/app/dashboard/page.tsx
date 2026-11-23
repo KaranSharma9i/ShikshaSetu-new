@@ -84,7 +84,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 w-fit px-2.5 py-1 rounded-full">
-            <span>+24 this month</span>
+            <span>Registered students</span>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 w-fit px-2.5 py-1 rounded-full">
-            <span>+2 this term</span>
+            <span>Teaching staff</span>
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-xs font-semibold text-steel-gray uppercase tracking-wider font-caption">Today&apos;s Attendance</p>
               <h3 className="text-3xl font-bold text-charcoal mt-2 font-heading tracking-tight group-hover:text-emerald-600 transition-colors">
-                {metrics.attendanceRate}%
+                {metrics.attendanceRate === null ? '—' : `${metrics.attendanceRate}%`}
               </h3>
             </div>
             <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
@@ -126,8 +126,16 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-steel-gray font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Real-time status</span>
+            {metrics.attendanceRate === null ? (
+              <Link href="/dashboard/attendance/mark" className="text-primary font-semibold hover:underline">
+                Not marked yet — mark attendance
+              </Link>
+            ) : (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{metrics.attendanceMarkedToday} students marked today</span>
+              </>
+            )}
           </div>
         </div>
 

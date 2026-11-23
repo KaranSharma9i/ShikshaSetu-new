@@ -1,12 +1,15 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database.types'
 import { getCurrentAcademicYear } from './academic'
+import { todayIST, todayISTRange } from '@/utils/date'
 
 export interface DashboardMetrics {
   totalStudents: number
   totalTeachers: number
   feesCollectedToday: number
-  attendanceRate: number
+  /** Today's student attendance %, or null when no attendance has been marked today. */
+  attendanceRate: number | null
+  attendanceMarkedToday: number
   recentPayments: Array<{
     id: string
     amount_paid: number
@@ -27,10 +30,9 @@ export async function getDashboardMetrics(
   supabase: SupabaseClient<Database>,
   institutionId: string
 ): Promise<DashboardMetrics> {
-  const now = new Date()
-  const todayStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0))
-  const todayEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999))
-  const todayDateStr = now.toISOString().split('T')[0]
+  // Institutions operate in IST; the server (Vercel) runs in UTC.
+  const todayRange = todayISTRange()
+  const todayDateStr = todayIST()
 
   try {
     // 1. Total Students Count
@@ -59,57 +61,43 @@ export async function getDashboardMetrics(
         )
       `)
       .eq('student.institution_id', institutionId)
-      .gte('payment_date', todayStart.toISOString())
-      .lte('payment_date', todayEnd.toISOString())) as any
+      .gte('payment_date', todayRange.start)
+      .lte('payment_date', todayRange.end)) as any
 
     if (paymentsError) throw paymentsError
     const feesCollectedToday = (paymentsToday || []).reduce((acc: number, curr: any) => acc + Number(curr.amount_paid), 0)
 
     // 4. Attendance Rate (Today's percentage or fallback to last 2000 overall if today has no records)
-    let attendanceRate = 0
+    // Rows are stored per student per subject, so collapse to one status per student
+    // (present if they attended any period). Paginated past the 1000-row API cap.
+    let attendanceRate: number | null = null
+    let attendanceMarkedToday = 0
     const academicYear = (await getCurrentAcademicYear(supabase, institutionId)) as any
-    
+
     if (academicYear) {
-      const { data: attendanceData, error: attErr } = (await supabase
-        .from('student_attendance')
-        .select(`
-          status,
-          student:students!inner (
-            institution_id
-          )
-        `)
-        .eq('student.institution_id', institutionId)
-        .eq('academic_year_id', academicYear.id)
-        .eq('date', todayDateStr)) as any
-
-      if (attErr) throw attErr
-
-      if (attendanceData && attendanceData.length > 0) {
-        const presentCount = attendanceData.filter((a: any) => a.status === 'present' || a.status === 'late').length
-        attendanceRate = Math.round((presentCount / attendanceData.length) * 100)
-      } else {
-        // Fallback: overall attendance rate in this academic year
-        const { data: overallAttendance, error: overallAttErr } = (await supabase
+      const statusByStudent = new Map<string, boolean>()
+      for (let from = 0; ; from += 1000) {
+        const { data: page, error: attErr } = (await (supabase as any)
           .from('student_attendance')
-          .select(`
-            status,
-            student:students!inner (
-              institution_id
-            )
-          `)
+          .select('student_id, status, student:students!inner(institution_id)')
           .eq('student.institution_id', institutionId)
-          .eq('academic_year_id', academicYear.id)
-          .limit(2000)) as any
-
-        if (!overallAttErr && overallAttendance && overallAttendance.length > 0) {
-          const presentCount = overallAttendance.filter((a: any) => a.status === 'present' || a.status === 'late').length
-          attendanceRate = Math.round((presentCount / overallAttendance.length) * 100)
-        } else {
-          attendanceRate = 92 // default fallback for visual layout testing
-        }
+          .eq('date', todayDateStr)
+          .is('deleted_at', null)
+          .order('id', { ascending: true })
+          .range(from, from + 999)) as any
+        if (attErr) throw attErr
+        ;(page || []).forEach((a: any) => {
+          if (a.status === 'holiday' || a.status === 'excused') return
+          const attended = a.status === 'present' || a.status === 'late'
+          statusByStudent.set(a.student_id, (statusByStudent.get(a.student_id) || false) || attended)
+        })
+        if (!page || page.length < 1000) break
       }
-    } else {
-      attendanceRate = 92
+      attendanceMarkedToday = statusByStudent.size
+      if (statusByStudent.size > 0) {
+        const present = Array.from(statusByStudent.values()).filter(Boolean).length
+        attendanceRate = Math.round((present / statusByStudent.size) * 100)
+      }
     }
 
     // 5. Recent Payments List (limit: 5)
@@ -180,6 +168,7 @@ export async function getDashboardMetrics(
       totalTeachers: teachersCount || 0,
       feesCollectedToday,
       attendanceRate,
+      attendanceMarkedToday,
       recentPayments,
       recentCirculars,
     }
@@ -190,7 +179,8 @@ export async function getDashboardMetrics(
       totalStudents: 0,
       totalTeachers: 0,
       feesCollectedToday: 0,
-      attendanceRate: 0,
+      attendanceRate: null,
+      attendanceMarkedToday: 0,
       recentPayments: [],
       recentCirculars: [],
     }

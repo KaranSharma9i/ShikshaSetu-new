@@ -125,6 +125,23 @@ export default function TimetableForm({
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   // Fetch timetable and subjects when Section or Year changes
+  // Pre-fill defaults for the initial period when first loading or resetting
+  const resetForm = () => {
+    setEditingId(null)
+    setFormDay('monday')
+    setFormPeriod(1)
+    if (classSubjects.length > 0) {
+      setFormClassSubjectId(classSubjects[0].id)
+    } else {
+      setFormClassSubjectId('')
+    }
+    setFormRoom('')
+    const defaults = getDefaultTimesForPeriod(1)
+    setFormStartsAt(defaults.startsAt)
+    setFormEndsAt(defaults.endsAt)
+    setErrorMsg(null)
+  }
+
   useEffect(() => {
     if (!selectedSectionId || !selectedYearId) return
 
@@ -170,23 +187,6 @@ export default function TimetableForm({
     const defaults = getDefaultTimesForPeriod(periodNum)
     setFormStartsAt(defaults.startsAt)
     setFormEndsAt(defaults.endsAt)
-  }
-
-  // Pre-fill defaults for the initial period when first loading or resetting
-  const resetForm = () => {
-    setEditingId(null)
-    setFormDay('monday')
-    setFormPeriod(1)
-    if (classSubjects.length > 0) {
-      setFormClassSubjectId(classSubjects[0].id)
-    } else {
-      setFormClassSubjectId('')
-    }
-    setFormRoom('')
-    const defaults = getDefaultTimesForPeriod(1)
-    setFormStartsAt(defaults.startsAt)
-    setFormEndsAt(defaults.endsAt)
-    setErrorMsg(null)
   }
 
   // Handle cell click in weekly grid

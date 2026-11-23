@@ -194,7 +194,7 @@ export default function PromotionHistoryTable({ initialBatches }: PromotionHisto
                 <strong>{formatDate(confirmBatch.performedAt)}</strong>?
               </p>
               <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-3 text-red-700">
-                <strong>Warning:</strong> This will reactivate the students' previous enrollments, delete their new target enrollments, and remove associated elective selections for this academic year transition (<strong>{confirmBatch.fromYearLabel} &rarr; {confirmBatch.toYearLabel}</strong>).
+                <strong>Warning:</strong> This will reactivate the students&apos; previous enrollments, delete their new target enrollments, and remove associated elective selections for this academic year transition (<strong>{confirmBatch.fromYearLabel} &rarr; {confirmBatch.toYearLabel}</strong>).
               </div>
               <p>
                 This operation is atomic and irreversible. It will be blocked if any student has attendance records or exam marks registered in their new class.

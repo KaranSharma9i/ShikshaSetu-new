@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getReportCardData } from '@/lib/repositories/results'
 import { getEnrollmentsForSectionMove } from '@/lib/repositories/student'
-import puppeteer from 'puppeteer'
+import { esc, renderPdfResponse } from '@/lib/pdf/renderPdf'
 
 export async function GET(request: NextRequest) {
   try {
@@ -187,24 +187,24 @@ export async function GET(request: NextRequest) {
       <div class="flex justify-between items-center border-b border-light-gray/60 pb-5">
         <div class="flex items-center gap-4">
           ${instData?.logo_url ? `
-            <img src="${instData.logo_url}" class="w-16 h-16 object-contain rounded-2xl border border-primary/20 p-1 shadow-sm" alt="Logo" />
+            <img src="${esc(instData.logo_url)}" class="w-16 h-16 object-contain rounded-2xl border border-primary/20 p-1 shadow-sm" alt="Logo" />
           ` : `
             <div class="w-16 h-16 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center text-primary font-bold text-xl font-heading shadow-sm">
-              ${instData?.name ? instData.name.split(' ').map((w: string) => w[0]).join('').slice(0, 3) : 'SS'}
+              ${esc(instData?.name ? instData.name.split(' ').map((w: string) => w[0]).join('').slice(0, 3) : '')}
             </div>
           `}
           <div>
-            <h2 class="text-2xl font-black text-primary tracking-tight font-heading leading-tight">${instData?.name || 'GURUKUL SHIKSHALAYA'}</h2>
-            <p class="text-[11px] text-steel-gray font-caption tracking-wider uppercase font-semibold mt-0.5">${instData?.tagline || 'Sow the seeds of character, reap a harvest of wisdom'}</p>
-            <p class="text-[10px] text-steel-gray/80 font-caption">${instData?.address || 'Main Campus, Sector 12, Dwarka, New Delhi'}</p>
+            <h2 class="text-2xl font-black text-primary tracking-tight font-heading leading-tight">${esc(instData?.name || '')}</h2>
+            <p class="text-[11px] text-steel-gray font-caption tracking-wider uppercase font-semibold mt-0.5">${esc(instData?.tagline || '')}</p>
+            <p class="text-[10px] text-steel-gray/80 font-caption">${esc(instData?.address || '')}</p>
           </div>
         </div>
         <div class="text-right">
           <span class="inline-block px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg font-caption uppercase tracking-wider">
             REPORT CARD
           </span>
-          <p class="text-xs text-charcoal font-bold mt-2 font-heading">${termName}</p>
-          <p class="text-[10px] text-steel-gray font-caption">Session: ${academicYearLabel}</p>
+          <p class="text-xs text-charcoal font-bold mt-2 font-heading">${esc(termName)}</p>
+          <p class="text-[10px] text-steel-gray font-caption">Session: ${esc(academicYearLabel)}</p>
         </div>
       </div>
 
@@ -212,19 +212,19 @@ export async function GET(request: NextRequest) {
       <div class="bg-cream/10 border border-light-gray/40 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
         <div>
           <p class="text-[10px] text-steel-gray uppercase font-semibold tracking-wider font-caption">Student Name</p>
-          <p class="font-bold text-charcoal mt-1 text-sm">${rc.student.full_name}</p>
+          <p class="font-bold text-charcoal mt-1 text-sm">${esc(rc.student.full_name)}</p>
         </div>
         <div>
           <p class="text-[10px] text-steel-gray uppercase font-semibold tracking-wider font-caption">Roll Number</p>
-          <p class="font-semibold text-charcoal mt-1">${rc.student.roll_number || '—'}</p>
+          <p class="font-semibold text-charcoal mt-1">${esc(rc.student.roll_number || '—')}</p>
         </div>
         <div>
           <p class="text-[10px] text-steel-gray uppercase font-semibold tracking-wider font-caption">Class & Section</p>
-          <p class="font-semibold text-charcoal mt-1">${rc.student.class_name} - ${rc.student.section_name}</p>
+          <p class="font-semibold text-charcoal mt-1">${esc(rc.student.class_name)} - ${esc(rc.student.section_name)}</p>
         </div>
         <div>
           <p class="text-[10px] text-steel-gray uppercase font-semibold tracking-wider font-caption">Student Code</p>
-          <p class="font-semibold text-charcoal mt-1 font-mono">${rc.student.student_code}</p>
+          <p class="font-semibold text-charcoal mt-1 font-mono">${esc(rc.student.student_code)}</p>
         </div>
       </div>
 
@@ -248,9 +248,9 @@ export async function GET(request: NextRequest) {
             <tbody class="divide-y divide-light-gray/40 text-charcoal">
               ${coreSubjects.length > 0 ? coreSubjects.map((sub: any) => `
                 <tr class="hover:bg-cream/5 transition-colors">
-                  <td class="px-4 py-2.5 font-semibold">${sub.subject_name}</td>
-                  <td class="px-4 py-2.5 font-mono">${sub.subject_code || '—'}</td>
-                  <td class="px-4 py-2.5 text-steel-gray">${sub.exam_name || '—'}</td>
+                  <td class="px-4 py-2.5 font-semibold">${esc(sub.subject_name)}</td>
+                  <td class="px-4 py-2.5 font-mono">${esc(sub.subject_code || '—')}</td>
+                  <td class="px-4 py-2.5 text-steel-gray">${esc(sub.exam_name || '—')}</td>
                   <td class="px-4 py-2.5 text-center font-semibold">${sub.total_marks ?? '—'}</td>
                   <td class="px-4 py-2.5 text-center text-steel-gray">${sub.passing_marks ?? '—'}</td>
                   <td class="px-4 py-2.5 text-center font-bold">
@@ -258,7 +258,7 @@ export async function GET(request: NextRequest) {
                   </td>
                   <td class="px-4 py-2.5 text-center">
                     <span class="inline-block px-1.5 py-0.5 rounded font-mono font-bold ${sub.grade === 'F' ? 'text-red-600 bg-red-50' : 'text-charcoal'}">
-                      ${sub.grade || '—'}
+                      ${esc(sub.grade || '—')}
                     </span>
                   </td>
                   <td class="px-4 py-2.5 text-center">
@@ -299,9 +299,9 @@ export async function GET(request: NextRequest) {
               <tbody class="divide-y divide-light-gray/40 text-charcoal">
                 ${electiveSubjects.map((sub: any) => `
                   <tr class="hover:bg-cream/5 transition-colors">
-                    <td class="px-4 py-2.5 font-semibold">${sub.subject_name}</td>
-                    <td class="px-4 py-2.5 font-mono">${sub.subject_code || '—'}</td>
-                    <td class="px-4 py-2.5 text-steel-gray">${sub.exam_name || '—'}</td>
+                    <td class="px-4 py-2.5 font-semibold">${esc(sub.subject_name)}</td>
+                    <td class="px-4 py-2.5 font-mono">${esc(sub.subject_code || '—')}</td>
+                    <td class="px-4 py-2.5 text-steel-gray">${esc(sub.exam_name || '—')}</td>
                     <td class="px-4 py-2.5 text-center font-semibold">${sub.total_marks ?? '—'}</td>
                     <td class="px-4 py-2.5 text-center text-steel-gray">${sub.passing_marks ?? '—'}</td>
                     <td class="px-4 py-2.5 text-center font-bold">
@@ -309,7 +309,7 @@ export async function GET(request: NextRequest) {
                     </td>
                     <td class="px-4 py-2.5 text-center">
                       <span class="inline-block px-1.5 py-0.5 rounded font-mono font-bold ${sub.grade === 'F' ? 'text-red-600 bg-red-50' : 'text-charcoal'}">
-                        ${sub.grade || '—'}
+                        ${esc(sub.grade || '—')}
                       </span>
                     </td>
                     <td class="px-4 py-2.5 text-center">
@@ -394,37 +394,12 @@ export async function GET(request: NextRequest) {
 </html>
     `
 
-    // 7. Render PDF using Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    })
-    const page = await browser.newPage()
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' as any })
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '10mm',
-        bottom: '10mm',
-        left: '10mm',
-        right: '10mm'
-      }
-    })
-    await browser.close()
-
-    // 8. Output PDF stream/buffer
-    const filename = studentId 
+    // 7. Render PDF (falls back to a print-ready HTML page on serverless hosts without Chromium)
+    const filename = studentId
       ? `report-card-${reportCards[0].student.full_name.replace(/\s+/g, '_')}-${termName.replace(/\s+/g, '_')}.pdf`
-      : `report-cards-section-${sectionId}-${termName.replace(/\s+/g, '_')}.pdf`
+      : `report-cards-section-${termName.replace(/\s+/g, '_')}.pdf`
 
-    return new NextResponse(pdfBuffer as any, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`
-      }
-    })
+    return await renderPdfResponse(htmlContent, filename)
 
   } catch (error: any) {
     console.error('Error generating PDF:', error)
